@@ -1,13 +1,14 @@
-const express = require('express');
+const express = require("express");
+const paymentRoutes = require("./routes/paymentRoutes");
+const userRoutes = require('./routes/userRoutes');
+const cors = require("cors");
+
 const app = express();
-const cors = require('cors');
-const userRouter = require('./routes/userRoutes');
-
+app.use(express.json());
 app.use(cors());
-app.use(express.json()); // Parse Json Request Body
 
-
-app.use('/',userRouter);
-
+// Register payment routes
+app.use("/api/payments", paymentRoutes);
+app.use("/",userRoutes);
 
 module.exports = app;
