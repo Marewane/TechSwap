@@ -1,8 +1,8 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
+const homeRouter = require('./routes/home')
 const userRouter = require('./routes/userRoutes');
-const passport = require('passport');
 
 require('./auth/google/auth')
 
@@ -13,13 +13,14 @@ app.get('/',(req,res)=>{
     res.send("<a href='/auth/google'>authentification</a>")
 })
 
-app.get('/auth/google',
-    passport.authenticate('google',{scope:['email','profile']})
-)
+app.get('/auth/google',(req,res)=>{
+    res.send("connected seccssessfuly");
+})
 
 app.get('/protected',(req,res)=>{
     res.send("hello");
 })
+app.use('/homeTest',homeRouter);
 app.use('/',userRouter);
 
 
