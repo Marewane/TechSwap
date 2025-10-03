@@ -8,14 +8,11 @@ const getUsers = async (req,res)=>{
 }
 
 const addUser = async (req,res)=>{
-    const {name,email} = req.body;
-    const user = await User.create({name,email});
+    const user = req.body;
+    const newUser = await User.create(user);
     res.json({
         message:'user has been successfuly added',
-        user:{
-            name,
-            email
-        }
+        user
     })
 }
 

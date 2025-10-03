@@ -1,7 +1,6 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const homeRouter = require('./routes/home')
 const userRouter = require('./routes/userRoutes');
 const passport = require('passport');
 
@@ -21,7 +20,6 @@ app.get('/auth/google',
 app.get('/protected',(req,res)=>{
     res.send("hello");
 })
-app.use('/homeTest',homeRouter);
 app.use('/',userRouter);
 
 
