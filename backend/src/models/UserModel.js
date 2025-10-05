@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-
+const bcrypt = require('bcrypt'); //bcrypt library, which is used for hashing passwords.
 
 const userSchema = new mongoose.Schema({
     name:{
@@ -18,6 +18,11 @@ const userSchema = new mongoose.Schema({
         required:[true,'Password is required'],
         minlength:[6,'Password must be at least 6 characters'],
         select:false, // hide by default when querying
+    },
+    role:{
+        type:String,
+        enum:['user','admin'],
+        default:'user'
     },
     status:{
         type:String,
@@ -48,13 +53,49 @@ const userSchema = new mongoose.Schema({
         default:0
     },
     totalSession: {
-        type:Number
+        type:Number,
+        default:0 // starts at 0 for new users
     },
     lastLogin:{
         type:Date,
         default:null, // null until first login in
     }
 },{timestamps:true});
+//This is a Mongoose middleware that runs before saving a user to the database to securely hash the password.
+// pre-save middleware (new users and .save() updates)
+userSchema.pre('save', async function(next){
 
+    //Checks if the password has been changed.
+    //If the password is not modified, skip hashing (important so you don’t rehash an already hashed password when updating other fields).
+
+        //
+        if(!this.isModified('password')) return next(); // if they are no midification in  password just skip this middlware under 
+        try{
+            const salt = await bcrypt.genSalt(10);
+            this.password = await bcrypt.hash(this.password,salt)
+            next()
+
+        }catch(err){
+            next(err);
+        }
+})
+
+// pre-findOneAndUpdate middleware (updates via findOneAndUpdate)
+userSchema.pre('findOneAndUpdate', async function(next) {
+  const update = this.getUpdate();
+  if (update.password) {
+    try {
+      const salt = await bcrypt.genSalt(10);
+      update.password = await bcrypt.hash(update.password, salt);
+    } catch (err) {
+      return next(err);
+    }
+  }
+  next();
+});
+
+userSchema.methods.comparePassword = async function (candidatePassword){
+    return await bcrypt.compare(candidatePassword,this.password)
+}
 
 module.exports = mongoose.model('User',userSchema);
