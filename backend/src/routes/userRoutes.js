@@ -1,20 +1,12 @@
-// const express = require('express');
-// const router = express.Router();
-// const {getUsers,addUser} = require('../controllers/userController');
-
-// router.get('/users',getUsers);
-// router.post('/users',addUser);
-
-
-
-// module.exports = router;
-
-
 const express = require('express');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/authMiddleware');
+const {getUsers,addUser} = require('../controllers/userController');
 
-// 🛡️ PROTECTED ROUTE - GET USER PROFILE
+router.get('/users',getUsers);
+router.post('/users',addUser);
+
+// 🛡️ PROTECTED ROUTE - GET USER PROFILE i think it didnt work
 router.get('/profile', authMiddleware, async (req, res) => {
   try {
     // req.user is already set by authMiddleware

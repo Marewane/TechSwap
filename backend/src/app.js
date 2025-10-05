@@ -10,9 +10,13 @@ const authRoutes = require('./routes/auth');
 app.use(cors());
 app.use(express.json()); // Parse Json Request Body
 
+app.get('/',(req,res)=>{
+    res.send("<a href='/auth/google'>authentification</a>")
+})
 
 // Routes
 app.use('/api/auth', authRoutes);
+
 app.use('/',userRouter);
 
 
