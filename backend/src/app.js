@@ -2,14 +2,14 @@ const express = require("express");
 const paymentRoutes = require("./routes/paymentRoutes");
 const userRoutes = require('./routes/userRoutes');
 const adminRoute = require('./routes/adminRoutes');
+const userRouter = require('./routes/userRoutes');
+const authRoutes = require('./routes/auth');
 
 
 const app = express();
 const cors = require('cors');
 require('dotenv').config();
 
-const userRouter = require('./routes/userRoutes');
-const authRoutes = require('./routes/auth');
 
 // Middleware
 app.use(express.json());

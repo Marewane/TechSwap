@@ -1,120 +1,208 @@
 const User = require('../models/UserModel');
 const Review = require('../models/ReviewModel');
-const Report = require('../models/RaportModel');
+const Report = require('../models/RaportModel'); 
 const Session = require('../models/SessionModel');
 const Wallet = require('../models/WalletModel');
+const AdminActionLog = require("../models/AdminActionLogModel");
 
-// ------------User Management for Admin --------------
-// List all users 
+const logAdminAction = async ({ adminId, actionType, targetUserId, description }) => {
+    try {
+        await AdminActionLog.create({ adminId, actionType, targetUserId, description });
+    } catch (error) {
+        console.error("Failed to log admin action:", error.message);
+    }
+};
+
+// ------------ USER MANAGEMENT --------------
+
+// List all users
 exports.getAllUsers = async (req, res) => {
     try {
         const users = await User.find().select('-password'); // hide password
         res.json(users);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
-// update user role
+// Update user role
 exports.updateUserRole = async (req, res) => {
     try {
-        const { role } = req.body;
-        if (!['user', 'admin'].includes(role)) {
-            return res.status(400).json({ message: 'Invalid role' });
-        }
         const user = await User.findById(req.params.id);
-        if (!user) return res.status(404).json({ message: 'User not found' });
-        user.role = role;
+        if (!user)
+        return res.status(404).json({ success: false, message: 'User not found' });
+
+        const oldRole = user.role;
+        user.role = oldRole === 'user' ? 'admin' : 'user';
         await user.save();
-        res.json({ message: `User ${user.name} role updated to ${role}.` });
+
+        if (req.user) {
+        await logAdminAction({
+            adminId: req.user._id,
+            actionType: 'update',
+            targetUserId: user._id,
+            description: `Changed role from ${oldRole} to ${user.role}`
+        });
+        }
+
+        res.json({
+        success: true,
+        message: `User ${user.name} role changed from ${oldRole} to ${user.role}.`
+        });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
-// Suspend a user
+// Suspend user
 exports.suspendUser = async (req, res) => {
     try {
         const user = await User.findById(req.params.id);
-        if (!user) return res.status(404).json({ message: 'User not found' });
+        if (!user)
+        return res.status(404).json({ success: false, message: 'User not found' });
 
-        user.status = 'suspended';
+        user.isSuspended = true;
         await user.save();
 
-        res.json({ message: `User ${user.name} has been suspended.` });
+        if (req.user) {
+        await logAdminAction({
+            adminId: req.user._id,
+            actionType: 'ban',
+            targetUserId: user._id,
+            description: `Suspended user ${user.name}`
+        });
+        }
+
+        res.json({ success: true, message: `User ${user.name} has been suspended.` });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
-// unsuspend a user
+// Unsuspend user
 exports.unsuspendUser = async (req, res) => {
     try {
         const user = await User.findById(req.params.id);
-        if (!user) return res.status(404).json({ message: 'User not found' });
-        user.status = 'active';
+        if (!user)
+        return res.status(404).json({ success: false, message: 'User not found' });
+
+        user.isSuspended = false;
         await user.save();
-        res.json({ message: `User ${user.name} has been unsuspended.` });
+
+        if (req.user) {
+        await logAdminAction({
+            adminId: req.user._id,
+            actionType: 'unban',
+            targetUserId: user._id,
+            description: `Unsuspended user ${user.name}`
+        });
+        }
+
+        res.json({ success: true, message: `User ${user.name} has been unsuspended.` });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
-// remove user
+// Remove user
 exports.removeUser = async (req, res) => {
     try {
         const user = await User.findByIdAndDelete(req.params.id);
-        if (!user) return res.status(404).json({ message: 'User not found' });
-        res.json({ message: `User ${user.name} has been removed.` });
+        if (!user)
+        return res.status(404).json({ success: false, message: 'User not found' });
+
+        if (req.user) {
+        await logAdminAction({
+            adminId: req.user._id,
+            actionType: 'delete',
+            targetUserId: user._id,
+            description: `Deleted user ${user.name}`
+        });
+        }
+
+        res.json({ success: true, message: `User ${user.name} has been removed.` });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
-// ------------Review Moderation --------------
-//get all reviews
+// ------------ REVIEW MODERATION --------------
+
+// Get all reviews
 exports.getAllReviews = async (req, res) => {
     try {
-        const reviews = await Review.find().populate('reviewerId', 'name').populate('reviewedUserId', 'name');
+        const reviews = await Review.find()
+        .populate('reviewerId', 'name')
+        .populate('reviewedUserId', 'name');
         res.json(reviews);
-    } catch (err) {
-        res.status(500).json({ msg: err.message });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
+
 // Delete a review
 exports.deleteReview = async (req, res) => {
     try {
-        await Review.findByIdAndDelete(req.params.id);
-        res.json({ msg: "Review deleted" });
-    } catch (err) {
-        res.status(500).json({ msg: err.message });
+        const review = await Review.findByIdAndDelete(req.params.id);
+        if (!review)
+        return res.status(404).json({ success: false, message: 'Review not found' });
+
+        if (req.user) {
+        await logAdminAction({
+            adminId: req.user._id,
+            actionType: 'delete',
+            targetUserId: review.reviewedUserId,
+            description: `Deleted review ${review._id}`
+        });
+        }
+
+        res.json({ success: true, message: 'Review deleted' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
-// ------------Session Oversight--------------
-// get all sessions
+// ------------ SESSION OVERSIGHT --------------
+
+// Get all sessions
 exports.getAllSessions = async (req, res) => {
     try {
         const sessions = await Session.find()
-            .populate('tutorId', 'name')
-            .populate('learnerId', 'name');
+        .populate('tutorId', 'name')
+        .populate('learnerId', 'name');
         res.json(sessions);
-    } catch (err) {
-        res.status(500).json({ msg: err.message });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
-};
+    };
 
 // Cancel a session
 exports.cancelSession = async (req, res) => {
     try {
-        await Session.findByIdAndUpdate(req.params.id, { status: "cancelled" });
-        res.json({ msg: "Session cancelled" });
-    } catch (err) {
-        res.status(500).json({ msg: err.message });
+        const session = await Session.findByIdAndUpdate(
+        req.params.id,
+        { status: 'cancelled' },
+        { new: true }
+        );
+        if (!session)
+        return res.status(404).json({ success: false, message: 'Session not found' });
+
+        if (req.user) {
+        await logAdminAction({
+            adminId: req.user._id,
+            actionType: 'update',
+            targetUserId: session.learnerId,
+            description: `Cancelled session ${session._id}`
+        });
+        }
+
+        res.json({ success: true, message: 'Session cancelled' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
-// ------------Analytics--------------
+// ------------ ANALYTICS --------------
 exports.getReports = async (req, res) => {
     try {
         const totalUsers = await User.countDocuments();
@@ -126,12 +214,13 @@ exports.getReports = async (req, res) => {
         ]);
 
         res.json({
+        success: true,
         totalUsers,
         totalSessions,
         totalReviews,
         totalRevenue: totalRevenue[0]?.sum || 0,
         });
-    } catch (err) {
-        res.status(500).json({ msg: err.message });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };

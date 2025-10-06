@@ -37,11 +37,6 @@ const userSchema = new mongoose.Schema(
         type: String,
         default: "https://i.pravatar.cc/150?img=4",
     },
-    role: {
-        type: String,
-        enum: ['user', 'admin'],
-        default: 'user'
-    },
     bio: {
         type: String,
         maxlength: [500, "bio cannot be longer than 500 characters"],
