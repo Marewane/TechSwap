@@ -1,5 +1,10 @@
-const express = require('express');
+const express = require("express");
+const paymentRoutes = require("./routes/paymentRoutes");
+const userRoutes = require('./routes/userRoutes');
+const cors = require("cors");
+
 const app = express();
+<<<<<<< HEAD
 const cors = require('cors');
 require('dotenv').config();
 
@@ -7,9 +12,12 @@ const userRouter = require('./routes/userRoutes');
 const authRoutes = require('./routes/auth');
 
 // Middleware
+=======
+app.use(express.json());
+>>>>>>> e6e3e707707eef7a61c72a18ee523d765d54217c
 app.use(cors());
-app.use(express.json()); // Parse Json Request Body
 
+<<<<<<< HEAD
 app.get('/',(req,res)=>{
     res.send("<a href='/auth/google'>authentification</a>")
 })
@@ -50,3 +58,10 @@ app.use((error, req, res, next) => {
 
 
 module.exports = app;
+=======
+// Register payment routes
+app.use("/api/payments", paymentRoutes);
+app.use("/",userRoutes);
+
+module.exports = app;
+>>>>>>> e6e3e707707eef7a61c72a18ee523d765d54217c
