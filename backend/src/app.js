@@ -2,9 +2,7 @@ const express = require("express");
 const paymentRoutes = require("./routes/paymentRoutes");
 const userRoutes = require('./routes/userRoutes');
 const adminRoute = require('./routes/adminRoutes');
-const userRouter = require('./routes/userRoutes');
-const authRoutes = require('./routes/auth');
-const cors = require("cors");
+
 
 const app = express();
 const cors = require('cors');
@@ -38,27 +36,27 @@ app.get('/api/health', (req, res) => {
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
-  });
+    res.status(404).json({
+        success: false,
+        message: 'Route not found'
+    });
 });
 
 
 
 // Error handling middleware
 app.use((error, req, res, next) => {
-  console.error('Server error:', error);
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error'
-  });
+    console.error('Server error:', error);
+    res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+    });
 });
 
 
 // Register payment routes
 app.use("/api/payments", paymentRoutes);
 app.use('/',userRoutes);
-app.use('/admin',adminRouter);
+app.use('/admin',adminRoute);
 
 module.exports = app;

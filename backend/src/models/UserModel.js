@@ -70,7 +70,7 @@ const userSchema = new mongoose.Schema(
         default:null, // null until first login in
     }
 },{timestamps:true});
-/This is a Mongoose middleware that runs before saving a user to the database to securely hash the password.
+//This is a Mongoose middleware that runs before saving a user to the database to securely hash the password.
 // pre-save middleware (new users and .save() updates)
 userSchema.pre('save', async function(next){
 
@@ -91,16 +91,16 @@ userSchema.pre('save', async function(next){
 
 // pre-findOneAndUpdate middleware (updates via findOneAndUpdate)
 userSchema.pre('findOneAndUpdate', async function(next) {
-  const update = this.getUpdate();
-  if (update.password) {
-    try {
-      const salt = await bcrypt.genSalt(10);
-      update.password = await bcrypt.hash(update.password, salt);
-    } catch (err) {
-      return next(err);
+    const update = this.getUpdate();
+    if (update.password) {
+        try {
+        const salt = await bcrypt.genSalt(10);
+        update.password = await bcrypt.hash(update.password, salt);
+        } catch (err) {
+        return next(err);
+        }
     }
-  }
-  next();
+    next();
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword){
