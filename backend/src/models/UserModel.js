@@ -24,10 +24,10 @@ const userSchema = new mongoose.Schema({
         enum:['user','admin'],
         default:'user'
     },
-    status:{
-        type:String,
-        enum:['verified','not verified'],
-        default:'not verified'
+    status: {
+        type: String,
+        enum: ["active", "suspended"],
+        default: "active",
     },
     avatar:{
         type:String,

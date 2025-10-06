@@ -1,52 +1,35 @@
-const express = require('express');
-const app = express();
+const express = require("express");
 const cors = require('cors');
 require('dotenv').config();
 
-const userRouter = require('./routes/userRoutes');
-const authRoutes = require('./routes/auth');
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
 
-// Middleware
+// Import middlewares
+const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
+
+const app = express();
+
+// Middlewares
 app.use(cors());
-app.use(express.json()); // Parse Json Request Body
-
-app.get('/',(req,res)=>{
-    res.send("<a href='/auth/google'>authentification</a>")
-})
+app.use(express.json()); // Add this for JSON parsing
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 
-app.use('/',userRouter);
-
-
-// Basic health check
+// Health check
 app.get('/api/health', (req, res) => {
-    res.json({ 
-        success: true, 
-        message: 'TechSwap API is running!',
-        timestamp: new Date().toISOString()
-    });
-});
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
+  res.json({ 
+    success: true, 
+    message: 'TechSwap API is running!',
+    timestamp: new Date().toISOString()
   });
 });
 
-
-
-// Error handling middleware
-app.use((error, req, res, next) => {
-  console.error('Server error:', error);
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error'
-  });
-});
-
+// Error handling middlewares (LAST)
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;
