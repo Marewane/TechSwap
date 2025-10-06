@@ -1,32 +1,25 @@
 const express = require("express");
-const paymentRoutes = require("./routes/paymentRoutes");
-const userRoutes = require('./routes/userRoutes');
-const cors = require("cors");
-
-const app = express();
-<<<<<<< HEAD
 const cors = require('cors');
 require('dotenv').config();
 
-const userRouter = require('./routes/userRoutes');
+// Import routes
 const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/userRoutes');
+const paymentRoutes = require("./routes/paymentRoutes");
 
-// Middleware
-=======
-app.use(express.json());
->>>>>>> e6e3e707707eef7a61c72a18ee523d765d54217c
+// Import middlewares
+const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
+
+const app = express();
+
+// Middlewares
 app.use(cors());
-
-<<<<<<< HEAD
-app.get('/',(req,res)=>{
-    res.send("<a href='/auth/google'>authentification</a>")
-})
+app.use(express.json()); // Add this for JSON parsing
 
 // Routes
 app.use('/api/auth', authRoutes);
-
-app.use('/',userRouter);
-
+app.use('/api/users', userRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Basic health check
 app.get('/api/health', (req, res) => {
@@ -37,31 +30,8 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
-  });
-});
-
-
-
-// Error handling middleware
-app.use((error, req, res, next) => {
-  console.error('Server error:', error);
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error'
-  });
-});
-
+// Error handling middlewares (LAST)
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;
-=======
-// Register payment routes
-app.use("/api/payments", paymentRoutes);
-app.use("/",userRoutes);
-
-module.exports = app;
->>>>>>> e6e3e707707eef7a61c72a18ee523d765d54217c
