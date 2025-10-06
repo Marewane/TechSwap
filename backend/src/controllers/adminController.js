@@ -1,10 +1,8 @@
 const User = require('../models/UserModel');
 const Review = require('../models/ReviewModel');
-const Report = require('../models/ReportModel');
+const Report = require('../models/RaportModel');
 const Session = require('../models/SessionModel');
-
-
-
+const Wallet = require('../models/WalletModel');
 
 // ------------User Management for Admin --------------
 // List all users 
@@ -12,6 +10,23 @@ exports.getAllUsers = async (req, res) => {
     try {
         const users = await User.find().select('-password'); // hide password
         res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// update user role
+exports.updateUserRole = async (req, res) => {
+    try {
+        const { role } = req.body;
+        if (!['user', 'admin'].includes(role)) {
+            return res.status(400).json({ message: 'Invalid role' });
+        }
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        user.role = role;
+        await user.save();
+        res.json({ message: `User ${user.name} role updated to ${role}.` });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
