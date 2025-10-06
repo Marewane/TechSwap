@@ -1,15 +1,26 @@
-const dotenv =  require('dotenv');
-const connectDB = require('./config/db');
+// server.js
+const mongoose = require('mongoose');
+const app = require('./app'); // imports the express app from app.js
 
+// ---  MongoDB connection string ---
+const mongoURI = 'mongodb://127.0.0.1:27017/skillswapDB';
+// If you're using MongoDB Atlas, replace with your connection string, like:
+// const mongoURI = 'mongodb+srv://<username>:<password>@cluster0.mongodb.net/skillswapDB';
 
-
-dotenv.config();
-connectDB();
-
-const app = require('./app');
-app.listen(process.env.PORT,()=>{
-    console.log('app start listening on port ', process.env.PORT);
-    
+// ---  Connect to MongoDB ---
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
 })
+  .then(() => {
+    console.log(' Connected to MongoDB');
 
-
+    // ---  Start Express server after DB connection ---
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+      console.log(`🚀 Server is running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Failed to connect to MongoDB:', err.message);
+  });
