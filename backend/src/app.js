@@ -1,5 +1,4 @@
 const express = require("express");
-
 const cors = require('cors');
 require('dotenv').config();
 const passport = require('./config/passportConfig'); 
@@ -25,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use('/admin',adminRoute);
+app.use(passport.initialize()); // Add this line
 
 
 // Basic health check
