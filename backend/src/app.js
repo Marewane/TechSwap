@@ -10,12 +10,24 @@ const userRoutes = require('./routes/userRoutes');
 const paymentRoutes = require("./routes/paymentRoutes");
 const adminRoute = require('./routes/adminRoutes');
 
+
 // Import middlewares
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
 
 // Middlewares
+const webHookRouters = require("./routes/webhooksRouter");
+const cors = require("cors");
+
+const webHookRouters = require("./routes/webhooksRouter");
+const cors = require("cors");
+
+// we use this above of express.json to not convert it to json because the data should be as it is came from stripe for checking signature
+app.use('/api/stripe',webHookRouters);
+
+
+app.use(express.json());
 app.use(cors());
 app.use(express.json()); // Add this for JSON parsing
 
