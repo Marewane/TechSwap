@@ -1,7 +1,7 @@
 const Session = require('../models/SessionModel');
 
 /**
- * Create a new session
+ * Create a new session (with availability check)
  */
 const createSession = async (req, res) => {
   try {
@@ -12,7 +12,19 @@ const createSession = async (req, res) => {
       return res.status(400).json({ error: 'hostId, learnerId, scheduledTime and duration are required' });
     }
 
-    // create a session document
+    const start = new Date(scheduledTime);
+    const end = new Date(start.getTime() + duration * 60000);
+    const participantIds = [hostId, learnerId];
+
+    // ✅ check for overlapping sessions
+    const conflicts = await findConflicts(participantIds, start, end);
+    if (conflicts.length > 0) {
+      return res.status(409).json({
+        error: 'Time slot conflict for one of the participants',
+        conflicts
+      });
+    }
+
     const newSession = await Session.create({
       hostId,
       learnerId,
@@ -24,11 +36,41 @@ const createSession = async (req, res) => {
       cost
     });
 
-    res.status(201).json({ message: 'Session created', data: newSession });
+    res.status(201).json({ message: 'Session created successfully', data: newSession });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
+/**
+ * Helper: check overlap between two intervals
+ */
+function isOverlapping(startA, endA, startB, endB) {
+  return startA < endB && startB < endA;
+}
+
+/**
+ * Find existing sessions for the same host or learner
+ */
+async function findConflicts(participantIds, start, end, excludeSessionId = null) {
+  const query = {
+    $or: [
+      { hostId: { $in: participantIds } },
+      { learnerId: { $in: participantIds } }
+    ],
+    status: { $in: ['scheduled', 'in-progress'] } // only check active sessions
+  };
+
+  if (excludeSessionId) query._id = { $ne: excludeSessionId };
+
+  const sessions = await Session.find(query).lean();
+
+  return sessions.filter(s => {
+    const sStart = new Date(s.scheduledTime);
+    const sEnd = new Date(sStart.getTime() + (s.duration || 0) * 60000);
+    return isOverlapping(sStart, sEnd, start, end);
+  });
+}
 
 const getMySessions = async (req, res) => {
   try {
@@ -47,19 +89,24 @@ const getMySessions = async (req, res) => {
 
 const updateSession = async (req, res) => {
   try {
-    const sessionId = req.params.id; // get the session ID from the URL
-    const updates = req.body;         // fields to update
+    const sessionId = req.params.id;
+    const updates = req.body;
 
-    // Find the session
     const session = await Session.findById(sessionId);
-    if (!session) {
-      return res.status(404).json({ error: 'Session not found' });
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+
+    // Determine new start/end for availability check
+    const newStart = updates.scheduledTime ? new Date(updates.scheduledTime) : new Date(session.scheduledTime);
+    const newDuration = (updates.duration !== undefined) ? updates.duration : session.duration;
+    const newEnd = new Date(newStart.getTime() + newDuration * 60000);
+
+    const participantIds = [session.hostId.toString(), session.learnerId.toString()];
+    const conflicts = await findConflicts(participantIds, newStart, newEnd, sessionId);
+    if (conflicts.length > 0) {
+      return res.status(409).json({ error: 'Time slot conflict for one of the participants', conflicts });
     }
 
-    // Apply updates
     Object.assign(session, updates);
-
-    // Save changes
     await session.save();
 
     return res.json({ message: 'Session updated successfully', data: session });
@@ -68,5 +115,21 @@ const updateSession = async (req, res) => {
   }
 };
 
+const getSessionById = async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    return res.json({ data: session });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
 
-module.exports = { createSession , getMySessions, updateSession };
+module.exports = {
+  createSession,
+  getMySessions,
+  updateSession,
+  getSessionById
+};

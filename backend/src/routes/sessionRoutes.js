@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createSession, getMySessions, updateSession } = require('../controllers/sessionController');
+const { createSession, getMySessions, updateSession, getSessionById } = require('../controllers/sessionController');
 
 // POST /sessions/create
 router.post('/create', createSession);
@@ -11,5 +11,7 @@ router.get('/my', getMySessions);
 // PUT /sessions/update/:id
 router.put('/update/:id', updateSession);
 
+// GET /sessions/:id
+router.get('/:id', getSessionById);
 
 module.exports = router;
