@@ -20,15 +20,6 @@ const app = express();
 // ⚙️ Stripe webhook route — must be before express.json
 app.use("/api/stripe", webHookRouters);
 
-<<<<<<< HEAD
-=======
-
-// we use this above of express.json to not convert it to json because the data should be as it is came from stripe for checking signature
-app.use('/api/stripe',webHookRouters);
-
-
-app.use(express.json());
->>>>>>> 9e29cf2683017a24320a81b1b9361e58a38ec964
 app.use(cors());
 app.use(express.json());
 app.use(passport.initialize()); // Enable passport
