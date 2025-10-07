@@ -18,6 +18,9 @@ const app = express();
 const webHookRouters = require("./routes/webhooksRouter");
 const cors = require("cors");
 
+const webHookRouters = require("./routes/webhooksRouter");
+const cors = require("cors");
+
 // we use this above of express.json to not convert it to json because the data should be as it is came from stripe for checking signature
 app.use('/api/stripe',webHookRouters);
 
