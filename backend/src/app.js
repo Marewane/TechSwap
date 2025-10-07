@@ -1,4 +1,5 @@
 const express = require("express");
+
 const cors = require('cors');
 require('dotenv').config();
 const passport = require('./config/passportConfig'); 
@@ -7,6 +8,8 @@ const passport = require('./config/passportConfig');
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const paymentRoutes = require("./routes/paymentRoutes");
+const adminRoute = require('./routes/adminRoutes');
 
 // Import middlewares
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
@@ -19,8 +22,9 @@ app.use(express.json()); // Add this for JSON parsing
 
 // Routes
 app.use('/api/auth', authRoutes);
-
-app.use('/',userRouter);
+app.use('/api/users', userRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use('/admin',adminRoute);
 
 
 // Basic health check

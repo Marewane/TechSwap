@@ -1,23 +1,27 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt'); //bcrypt library, which is used for hashing passwords.
 
-const userSchema = new mongoose.Schema({
-    name:{
-        type:String,
-        required:[true,'Name is required'],
-        minlength:[3,'Name must be at least 3 characters']
+
+const userSchema = new mongoose.Schema(
+    {
+    name: {
+        type: String,
+        required: [true, "Name is required"],
+        minlength: [3, "Name must be at least 3 characters"],
     },
-    email:{
-        type:String,
-        unique:true,
-        required:[true,'Email is required'],
-        match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, "Email is invalid"]
+    email: {
+        type: String,
+        unique: true,
+        required: [true, "Email is required"],
+        match: [
+            /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+            "Email is invalid",
+        ],
     },
-    password:{
-        type:String,
-        required:[true,'Password is required'],
-        minlength:[6,'Password must be at least 6 characters'],
-        select:false, // hide by default when querying
+    password: {
+        type: String,
+        required: [true, "Password is required"],
+        minlength: [6, "Password must be at least 6 characters"],
+        select: false, // hide by default when querying
     },
     role:{
         type:String,
@@ -29,28 +33,28 @@ const userSchema = new mongoose.Schema({
         enum: ["active", "suspended"],
         default: "active",
     },
-    avatar:{
-        type:String,
-        default:'https://i.pravatar.cc/150?img=4'
+    avatar: {
+        type: String,
+        default: "https://i.pravatar.cc/150?img=4",
     },
-    bio:{
-        type:String,
-        maxlength:[500,'bio cannot be longer than 500 characters'],
-        default:''
+    bio: {
+        type: String,
+        maxlength: [500, "bio cannot be longer than 500 characters"],
+        default: "",
     },
     skillsToLearn: {
-        type: [String],       // array of strings
-        default: [],          // empty array if no skills yet
+      type: [String], // array of strings
+      default: [], // empty array if no skills yet
     },
     skillsToTeach: {
         type: [String],
         default: [],
     },
     rating: {
-        type:Number,
-        min:0,
-        max:5,
-        default:0
+        type: Number,
+        min: 0,
+        max: 5,
+        default: 0,
     },
     totalSession: {
         type:Number,
@@ -82,20 +86,20 @@ userSchema.pre('save', async function(next){
 
 // pre-findOneAndUpdate middleware (updates via findOneAndUpdate)
 userSchema.pre('findOneAndUpdate', async function(next) {
-  const update = this.getUpdate();
-  if (update.password) {
-    try {
-      const salt = await bcrypt.genSalt(10);
-      update.password = await bcrypt.hash(update.password, salt);
-    } catch (err) {
-      return next(err);
+    const update = this.getUpdate();
+    if (update.password) {
+        try {
+        const salt = await bcrypt.genSalt(10);
+        update.password = await bcrypt.hash(update.password, salt);
+        } catch (err) {
+        return next(err);
+        }
     }
-  }
-  next();
+    next();
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword){
     return await bcrypt.compare(candidatePassword,this.password)
 }
 
-module.exports = mongoose.model('User',userSchema);
+module.exports = mongoose.model("User", userSchema);
