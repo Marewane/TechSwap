@@ -1,4 +1,7 @@
 const User = require("../models/UserModel");
+
+const passport = require("../config/passportConfig");
+
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -72,7 +75,7 @@ const login = async (req, res) => {
         message: "Invalid email or password",
       });
     }
-    
+
     // Update last login
     user.lastLogin = new Date();
     await user.save();
@@ -137,13 +140,156 @@ const refreshToken = async (req, res) => {
 
 // 🚪 LOGOUT
 const logout = (req, res) => {
-    // In a real app, you might blacklist the token here
-    // For now, we'll just return success - client should delete tokens
-    //the real work will be handled by front end❌❌❌
+  // In a real app, you might blacklist the token here
+  // For now, we'll just return success - client should delete tokens
+  //the real work will be handled by front end❌❌❌
   return res.json({
     success: true,
     message: "Logout successful",
   });
 };
 
-module.exports = { register, login, refreshToken, logout };
+// 🔵 GOOGLE OAUTH - Initiate authentication
+const googleAuth = (req, res, next) => {
+  // 📝 What this does: Redirects user to Google's login page
+  passport.authenticate("google", {
+    scope: ["profile", "email"], // 📝 What we're asking permission for
+  })(req, res, next);
+};
+
+// 🔵 GOOGLE OAUTH - Callback handler
+
+// const googleCallback = (req, res, next) => {
+//   passport.authenticate("google", { session: false }, (err, user) => {
+//     if (err || !user) {
+//       return res.redirect(
+//         `${process.env.FRONTEND_URL}/login?error=oauth_failed`
+//       );
+//     }
+
+//     // 📝 Generate JWT tokens for the OAuth user
+//     const accessToken = generateAccessToken(user._id);
+//     const refreshToken = generateRefreshToken(user._id);
+
+//     // 📝 Redirect to frontend with tokens
+//     res.redirect(
+//       `${process.env.FRONTEND_URL}/oauth-success?accessToken=${accessToken}&refreshToken=${refreshToken}`
+//     );
+//   })(req, res, next);
+// };
+
+
+const googleCallback = (req, res, next) => {
+  passport.authenticate('google', { session: false }, (err, user) => {
+    if (err || !user) {
+      // 📝 Also change the error to show in browser
+      return res.send(`
+        <html>
+          <body>
+            <h2>OAuth Failed!</h2>
+            <p>Error: ${err ? err.message : 'User not found'}</p>
+          </body>
+        </html>
+      `);
+    }
+
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // 📝 TEMPORARY: Show tokens in browser instead of redirecting
+    res.send(`
+      <html>
+        <body>
+          <h2>OAuth Success! 🎉</h2>
+          <p><strong>User:</strong> ${user.name} (${user.email})</p>
+          <p><strong>Access Token:</strong> ${accessToken}</p>
+          <p><strong>Refresh Token:</strong> ${refreshToken}</p>
+          <script>
+            console.log('OAuth Success!', {
+              user: '${user.name}',
+              email: '${user.email}', 
+              accessToken: '${accessToken}',
+              refreshToken: '${refreshToken}'
+            });
+          </script>
+        </body>
+      </html>
+    `);
+  })(req, res, next);
+};
+
+// 🐙 GITHUB OAUTH - Initiate authentication
+const githubAuth = (req, res, next) => {
+  passport.authenticate("github", {
+    scope: ["user:email"], // 📝 GitHub specific scope for email access
+  })(req, res, next);
+};
+
+// 🐙 GITHUB OAUTH - Callback handler
+// const githubCallback = (req, res, next) => {
+//   passport.authenticate("github", { session: false }, (err, user) => {
+//     if (err || !user) {
+//       return res.redirect(
+//         `${process.env.FRONTEND_URL}/login?error=oauth_failed`
+//       );
+//     }
+
+//     const accessToken = generateAccessToken(user._id);
+//     const refreshToken = generateRefreshToken(user._id);
+
+//     res.redirect(
+//       `${process.env.FRONTEND_URL}/oauth-success?accessToken=${accessToken}&refreshToken=${refreshToken}`
+//     );
+//   })(req, res, next);
+// };
+
+// this is just for test 
+const githubCallback = (req, res, next) => {
+  passport.authenticate('github', { session: false }, (err, user) => {
+    if (err || !user) {
+      // 📝 Show error in browser
+      return res.send(`
+        <html>
+          <body>
+            <h2>GitHub OAuth Failed!</h2>
+            <p>Error: ${err ? err.message : 'User not found'}</p>
+          </body>
+        </html>
+      `);
+    }
+
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // 📝 TEMPORARY: Show tokens in browser instead of redirecting
+    res.send(`
+      <html>
+        <body>
+          <h2>GitHub OAuth Success! 🎉</h2>
+          <p><strong>User:</strong> ${user.name} (${user.email})</p>
+          <p><strong>Access Token:</strong> ${accessToken}</p>
+          <p><strong>Refresh Token:</strong> ${refreshToken}</p>
+          <script>
+            console.log('GitHub OAuth Success!', {
+              user: '${user.name}',
+              email: '${user.email}', 
+              accessToken: '${accessToken}',
+              refreshToken: '${refreshToken}'
+            });
+          </script>
+        </body>
+      </html>
+    `);
+  })(req, res, next);
+};
+
+module.exports = {
+  register,
+  login,
+  refreshToken,
+  logout,
+  googleAuth,
+  googleCallback,
+  githubAuth,
+  githubCallback,
+};

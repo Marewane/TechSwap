@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require('cors');
 require('dotenv').config();
+const passport = require('./config/passportConfig'); 
+
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -18,6 +20,7 @@ app.use(express.json()); // Add this for JSON parsing
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use(passport.initialize()); // Add this line
 
 // Health check
 app.get('/api/health', (req, res) => {
