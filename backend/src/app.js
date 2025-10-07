@@ -1,11 +1,12 @@
 const express = require("express");
 const cors = require('cors');
 require('dotenv').config();
+const passport = require('./config/passportConfig'); 
+
 
 // Import routes
-const authRoutes = require('./routes/auth');
+const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
-const paymentRoutes = require("./routes/paymentRoutes");
 
 // Import middlewares
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
@@ -18,16 +19,17 @@ app.use(express.json()); // Add this for JSON parsing
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use("/api/payments", paymentRoutes);
+
+app.use('/',userRouter);
+
 
 // Basic health check
 app.get('/api/health', (req, res) => {
-    res.json({ 
-        success: true, 
-        message: 'TechSwap API is running!',
-        timestamp: new Date().toISOString()
-    });
+  res.json({ 
+    success: true, 
+    message: 'TechSwap API is running!',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Error handling middlewares (LAST)
