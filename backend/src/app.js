@@ -31,16 +31,17 @@ app.use("/api/payments", paymentRoutes);
 app.use("/admin", adminRoute);
 
 // Session & Review routes (from sessions branch)
-app.use("/sessions", sessionRouter);
-app.use("/reviews", reviewRouter);
+app.use("/api/sessions", sessionRouter);
+app.use("/api/reviews", reviewRouter);
+
 
 // Health check route
 app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "TechSwap API is running!",
-    timestamp: new Date().toISOString(),
-  });
+    res.json({
+        success: true,
+        message: "TechSwap API is running!",
+        timestamp: new Date().toISOString(),
+    });
 });
 
 // Error handling (should be last)
