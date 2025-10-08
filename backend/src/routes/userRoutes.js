@@ -11,11 +11,9 @@ router.post("/users", addUser);
 
 
 
-const { authMiddleware } = require("../middleware/authMiddleware");
-const { getUsers, addUser } = require("../controllers/userController");
 
-router.get("/users", getUsers);
-router.post("/users", addUser);
+
+
 
 // 🛡️ PROTECTED ROUTE - GET USER PROFILE i think it didnt work
 router.get("/profile", authMiddleware, async (req, res) => {
