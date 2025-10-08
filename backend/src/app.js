@@ -14,18 +14,30 @@ const reviewRouter = require("./routes/reviewRoutes");
 const webHookRouters = require("./routes/webhooksRouter");
 const matchingRoutes = require('./routes/matchingRoutes');
 const searchRoutes = require('./routes/searchRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+
+
 
 // Import middlewares
 const { notFoundHandler, errorHandler } = require("./middleware/errorMiddleware");
 
+
 const app = express();
+
+
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+
+app.use('/',userRoutes);
+app.use('/api/profile', profileRoutes);
+
 
 // ⚙️ Stripe webhook route — must be before express.json
 app.use("/api/stripe", webHookRouters);
 
 // Middleware
-app.use(cors());
-app.use(express.json());
 app.use(passport.initialize()); // Enable passport
 
 // Core API routes
