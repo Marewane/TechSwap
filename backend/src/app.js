@@ -13,6 +13,7 @@ const sessionRouter = require("./routes/sessionRoutes");
 const reviewRouter = require("./routes/reviewRoutes");
 const webHookRouters = require("./routes/webhooksRouter");
 const matchingRoutes = require('./routes/matchingRoutes');
+const searchRoutes = require('./routes/searchRoutes');
 
 // Import middlewares
 const { notFoundHandler, errorHandler } = require("./middleware/errorMiddleware");
@@ -21,7 +22,6 @@ const app = express();
 
 // ⚙️ Stripe webhook route — must be before express.json
 app.use("/api/stripe", webHookRouters);
-const searchRoutes = require('./routes/searchRoutes'); // Add this
 
 // Middleware
 app.use(cors());
@@ -39,6 +39,8 @@ app.use("/api/sessions", sessionRouter);
 app.use("/api/reviews", reviewRouter);
 
 app.use('/api/users', searchRoutes); // Add this
+//the matching logic
+app.use('/api/matches', matchingRoutes);
 
 
 // Health check route
