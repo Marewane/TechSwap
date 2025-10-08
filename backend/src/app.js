@@ -34,13 +34,14 @@ app.use("/admin", adminRoute);
 app.use("/sessions", sessionRouter);
 app.use("/reviews", reviewRouter);
 
+
 // Health check route
 app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "TechSwap API is running!",
-    timestamp: new Date().toISOString(),
-  });
+    res.json({
+        success: true,
+        message: "TechSwap API is running!",
+        timestamp: new Date().toISOString(),
+    });
 });
 
 // Error handling (should be last)
