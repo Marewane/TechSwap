@@ -31,8 +31,8 @@ app.use("/api/payments", paymentRoutes);
 app.use("/admin", adminRoute);
 
 // Session & Review routes (from sessions branch)
-app.use("/sessions", sessionRouter);
-app.use("/reviews", reviewRouter);
+app.use("/api/sessions", sessionRouter);
+app.use("/api/reviews", reviewRouter);
 
 
 // Health check route
