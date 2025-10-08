@@ -1,3 +1,4 @@
+// src/app.js
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -20,7 +21,9 @@ const app = express();
 
 // ⚙️ Stripe webhook route — must be before express.json
 app.use("/api/stripe", webHookRouters);
+const searchRoutes = require('./routes/searchRoutes'); // Add this
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(passport.initialize()); // Enable passport
@@ -35,8 +38,8 @@ app.use("/admin", adminRoute);
 app.use("/api/sessions", sessionRouter);
 app.use("/api/reviews", reviewRouter);
 
-//the matching logic
-app.use('/api/matches', matchingRoutes);
+app.use('/api/users', searchRoutes); // Add this
+
 
 // Health check route
 app.get("/api/health", (req, res) => {
@@ -47,9 +50,9 @@ app.get("/api/health", (req, res) => {
     });
 });
 
+
 // Error handling (should be last)
 app.use(notFoundHandler);
 app.use(errorHandler);
-
 
 module.exports = app;
