@@ -63,6 +63,18 @@ const userSchema = new mongoose.Schema(
     lastLogin:{
         type:Date,
         default:null, // null until first login in
+    },//verified email
+    isEmailVerified: {
+    type: Boolean,
+    default: false  
+    },
+    verificationCode: {
+        type: String,
+        select: false // Hide by default
+    },
+    verificationCodeExpires: {
+        type: Date,
+        select: false
     }
 },{timestamps:true});
 //This is a Mongoose middleware that runs before saving a user to the database to securely hash the password.

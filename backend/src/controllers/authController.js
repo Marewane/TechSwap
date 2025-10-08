@@ -2,6 +2,8 @@ const User = require("../models/UserModel");
 
 const passport = require("../config/passportConfig");
 
+const { generateVerificationCode, sendVerificationEmail } = require('../services/emailService');
+
 const {
   generateAccessToken,
   generateRefreshToken,
@@ -9,46 +11,207 @@ const {
 } = require("../utils/jwtUtils");
 
 // 📝 REGISTER
+//the old vertion
+// const register = async (req, res) => {
+//   try {
+//     const { name, email, password } = req.body;
+
+//     //check if user already exists
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "User already exists with this email",
+//       });
+//     }
+
+//     //create new user
+//     const user = new User({
+//       name,
+//       email,
+//       password, // This will be automatically hashed by your pre-save middleware
+//     });
+//     await user.save();
+
+//     //generate token
+//     const accessToken = generateAccessToken(user._id);
+//     const refreshToken = generateRefreshToken(user._id);
+
+//     // 🔒 SECURITY: Fetch user data again but EXCLUDE the password field
+//     // Why? The original 'user' object still contains the hashed password
+//     // We never want to send password (even hashed) to the client
+//     const userResponse = await User.findById(user._id).select("-password");
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "User registered successfully",
+//       data: { user: userResponse, tokens: { accessToken, refreshToken } },
+//     });
+//   } catch (error) {
+//     console.error("Registration error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error during registration",
+//     });
+//   }
+// };
+
+// 📝 STEP 1: INITIAL REGISTRATION (SEND VERIFICATION CODE)
 const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+      const { name, email, password } = req.body;
 
-    //check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+      // Check if user already exists
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User already exists with this email'
+        });
+      }
+
+      // Generate verification code
+      const verificationCode = generateVerificationCode();
+      const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Create user but don't save yet
+      const user = new User({
+        name,
+        email,
+        password,
+        verificationCode,
+        verificationCodeExpires,
+        isEmailVerified: false
+      });
+
+      await user.save();
+
+      // Send verification email
+      const emailSent = await sendVerificationEmail(email, verificationCode);
+      
+      if (!emailSent) {
+        await User.findByIdAndDelete(user._id); // Clean up if email fails
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to send verification email'
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        message: 'Verification code sent to your email',
+        data: {
+          userId: user._id,
+          email: user.email
+        }
+      });
+
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error during registration'
+      });
+    }
+};
+
+// 📝 STEP 2: VERIFY EMAIL WITH CODE
+const verifyEmail = async (req, res) => {
+  try {
+    const { userId, verificationCode } = req.body;
+
+    // Find user and include verification fields
+    const user = await User.findOne({
+      _id: userId,
+      verificationCode,
+      verificationCodeExpires: { $gt: new Date() } // Check if code not expired
+    }).select('+verificationCode +verificationCodeExpires');
+
+    if (!user) {
       return res.status(400).json({
         success: false,
-        message: "User already exists with this email",
+        message: 'Invalid or expired verification code'
       });
     }
 
-    //create new user
-    const user = new User({
-      name,
-      email,
-      password, // This will be automatically hashed by your pre-save middleware
-    });
+    // Mark email as verified and clear verification code
+    user.isEmailVerified = true;
+    user.verificationCode = undefined;
+    user.verificationCodeExpires = undefined;
     await user.save();
 
-    //generate token
+    // Generate tokens for auto-login after verification
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
-    // 🔒 SECURITY: Fetch user data again but EXCLUDE the password field
-    // Why? The original 'user' object still contains the hashed password
-    // We never want to send password (even hashed) to the client
-    const userResponse = await User.findById(user._id).select("-password");
+    const userResponse = await User.findById(user._id).select('-password');
 
-    return res.status(201).json({
+    res.json({
       success: true,
-      message: "User registered successfully",
-      data: { user: userResponse, tokens: { accessToken, refreshToken } },
+      message: 'Email verified successfully!',
+      data: {
+        user: userResponse,
+        tokens: {
+          accessToken,
+          refreshToken
+        }
+      }
     });
+
   } catch (error) {
-    console.error("Registration error:", error);
-    return res.status(500).json({
+    console.error('Email verification error:', error);
+    res.status(500).json({
       success: false,
-      message: "Server error during registration",
+      message: 'Server error during email verification'
+    });
+  }
+};
+
+// 📝 STEP 3: RESEND VERIFICATION CODE
+const resendVerificationCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email, isEmailVerified: false })
+      .select('+verificationCode +verificationCodeExpires');
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'User not found or already verified'
+      });
+    }
+
+    // Generate new verification code
+    const verificationCode = generateVerificationCode();
+    user.verificationCode = verificationCode;
+    user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    // Send new verification email
+    const emailSent = await sendVerificationEmail(email, verificationCode);
+    
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'New verification code sent to your email',
+      data: {
+        userId: user._id,
+        email: user.email
+      }
+    });
+
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while resending verification code'
     });
   }
 };
@@ -292,4 +455,6 @@ module.exports = {
   googleCallback,
   githubAuth,
   githubCallback,
+  verifyEmail,
+  resendVerificationCode
 };

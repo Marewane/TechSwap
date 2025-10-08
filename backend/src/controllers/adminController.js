@@ -185,10 +185,10 @@ exports.updateReportStatus = async (req, res) => {
         const report = await Report.findByIdAndUpdate(id, { status }, { new: true });
         if (!report) return res.status(404).json({ success: false, message: "Report not found" });
 
-        const adminId = req.user?._id || "000000000000000000000000";
+        // const adminId = req.user?._id || "000000000000000000000000"; //for testing only 
 
         await logAdminAction({
-            adminId,
+            adminId: req.user._id,
             actionType: "update",
             targetUserId: report.reportedUserId,
             description: `Changed report ${report._id} status to ${status}`,
