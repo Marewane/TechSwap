@@ -39,7 +39,7 @@ exports.updateUserRole = async (req, res) => {
         user.role = newRole;
         await user.save();
 
-        // const adminId = req.user?._id || "000000000000000000000000"; for testing only 
+        // const adminId = req.user?._id || "000000000000000000000000"; //for testing only 
 
         await logAdminAction({
         adminId: req.user._id,
@@ -149,6 +149,71 @@ exports.getAllReviews = async (req, res) => {
         });
 
     res.json({ success: true, message: "Review deleted" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+// ------------ REPORT MANAGEMENT --------------
+
+exports.getAllReports = async (req, res) => {
+    try {
+        const reports = await Report.find()
+            .populate("reporterId", "name email")
+            .populate("reportedUserId", "name email")
+            .populate("sessionId", "title")
+            .lean();
+
+        res.status(200).json({
+            success: true,
+            total: reports.length,
+            reports,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.updateReportStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!['pending', 'reviewed', 'resolved', 'dismissed'].includes(status)) {
+            return res.status(400).json({ success: false, message: "Invalid status value" });
+        }
+
+        const report = await Report.findByIdAndUpdate(id, { status }, { new: true });
+        if (!report) return res.status(404).json({ success: false, message: "Report not found" });
+
+        const adminId = req.user?._id || "000000000000000000000000";
+
+        await logAdminAction({
+            adminId,
+            actionType: "update",
+            targetUserId: report.reportedUserId,
+            description: `Changed report ${report._id} status to ${status}`,
+        });
+
+        res.json({ success: true, message: "Report status updated", report });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Delete a report
+exports.deleteReport = async (req, res) => {
+    try {
+        const report = await Report.findByIdAndDelete(req.params.id);
+        if (!report) return res.status(404).json({ success: false, message: "Report not found" });
+
+        await logAdminAction({
+            adminId: req.user._id,
+            actionType: "delete",
+            targetUserId: report.reportedUserId,
+            description: `Deleted report ${report._id}`,
+        });
+
+        res.json({ success: true, message: "Report deleted" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
