@@ -224,7 +224,7 @@ exports.deleteReport = async (req, res) => {
 exports.getAllSessions = async (req, res) => {
     try {
         const sessions = await Session.find()
-        .populate("tutorId", "name")
+        .populate("hostId", "name")
         .populate("learnerId", "name");
         res.json(sessions);
     } catch (error) {
