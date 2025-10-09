@@ -30,8 +30,8 @@ exports.updateUserRole = async (req, res) => {
         const user = await User.findById(id);
         if (!user) return res.status(404).json({ success: false, message: "User not found." });
 
-        if (req.user._id.toString() === user._id.toString()) {
-        return res.status(400).json({ success: false, message: "You cannot change your own role." });
+        if (req.user && req.user._id.toString() === user._id.toString()) {
+            return res.status(400).json({ success: false, message: "You cannot change your own role." });
         }
 
         const oldRole = user.role;
@@ -39,26 +39,26 @@ exports.updateUserRole = async (req, res) => {
         user.role = newRole;
         await user.save();
 
-        // const adminId = req.user?._id || "000000000000000000000000"; //for testing only 
+        const adminId = req.user?._id || "000000000000000000000000";
 
         await logAdminAction({
-        adminId: req.user._id,
-        actionType: "update",
-        targetUserId: user._id,
-        description: `Role changed from ${oldRole} → ${newRole}`,
+            adminId,
+            actionType: "update",
+            targetUserId: user._id,
+            description: `Role changed from ${oldRole} → ${newRole}`,
         });
 
-    return res.status(200).json({
-        success: true,
-        message: `User ${user.name}'s role updated from ${oldRole} to ${newRole}.`,
-        data: { userId: user._id, newRole },
+        return res.status(200).json({
+            success: true,
+            message: `User ${user.name}'s role updated from ${oldRole} to ${newRole}.`,
+            data: { userId: user._id, newRole },
         });
     } catch (error) {
         console.error("Error updating user role:", error);
         return res.status(500).json({
-        success: false,
-        message: "An error occurred while updating user role.",
-        error: error.message,
+            success: false,
+            message: "An error occurred while updating user role.",
+            error: error.message,
         });
     }
 };
@@ -71,11 +71,13 @@ exports.suspendUser = async (req, res) => {
         user.isSuspended = true;
         await user.save();
 
+        const adminId = req.user?._id || "000000000000000000000000";
+
         await logAdminAction({
-        adminId: req.user._id,
-        actionType: "ban",
-        targetUserId: user._id,
-        description: `Suspended user ${user.name}`,
+            adminId,
+            actionType: "ban",
+            targetUserId: user._id,
+            description: `Suspended user ${user.name}`,
         });
 
         res.json({ success: true, message: `User ${user.name} has been suspended.` });
@@ -92,11 +94,13 @@ exports.unsuspendUser = async (req, res) => {
         user.isSuspended = false;
         await user.save();
 
+        const adminId = req.user?._id || "000000000000000000000000";
+
         await logAdminAction({
-        adminId: req.user._id,
-        actionType: "unban",
-        targetUserId: user._id,
-        description: `Unsuspended user ${user.name}`,
+            adminId,
+            actionType: "unban",
+            targetUserId: user._id,
+            description: `Unsuspended user ${user.name}`,
         });
 
         res.json({ success: true, message: `User ${user.name} has been unsuspended.` });
@@ -110,11 +114,13 @@ exports.removeUser = async (req, res) => {
         const user = await User.findByIdAndDelete(req.params.id);
         if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
+        const adminId = req.user?._id || "000000000000000000000000";
+
         await logAdminAction({
-        adminId: req.user._id,
-        actionType: "delete",
-        targetUserId: user._id,
-        description: `Deleted user ${user.name}`,
+            adminId,
+            actionType: "delete",
+            targetUserId: user._id,
+            description: `Deleted user ${user.name}`,
         });
 
         res.json({ success: true, message: `User ${user.name} has been removed.` });
@@ -128,31 +134,34 @@ exports.removeUser = async (req, res) => {
 exports.getAllReviews = async (req, res) => {
     try {
         const reviews = await Review.find()
-        .populate("reviewerId", "name")
-        .populate("reviewedUserId", "name");
+            .populate("reviewerId", "name")
+            .populate("reviewedUserId", "name");
         res.json(reviews);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
-    };
+};
 
-    exports.deleteReview = async (req, res) => {
+exports.deleteReview = async (req, res) => {
     try {
         const review = await Review.findByIdAndDelete(req.params.id);
         if (!review) return res.status(404).json({ success: false, message: "Review not found" });
 
+        const adminId = req.user?._id || "000000000000000000000000";
+
         await logAdminAction({
-        adminId: req.user._id,
-        actionType: "delete",
-        targetUserId: review.reviewedUserId,
-        description: `Deleted review ${review._id}`,
+            adminId,
+            actionType: "delete",
+            targetUserId: review.reviewedUserId,
+            description: `Deleted review ${review._id}`,
         });
 
-    res.json({ success: true, message: "Review deleted" });
+        res.json({ success: true, message: "Review deleted" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
 // ------------ REPORT MANAGEMENT --------------
 
 exports.getAllReports = async (req, res) => {
@@ -200,14 +209,15 @@ exports.updateReportStatus = async (req, res) => {
     }
 };
 
-// Delete a report
 exports.deleteReport = async (req, res) => {
     try {
         const report = await Report.findByIdAndDelete(req.params.id);
         if (!report) return res.status(404).json({ success: false, message: "Report not found" });
 
+        const adminId = req.user?._id || "000000000000000000000000";
+
         await logAdminAction({
-            adminId: req.user._id,
+            adminId,
             actionType: "delete",
             targetUserId: report.reportedUserId,
             description: `Deleted report ${report._id}`,
@@ -224,28 +234,30 @@ exports.deleteReport = async (req, res) => {
 exports.getAllSessions = async (req, res) => {
     try {
         const sessions = await Session.find()
-        .populate("tutorId", "name")
-        .populate("learnerId", "name");
+            .populate("hostId", "name")
+            .populate("learnerId", "name");
         res.json(sessions);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
-    };
+};
 
-    exports.cancelSession = async (req, res) => {
+exports.cancelSession = async (req, res) => {
     try {
         const session = await Session.findByIdAndUpdate(
-        req.params.id,
-        { status: "cancelled" },
-        { new: true }
+            req.params.id,
+            { status: "cancelled" },
+            { new: true }
         );
         if (!session) return res.status(404).json({ success: false, message: "Session not found" });
 
+        const adminId = req.user?._id || "000000000000000000000000";
+
         await logAdminAction({
-        adminId: req.user._id,
-        actionType: "update",
-        targetUserId: session.learnerId,
-        description: `Cancelled session ${session._id}`,
+            adminId,
+            actionType: "update",
+            targetUserId: session.learnerId,
+            description: `Cancelled session ${session._id}`,
         });
 
         res.json({ success: true, message: "Session cancelled" });
@@ -262,16 +274,16 @@ exports.getReports = async (req, res) => {
         const totalSessions = await Session.countDocuments();
         const totalReviews = await Review.countDocuments();
         const totalRevenue = await Wallet.aggregate([
-        { $unwind: "$transactions" },
-        { $group: { _id: null, sum: { $sum: "$transactions.amount" } } },
+            { $unwind: "$transactions" },
+            { $group: { _id: null, sum: { $sum: "$transactions.amount" } } },
         ]);
 
         res.json({
-        success: true,
-        totalUsers,
-        totalSessions,
-        totalReviews,
-        totalRevenue: totalRevenue[0]?.sum || 0,
+            success: true,
+            totalUsers,
+            totalSessions,
+            totalReviews,
+            totalRevenue: totalRevenue[0]?.sum || 0,
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
