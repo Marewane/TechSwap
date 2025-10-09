@@ -18,18 +18,26 @@ const reviewSchema = new mongoose.Schema({
     },
     rating: {
         type: Number,
-        min: 1,
-        max: 5,
+        enum: [1, 2, 3, 4, 5],
         required: [true, 'Rating is required']
     },
     comment: {
         type: String,
-        maxlength: [500, 'Comment cannot exceed 500 characters']
+        maxlength: [500, 'Comment cannot exceed 500 characters'],
+        trim: true
     }
 }, { timestamps: true });
 
 // Ensure one review per session per reviewer
 reviewSchema.index({ sessionId: 1, reviewerId: 1 }, { unique: true });
 reviewSchema.index({ reviewedUserId: 1, rating: -1 });
+
+// Prevent self-review at schema level (additional controller checks still recommended)
+reviewSchema.pre('validate', function(next) {
+  if (this.reviewerId && this.reviewedUserId && this.reviewerId.toString() === this.reviewedUserId.toString()) {
+    return next(new Error('Reviewer and reviewed user must be different'));
+  }
+  next();
+});
 
 module.exports = mongoose.model('Review', reviewSchema);
