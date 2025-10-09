@@ -19,6 +19,11 @@ router.delete("/users/:id", adminController.removeUser); // remove user
 router.get("/reviews", adminController.getAllReviews); // list all reviews
 router.delete("/reviews/:id", adminController.deleteReview); // delete a review
 
+// REPORT MANAGEMENT 
+router.get('/reports', adminController.getAllReports); // list all reports
+router.put('/reports/:id/status', adminController.updateReportStatus); // update
+router.delete('/reports/:id', adminController.deleteReport); // delete report
+
 // SESSION OVERSIGHT
 router.get("/sessions", adminController.getAllSessions); // list all sessions
 router.patch("/sessions/:id/cancel", adminController.cancelSession); // cancel a session
