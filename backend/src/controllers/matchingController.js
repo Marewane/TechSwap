@@ -1,16 +1,22 @@
-// backend/src/controllers/matchingController.js
 const User = require('../models/UserModel');
 
 // @desc    Get suggested matches for a user
-// @route   GET /api/matches/suggestions/:userId
-// @access  Public
+// @route   GET /api/matches/suggestions
+// @access  Protected
 const getMatchSuggestions = async (req, res) => {
     try {
-        const { userId } = req.params;
+        console.log('🔍 Starting match suggestions...');
+        
+        // Get user ID from auth middleware
+        const userId = req.user.id;
         const { limit = 10 } = req.query;
 
-        // Get the current user
+        console.log('👤 User ID:', userId);
+
+        // Get the current user (authenticated user)
         const currentUser = await User.findById(userId);
+        console.log('✅ Current user found:', currentUser ? currentUser.name : 'NOT FOUND');
+        
         if (!currentUser) {
             return res.status(404).json({
                 success: false,
@@ -18,26 +24,67 @@ const getMatchSuggestions = async (req, res) => {
             });
         }
 
-        // Find potential matches
-        const potentialMatches = await User.find({
-            _id: { $ne: userId }, // Exclude current user
-            $or: [
-                // Users who can teach what current user wants to learn
-                { 
-                    skillsToTeach: { 
-                        $in: currentUser.skillsToLearn.map(skill => new RegExp(skill, 'i'))
-                    } 
-                },
-                // Users who want to learn what current user can teach
-                { 
-                    skillsToLearn: { 
-                        $in: currentUser.skillsToTeach.map(skill => new RegExp(skill, 'i'))
-                    } 
+        console.log('🎯 Current user skills - Teach:', currentUser.skillsToTeach);
+        console.log('🎯 Current user skills - Learn:', currentUser.skillsToLearn);
+
+        // If user has no skills, return empty matches
+        if (currentUser.skillsToTeach.length === 0 && currentUser.skillsToLearn.length === 0) {
+            return res.status(200).json({
+                success: true,
+                data: {
+                    currentUser: {
+                        name: currentUser.name,
+                        skillsToTeach: currentUser.skillsToTeach,
+                        skillsToLearn: currentUser.skillsToLearn
+                    },
+                    matches: [],
+                    totalMatches: 0,
+                    message: 'Add skills to your profile to get match suggestions'
                 }
-            ]
-        })
-        .select('-password')
-        .limit(parseInt(limit));
+            });
+        }
+
+        // Build the match query
+        let matchQuery = {
+            _id: { $ne: userId } // Exclude current user
+        };
+
+        // Only add skill matching if user has skills
+        if (currentUser.skillsToLearn.length > 0 || currentUser.skillsToTeach.length > 0) {
+            matchQuery.$or = [];
+            
+            // Users who can teach what current user wants to learn
+            if (currentUser.skillsToLearn.length > 0) {
+                currentUser.skillsToLearn.forEach(skill => {
+                    if (skill && skill.trim() !== '') {
+                        matchQuery.$or.push({
+                            skillsToTeach: { $regex: skill, $options: 'i' }
+                        });
+                    }
+                });
+            }
+            
+            // Users who want to learn what current user can teach
+            if (currentUser.skillsToTeach.length > 0) {
+                currentUser.skillsToTeach.forEach(skill => {
+                    if (skill && skill.trim() !== '') {
+                        matchQuery.$or.push({
+                            skillsToLearn: { $regex: skill, $options: 'i' }
+                        });
+                    }
+                });
+            }
+        }
+
+        console.log('📋 Match query:', JSON.stringify(matchQuery, null, 2));
+
+        // Find potential matches
+        const potentialMatches = await User.find(matchQuery)
+            .select('-password')
+            .limit(parseInt(limit))
+            .sort({ rating: -1, createdAt: -1 });
+
+        console.log('✅ Found potential matches:', potentialMatches.length);
 
         // Calculate match scores and add match reasons
         const matchesWithScores = potentialMatches.map(match => {
@@ -55,6 +102,8 @@ const getMatchSuggestions = async (req, res) => {
         // Sort by match score (highest first)
         matchesWithScores.sort((a, b) => b.matchScore - a.matchScore);
 
+        console.log('✅ Final matches with scores:', matchesWithScores.length);
+
         res.status(200).json({
             success: true,
             data: {
@@ -67,81 +116,100 @@ const getMatchSuggestions = async (req, res) => {
                 totalMatches: matchesWithScores.length
             }
         });
+        
     } catch (error) {
-        console.error('Get match suggestions error:', error);
+        console.error('❌ Get match suggestions error:', error);
+        console.error('❌ Error stack:', error.stack);
         res.status(500).json({
             success: false,
-            message: 'Server error while finding matches'
+            message: 'Server error while finding matches: ' + error.message
         });
     }
 };
 
 // @desc    Calculate match score between two users (0-100)
 const calculateMatchScore = (userA, userB) => {
-    let score = 0;
-    
-    // User A wants to learn what User B can teach
-    const aLearnsFromB = userA.skillsToLearn.filter(skillWant => 
-        userB.skillsToTeach.some(skillTeach => 
-            skillTeach.toLowerCase().includes(skillWant.toLowerCase())
-        )
-    ).length;
+    try {
+        let score = 0;
+        
+        // User A wants to learn what User B can teach
+        const aLearnsFromB = userA.skillsToLearn.filter(skillWant => {
+            if (!skillWant) return false;
+            return userB.skillsToTeach.some(skillTeach => 
+                skillTeach && skillTeach.toLowerCase().includes(skillWant.toLowerCase())
+            );
+        }).length;
 
-    // User B wants to learn what User A can teach  
-    const bLearnsFromA = userB.skillsToLearn.filter(skillWant => 
-        userA.skillsToTeach.some(skillTeach => 
-            skillTeach.toLowerCase().includes(skillWant.toLowerCase())
-        )
-    ).length;
+        // User B wants to learn what User A can teach  
+        const bLearnsFromA = userB.skillsToLearn.filter(skillWant => {
+            if (!skillWant) return false;
+            return userA.skillsToTeach.some(skillTeach => 
+                skillTeach && skillTeach.toLowerCase().includes(skillWant.toLowerCase())
+            );
+        }).length;
 
-    // Calculate score based on mutual learning opportunities
-    const totalPossibleMatches = userA.skillsToLearn.length + userB.skillsToLearn.length;
-    const actualMatches = aLearnsFromB + bLearnsFromA;
+        // Calculate score based on mutual learning opportunities
+        const totalPossibleMatches = userA.skillsToLearn.length + userB.skillsToLearn.length;
+        const actualMatches = aLearnsFromB + bLearnsFromA;
 
-    if (totalPossibleMatches > 0) {
-        score = Math.round((actualMatches / totalPossibleMatches) * 100);
+        if (totalPossibleMatches > 0) {
+            score = Math.round((actualMatches / totalPossibleMatches) * 100);
+        }
+
+        // Bonus for mutual matches (both can teach each other)
+        if (aLearnsFromB > 0 && bLearnsFromA > 0) {
+            score += 20; // Bonus for mutual learning
+        }
+
+        return Math.min(score, 100); // Cap at 100%
+    } catch (error) {
+        console.error('❌ Error in calculateMatchScore:', error);
+        return 0;
     }
-
-    // Bonus for mutual matches (both can teach each other)
-    if (aLearnsFromB > 0 && bLearnsFromA > 0) {
-        score += 20; // Bonus for mutual learning
-    }
-
-    return Math.min(score, 100); // Cap at 100%
 };
 
 // @desc    Get reasons why users are matched
 const getMatchReasons = (userA, userB) => {
-    const reasons = [];
+    try {
+        const reasons = [];
 
-    // What User A can learn from User B
-    userA.skillsToLearn.forEach(skillWant => {
-        userB.skillsToTeach.forEach(skillTeach => {
-            if (skillTeach.toLowerCase().includes(skillWant.toLowerCase())) {
-                reasons.push(`You want to learn ${skillWant} and they can teach ${skillTeach}`);
-            }
+        // What User A can learn from User B
+        userA.skillsToLearn.forEach(skillWant => {
+            if (!skillWant) return;
+            userB.skillsToTeach.forEach(skillTeach => {
+                if (skillTeach && skillTeach.toLowerCase().includes(skillWant.toLowerCase())) {
+                    reasons.push(`You want to learn ${skillWant} and they can teach ${skillTeach}`);
+                }
+            });
         });
-    });
 
-    // What User B can learn from User A  
-    userB.skillsToLearn.forEach(skillWant => {
-        userA.skillsToTeach.forEach(skillTeach => {
-            if (skillTeach.toLowerCase().includes(skillWant.toLowerCase())) {
-                reasons.push(`They want to learn ${skillWant} and you can teach ${skillTeach}`);
-            }
+        // What User B can learn from User A  
+        userB.skillsToLearn.forEach(skillWant => {
+            if (!skillWant) return;
+            userA.skillsToTeach.forEach(skillTeach => {
+                if (skillTeach && skillTeach.toLowerCase().includes(skillWant.toLowerCase())) {
+                    reasons.push(`They want to learn ${skillWant} and you can teach ${skillTeach}`);
+                }
+            });
         });
-    });
 
-    return reasons.slice(0, 3); // Return top 3 reasons
+        return reasons.slice(0, 3); // Return top 3 reasons
+    } catch (error) {
+        console.error('❌ Error in getMatchReasons:', error);
+        return ['Match found based on skill compatibility'];
+    }
 };
 
 // @desc    Find users who can teach a specific skill the current user wants to learn
-// @route   GET /api/matches/teachers/:userId/:skill
-// @access  Public
+// @route   GET /api/matches/teachers/:skill
+// @access  Protected
 const findTeachersForSkill = async (req, res) => {
     try {
-        const { userId, skill } = req.params;
+        const userId = req.user.id;
+        const { skill } = req.params;
         const { limit = 10 } = req.query;
+
+        console.log(`👨‍🏫 Finding teachers for skill: ${skill}`);
 
         // Verify the current user wants to learn this skill
         const currentUser = await User.findById(userId);
@@ -153,13 +221,13 @@ const findTeachersForSkill = async (req, res) => {
         }
 
         const wantsToLearnSkill = currentUser.skillsToLearn.some(s => 
-            s.toLowerCase().includes(skill.toLowerCase())
+            s && s.toLowerCase().includes(skill.toLowerCase())
         );
 
         if (!wantsToLearnSkill) {
             return res.status(400).json({
                 success: false,
-                message: `You don't have ${skill} in your learning list`
+                message: `You don't have "${skill}" in your learning list. Add it to find teachers.`
             });
         }
 
@@ -177,7 +245,12 @@ const findTeachersForSkill = async (req, res) => {
             data: {
                 skill: skill,
                 currentUser: currentUser.name,
-                teachers: teachers,
+                teachers: teachers.map(teacher => ({
+                    user: teacher,
+                    canTeach: teacher.skillsToTeach.filter(s => 
+                        s.toLowerCase().includes(skill.toLowerCase())
+                    )
+                })),
                 totalTeachers: teachers.length
             }
         });
@@ -185,18 +258,21 @@ const findTeachersForSkill = async (req, res) => {
         console.error('Find teachers error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error while finding teachers'
+            message: 'Server error while finding teachers: ' + error.message
         });
     }
 };
 
 // @desc    Find users who want to learn a specific skill the current user can teach
-// @route   GET /api/matches/learners/:userId/:skill
-// @access  Public
+// @route   GET /api/matches/learners/:skill
+// @access  Protected
 const findLearnersForSkill = async (req, res) => {
     try {
-        const { userId, skill } = req.params;
+        const userId = req.user.id;
+        const { skill } = req.params;
         const { limit = 10 } = req.query;
+
+        console.log(`👨‍🎓 Finding learners for skill: ${skill}`);
 
         // Verify the current user can teach this skill
         const currentUser = await User.findById(userId);
@@ -208,13 +284,13 @@ const findLearnersForSkill = async (req, res) => {
         }
 
         const canTeachSkill = currentUser.skillsToTeach.some(s => 
-            s.toLowerCase().includes(skill.toLowerCase())
+            s && s.toLowerCase().includes(skill.toLowerCase())
         );
 
         if (!canTeachSkill) {
             return res.status(400).json({
                 success: false,
-                message: `You don't have ${skill} in your teaching list`
+                message: `You don't have "${skill}" in your teaching list. Add it to find learners.`
             });
         }
 
@@ -232,7 +308,12 @@ const findLearnersForSkill = async (req, res) => {
             data: {
                 skill: skill,
                 currentUser: currentUser.name,
-                learners: learners,
+                learners: learners.map(learner => ({
+                    user: learner,
+                    wantsToLearn: learner.skillsToLearn.filter(s => 
+                        s.toLowerCase().includes(skill.toLowerCase())
+                    )
+                })),
                 totalLearners: learners.length
             }
         });
@@ -240,7 +321,7 @@ const findLearnersForSkill = async (req, res) => {
         console.error('Find learners error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error while finding learners'
+            message: 'Server error while finding learners: ' + error.message
         });
     }
 };

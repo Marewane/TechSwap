@@ -8,27 +8,28 @@ const {
     removeTeachingSkill,
     removeLearningSkill
 } = require('../controllers/profileController');
-const { authMiddleware} = require('../middleware/authMiddleware');
+const { authMiddleware } = require('../middleware/authMiddleware');
 
-// Protect all admin routes
+// Protect all profile routes
 router.use(authMiddleware);
 
-// @route   GET /api/profile/view/:userId
-router.get('/view/:userId', getProfile);
+// ✅ FIXED: Remove :userId from URLs
+// @route   GET /api/profile/view
+router.get('/view', getProfile);
 
-// @route   PUT /api/profile/update/:userId
-router.put('/update/:userId', updateProfile);
+// @route   PUT /api/profile/update
+router.put('/update', updateProfile);
 
-// @route   POST /api/profile/skills/teach/:userId
-router.post('/skills/teach/:userId', addTeachingSkill);
+// @route   POST /api/profile/skills/teach
+router.post('/skills/teach', addTeachingSkill);
 
-// @route   POST /api/profile/skills/learn/:userId
-router.post('/skills/learn/:userId', addLearningSkill);
+// @route   POST /api/profile/skills/learn
+router.post('/skills/learn', addLearningSkill);
 
-// @route   DELETE /api/profile/skills/teach/:userId
-router.delete('/skills/teach/:userId', removeTeachingSkill);
+// @route   DELETE /api/profile/skills/teach
+router.delete('/skills/teach', removeTeachingSkill);
 
-// @route   DELETE /api/profile/skills/learn/:userId
-router.delete('/skills/learn/:userId', removeLearningSkill);
+// @route   DELETE /api/profile/skills/learn
+router.delete('/skills/learn', removeLearningSkill);
 
 module.exports = router;
