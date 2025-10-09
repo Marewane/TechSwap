@@ -22,6 +22,7 @@ const profileRoutes = require('./routes/profileRoutes');
 const { notFoundHandler, errorHandler } = require("./middleware/errorMiddleware");
 
 
+const sessionPaymentRoutes = require('./routes/sessionPaymentRoutes');
 const app = express();
 
 
@@ -69,4 +70,6 @@ app.get("/api/health", (req, res) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
+app.use("/",userRoutes);
+app.use('/api/session-payment',sessionPaymentRoutes);
 module.exports = app;
