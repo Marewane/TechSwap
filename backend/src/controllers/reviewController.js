@@ -3,7 +3,7 @@ const Session = require('../models/SessionModel');
 const User = require('../models/UserModel');
 
 // Create a new review
-exports.createReview = async (req, res) => {
+const createReview = async (req, res) => {
   try {
     // reviewer is taken from authenticated user (authMiddleware should set req.user)
     const reviewerId = req.user && req.user.id ? req.user.id : null;
