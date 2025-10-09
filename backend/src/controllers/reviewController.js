@@ -203,7 +203,8 @@ const deleteReview = async (req, res) => {
     const isAdmin = req.user && (req.user.role === 'admin' || req.user.isAdmin);
     if (!isOwner && !isAdmin) return res.status(403).json({ error: 'Not authorized to delete this review' });
 
-    await review.remove();
+   await Review.findByIdAndDelete(id);
+
 
     // Recompute aggregates for reviewed user
     try {
