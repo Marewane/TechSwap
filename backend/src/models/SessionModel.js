@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const sessionSchema = new mongoose.Schema({
+    // This is the user who is providing the skill in this session — the “teacher” in case of skillTeaching, or the person offering their skill in a skillExchange.
     hostId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

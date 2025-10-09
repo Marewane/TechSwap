@@ -4,8 +4,8 @@ const walletSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: [true, 'User ID is required'],
-        unique: true
+        unique: true,
+        required: function() { return !this.isPlatform; } // required if not platform
     },
     balance: {
         type: Number,
@@ -26,11 +26,17 @@ const walletSchema = new mongoose.Schema({
         type: String,
         enum: ['USD', 'EUR', 'GBP', 'INR'],
         default: 'USD'
+    },
+    // this field is used for help us to decide which transaction will go to either platform or user in case of skill swaping and not teaching 
+    isPlatform: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
 
-// Indexes
+// Indexes for searching
 walletSchema.index({ userId: 1 });
 walletSchema.index({ balance: -1 });
+walletSchema.index({ isPlatform: 1 });
 
 module.exports = mongoose.model('Wallet', walletSchema);
