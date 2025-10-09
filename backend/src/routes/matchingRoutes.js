@@ -7,6 +7,11 @@ const {
     findLearnersForSkill
 } = require('../controllers/matchingController');
 
+const { authMiddleware} = require('../middleware/authMiddleware');
+
+// Protect all admin routes
+router.use(authMiddleware);
+
 // @route   GET /api/matches/suggestions/:userId
 router.get('/suggestions/:userId', getMatchSuggestions);
 

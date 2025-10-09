@@ -7,6 +7,11 @@ const {
     getPopularSkills 
 } = require('../controllers/searchController');
 
+// const { authMiddleware} = require('../middleware/authMiddleware');
+
+// // Protect all admin routes
+// router.use(authMiddleware);
+
 // @route   GET /api/users/search
 router.get('/search', searchUsers);
 

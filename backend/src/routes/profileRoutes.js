@@ -8,6 +8,10 @@ const {
     removeTeachingSkill,
     removeLearningSkill
 } = require('../controllers/profileController');
+const { authMiddleware} = require('../middleware/authMiddleware');
+
+// Protect all admin routes
+router.use(authMiddleware);
 
 // @route   GET /api/profile/view/:userId
 router.get('/view/:userId', getProfile);
