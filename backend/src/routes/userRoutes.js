@@ -1,10 +1,19 @@
-const express = require("express");
+
+// backend/src/routes/userRoutes.js
+const express = require('express');
 const router = express.Router();
 const { authMiddleware } = require("../middleware/authMiddleware");
 const { getUsers, addUser } = require("../controllers/userController");
 
+// Existing routes
 router.get("/users", getUsers);
 router.post("/users", addUser);
+
+
+
+
+
+
 
 // 🛡️ PROTECTED ROUTE - GET USER PROFILE i think it didnt work
 router.get("/profile", authMiddleware, async (req, res) => {
