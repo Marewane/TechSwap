@@ -64,12 +64,12 @@ app.get("/api/health", (req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
-
+app.use("/",userRoutes);
+app.use('/api/session-payment',sessionPaymentRoutes);
 
 // Error handling (should be last)
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-app.use("/",userRoutes);
-app.use('/api/session-payment',sessionPaymentRoutes);
+
 module.exports = app;
