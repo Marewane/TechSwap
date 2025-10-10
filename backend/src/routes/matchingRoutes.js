@@ -1,4 +1,3 @@
-// backend/src/routes/matchingRoutes.js
 const express = require('express');
 const router = express.Router();
 const {
@@ -6,14 +5,19 @@ const {
     findTeachersForSkill,
     findLearnersForSkill
 } = require('../controllers/matchingController');
+const { authMiddleware } = require('../middleware/authMiddleware');
 
-// @route   GET /api/matches/suggestions/:userId
-router.get('/suggestions/:userId', getMatchSuggestions);
+// Protect all matching routes
+router.use(authMiddleware);
 
-// @route   GET /api/matches/teachers/:userId/:skill
-router.get('/teachers/:userId/:skill', findTeachersForSkill);
+// ✅ FIXED: Remove :userId from URLs - user comes from auth token
+// @route   GET /api/matches/suggestions
+router.get('/suggestions', getMatchSuggestions);
 
-// @route   GET /api/matches/learners/:userId/:skill
-router.get('/learners/:userId/:skill', findLearnersForSkill);
+// @route   GET /api/matches/teachers/:skill
+router.get('/teachers/:skill', findTeachersForSkill);
+
+// @route   GET /api/matches/learners/:skill  
+router.get('/learners/:skill', findLearnersForSkill);
 
 module.exports = router;

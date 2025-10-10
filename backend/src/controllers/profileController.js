@@ -1,11 +1,13 @@
+// backend/src/controllers/profileController.js
 const User = require('../models/UserModel');
 
 // @desc    Get user profile
-// @route   GET /api/profile/view/:userId
-// @access  Public (will add auth later)
+// @route   GET /api/profile/view
+// @access  Protected
 const getProfile = async (req, res) => {
     try {
-        const { userId } = req.params;
+        // ✅ FIXED: Get user ID from auth middleware
+        const userId = req.user.id;
 
         const user = await User.findById(userId).select('-password');
         
@@ -30,18 +32,19 @@ const getProfile = async (req, res) => {
 };
 
 // @desc    Update user profile
-// @route   PUT /api/profile/update/:userId
-// @access  Public (will add auth later)
+// @route   PUT /api/profile/update
+// @access  Protected
 const updateProfile = async (req, res) => {
     try {
-        const { userId } = req.params;
+        // ✅ FIXED: Get user ID from auth middleware
+        const userId = req.user.id;
+        
         if(!req.body) {
             return res.status(400).json({
                 success: false,
                 message: 'Request body is required'
             });
         }
-
 
         const { name, bio, avatar, skillsToTeach, skillsToLearn } = req.body;
 
@@ -53,7 +56,6 @@ const updateProfile = async (req, res) => {
         if (skillsToTeach !== undefined) updateFields.skillsToTeach = skillsToTeach;
         if (skillsToLearn !== undefined) updateFields.skillsToLearn = skillsToLearn;
 
-
         if(Object.keys(updateFields).length == 0){
             return res.status(400).json({
                 success: false,
@@ -62,7 +64,7 @@ const updateProfile = async (req, res) => {
         }
 
         const updatedUser = await User.findByIdAndUpdate(
-            userId,
+            userId, // ✅ Using authenticated user's ID
             updateFields,
             { 
                 new: true, // Return updated document
@@ -101,11 +103,13 @@ const updateProfile = async (req, res) => {
 };
 
 // @desc    Add a skill to skillsToTeach
-// @route   POST /api/profile/skills/teach/:userId
-// @access  Public (will add auth later)
+// @route   POST /api/profile/skills/teach
+// @access  Protected
 const addTeachingSkill = async (req, res) => {
     try {
-        const { userId } = req.params;
+        // ✅ FIXED: Get user ID from auth middleware
+        const userId = req.user.id;
+        
         if(!req.body){
             return res.status(400).json({
                 success: false,
@@ -156,11 +160,20 @@ const addTeachingSkill = async (req, res) => {
 };
 
 // @desc    Add a skill to skillsToLearn
-// @route   POST /api/profile/skills/learn/:userId
-// @access  Public (will add auth later)
+// @route   POST /api/profile/skills/learn
+// @access  Protected
 const addLearningSkill = async (req, res) => {
     try {
-        const { userId } = req.params;
+        // ✅ FIXED: Get user ID from auth middleware
+        const userId = req.user.id;
+        
+        if(!req.body){
+            return res.status(400).json({
+                success: false,
+                message: 'Request body is required'
+            });
+        }
+        
         const { skill } = req.body;
 
         if (!skill || skill.trim() === '') {
@@ -205,11 +218,20 @@ const addLearningSkill = async (req, res) => {
 };
 
 // @desc    Remove a skill from skillsToTeach
-// @route   DELETE /api/profile/skills/teach/:userId
-// @access  Public (will add auth later)
+// @route   DELETE /api/profile/skills/teach
+// @access  Protected
 const removeTeachingSkill = async (req, res) => {
     try {
-        const { userId } = req.params;
+        // ✅ FIXED: Get user ID from auth middleware
+        const userId = req.user.id;
+        
+        if(!req.body){
+            return res.status(400).json({
+                success: false,
+                message: 'Request body is required'
+            });
+        }
+        
         const { skill } = req.body;
 
         if (!skill) {
@@ -220,7 +242,7 @@ const removeTeachingSkill = async (req, res) => {
         }
 
         const updatedUser = await User.findByIdAndUpdate(
-            userId,
+            userId, // ✅ Using authenticated user's ID
             {
                 $pull: { skillsToTeach: skill }
             },
@@ -249,11 +271,20 @@ const removeTeachingSkill = async (req, res) => {
 };
 
 // @desc    Remove a skill from skillsToLearn
-// @route   DELETE /api/profile/skills/learn/:userId
-// @access  Public (will add auth later)
+// @route   DELETE /api/profile/skills/learn
+// @access  Protected
 const removeLearningSkill = async (req, res) => {
     try {
-        const { userId } = req.params;
+        // ✅ FIXED: Get user ID from auth middleware
+        const userId = req.user.id;
+        
+        if(!req.body){
+            return res.status(400).json({
+                success: false,
+                message: 'Request body is required'
+            });
+        }
+        
         const { skill } = req.body;
 
         if (!skill) {
@@ -264,7 +295,7 @@ const removeLearningSkill = async (req, res) => {
         }
 
         const updatedUser = await User.findByIdAndUpdate(
-            userId,
+            userId, // ✅ Using authenticated user's ID
             {
                 $pull: { skillsToLearn: skill }
             },
