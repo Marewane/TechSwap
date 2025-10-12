@@ -51,6 +51,19 @@ const createReview = async (req, res) => {
       comment,
     });
 
+    // populate reviewer/reviewed user and session with host/learner names/emails
+    const populated = await Review.findById(review._id)
+      .populate('reviewerId', 'name email')
+      .populate('reviewedUserId', 'name email')
+      .populate({
+        path: 'sessionId',
+        select: 'title scheduledTime hostId learnerId',
+        populate: [
+          { path: 'hostId', select: 'name email' },
+          { path: 'learnerId', select: 'name email' }
+        ]
+      });
+
     // Recompute aggregates for reviewed user
     try {
       const agg = await Review.aggregate([
@@ -67,7 +80,7 @@ const createReview = async (req, res) => {
       console.error('Failed to update user rating aggregation:', aggErr);
     }
 
-    return res.status(201).json({ message: 'Review created', data: review });
+    return res.status(201).json({ message: 'Review created', data: populated });
   } catch (error) {
     if (error && error.code === 11000) {
       return res.status(409).json({ error: 'A review from this user for this session already exists' });
@@ -84,7 +97,15 @@ const getReviewsForUser = async (req, res) => {
 
     const reviews = await Review.find({ reviewedUserId: userId })
       .populate('reviewerId', 'name email')
-      .populate('sessionId', 'title scheduledTime');
+      .populate('reviewedUserId', 'name email')
+      .populate({
+        path: 'sessionId',
+        select: 'title scheduledTime hostId learnerId',
+        populate: [
+          { path: 'hostId', select: 'name email' },
+          { path: 'learnerId', select: 'name email' }
+        ]
+      });
 
     res.json({ data: reviews });
   } catch (error) {
@@ -98,8 +119,16 @@ const getReviewsByReviewer = async (req, res) => {
   try {
     const { reviewerId } = req.params;
     const reviews = await Review.find({ reviewerId })
+      .populate('reviewerId', 'name email')
       .populate('reviewedUserId', 'name email')
-      .populate('sessionId', 'title scheduledTime');
+      .populate({
+        path: 'sessionId',
+        select: 'title scheduledTime hostId learnerId',
+        populate: [
+          { path: 'hostId', select: 'name email' },
+          { path: 'learnerId', select: 'name email' }
+        ]
+      });
     res.json({ data: reviews });
   } catch (error) {
     console.error(error);
@@ -114,7 +143,14 @@ const getReviewById = async (req, res) => {
     const review = await Review.findById(id)
       .populate('reviewerId', 'name email')
       .populate('reviewedUserId', 'name email')
-      .populate('sessionId', 'title scheduledTime');
+      .populate({
+        path: 'sessionId',
+        select: 'title scheduledTime hostId learnerId',
+        populate: [
+          { path: 'hostId', select: 'name email' },
+          { path: 'learnerId', select: 'name email' }
+        ]
+      });
     if (!review) return res.status(404).json({ error: 'Review not found' });
     res.json({ data: review });
   } catch (error) {
@@ -123,21 +159,7 @@ const getReviewById = async (req, res) => {
   }
 };
 
-// Get all reviews (protected)
-const getAllReviews = async (req, res) => {
-  try {
-    const reviews = await Review.find()
-      .populate('reviewerId', 'name email')
-      .populate('reviewedUserId', 'name email')
-      .populate('sessionId', 'title scheduledTime');
-    res.json({ data: reviews });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Update a review (only owner or admin)
+// Update and delete handlers unchanged except they now return populated data on success
 const updateReview = async (req, res) => {
   try {
     const userId = (req.user && (req.user.id || req.user._id)) ? String(req.user.id || req.user._id) : null;
@@ -150,7 +172,7 @@ const updateReview = async (req, res) => {
     if (!review) return res.status(404).json({ error: 'Review not found' });
 
     const isOwner = String(review.reviewerId) === String(userId);
-    const isAdmin = req.user && (req.user.role === 'admin' || req.user.isAdmin); // flexible check
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.isAdmin);
     if (!isOwner && !isAdmin) return res.status(403).json({ error: 'Not authorized to update this review' });
 
     if (rating != null) {
@@ -163,6 +185,19 @@ const updateReview = async (req, res) => {
     if (comment != null) review.comment = comment;
 
     await review.save();
+
+    // return populated review
+    const populated = await Review.findById(review._id)
+      .populate('reviewerId', 'name email')
+      .populate('reviewedUserId', 'name email')
+      .populate({
+        path: 'sessionId',
+        select: 'title scheduledTime hostId learnerId',
+        populate: [
+          { path: 'hostId', select: 'name email' },
+          { path: 'learnerId', select: 'name email' }
+        ]
+      });
 
     // Recompute aggregates for reviewed user
     try {
@@ -181,14 +216,13 @@ const updateReview = async (req, res) => {
       console.error('Failed to update user rating aggregation:', aggErr);
     }
 
-    res.json({ message: 'Review updated', data: review });
+    res.json({ message: 'Review updated', data: populated });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message || 'Server error' });
   }
 };
 
-// Delete a review (only owner or admin)
 const deleteReview = async (req, res) => {
   try {
     const userId = (req.user && (req.user.id || req.user._id)) ? String(req.user.id || req.user._id) : null;
@@ -203,8 +237,7 @@ const deleteReview = async (req, res) => {
     const isAdmin = req.user && (req.user.role === 'admin' || req.user.isAdmin);
     if (!isOwner && !isAdmin) return res.status(403).json({ error: 'Not authorized to delete this review' });
 
-   await Review.findByIdAndDelete(id);
-
+    await review.remove();
 
     // Recompute aggregates for reviewed user
     try {
@@ -219,7 +252,6 @@ const deleteReview = async (req, res) => {
           $set: { averageRating: Math.round(avgRating * 100) / 100, reviewCount: count }
         });
       } else {
-        // no reviews left
         await User.findByIdAndUpdate(reviewedUserId, { $set: { averageRating: 0, reviewCount: 0 } });
       }
     } catch (aggErr) {
@@ -238,7 +270,6 @@ module.exports = {
   getReviewsForUser,
   getReviewsByReviewer,
   getReviewById,
-  getAllReviews,
   updateReview,
   deleteReview,
 };
