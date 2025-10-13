@@ -6,7 +6,7 @@ const adminController = require("../controllers/adminController");
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
 
 // Protect all admin routes
-router.use(authMiddleware, adminMiddleware);
+// router.use(authMiddleware, adminMiddleware);
 
 // USER MANAGEMENT
 router.get('/users/role/user',adminController.getAllUsers); // list all normal users

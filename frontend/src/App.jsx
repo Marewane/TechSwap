@@ -1,11 +1,19 @@
-import { Button } from "@/components/ui/button"
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import AdminLayout from "./pages/Admin/AdminLayout";
+import Dashboard from "./pages/admin/Dashboard/Dashboard";
+
 
 function App() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center">
-      <Button>Click me</Button>
-    </div>
-  )
+      <Routes>
+        {/* Admin Routes with Sidebar */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route path="dashboard" element={<Dashboard />} />
+        </Route>
+        
+        {/* Other routes */}
+      </Routes>
+  );
 }
 
-export default App
+export default App;
