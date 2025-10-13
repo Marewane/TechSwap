@@ -1,35 +1,25 @@
 import React from 'react';
 import { Badge } from '../../../../../components/ui/badge';
 import { Button } from '../../../../../components/ui/button';
+import { Skeleton } from '../../../../../components/ui/skeleton';
 
-const users = [
-  {
-    id: 'TSU005',
-    name: 'Eve Adams',
-    email: 'eve.a@example.com',
-    role: 'Admin',
-    status: 'Active',
-    avatar: 'https://i.pravatar.cc/40?u=a042581f4e29026704d',
-  },
-  {
-    id: 'TSU002',
-    name: 'Bob Smith',
-    email: 'bob.s@example.com',
-    role: 'User',
-    status: 'Active',
-    avatar: 'https://i.pravatar.cc/40?u=a042581f4e29026704e',
-  },
-  {
-    id: 'TSU003',
-    name: 'Charlie Brown',
-    email: 'charlie.b@example.com',
-    role: 'User',
-    status: 'Suspended',
-    avatar: 'https://i.pravatar.cc/40?u=a042581f4e29026704f',
-  },
-];
+const UsersTable = ({ users, loading }) => {
+  if (loading) {
+    return (
+      <div>
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex items-center space-x-4 p-4">
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-[250px]" />
+              <Skeleton className="h-4 w-[200px]" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
-const UsersTable = () => {
   return (
     <div className="bg-white rounded-lg shadow-md">
       <table className="min-w-full divide-y divide-gray-200">
@@ -56,7 +46,7 @@ const UsersTable = () => {
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.role}</td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <Badge variant={user.status === 'Active' ? 'success' : 'destructive'}>
+                <Badge variant={user.status === 'Active' ? 'default' : 'destructive'}>
                   {user.status}
                 </Badge>
               </td>

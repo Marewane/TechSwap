@@ -8,14 +8,17 @@ import {
   SelectValue,
 } from '../../../../../components/ui/select';
 
-const UsersFilters = () => {
+const UsersFilters = ({ onSearchChange, onStatusChange }) => {
   return (
     <div className="flex items-center justify-between mb-4">
       <div className="w-1/3">
-        <Input placeholder="Search users by name, email, or ID..." />
+        <Input
+          placeholder="Search users by name, email, or ID..."
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
       </div>
       <div className="w-1/6">
-        <Select>
+        <Select onValueChange={onStatusChange} defaultValue="all">
           <SelectTrigger>
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
