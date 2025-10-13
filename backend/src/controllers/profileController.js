@@ -1,15 +1,13 @@
-// backend/src/controllers/profileController.js
 const User = require('../models/UserModel');
 
-// @desc    Get user profile
+// @desc    Get user profile (essential data only)
 // @route   GET /api/profile/view
 // @access  Protected
 const getProfile = async (req, res) => {
     try {
-        // ✅ FIXED: Get user ID from auth middleware
         const userId = req.user.id;
 
-        const user = await User.findById(userId).select('-password');
+        const user = await User.findById(userId).select('name email role avatar bio skillsToLearn skillsToTeach rating totalSession lastLogin isEmailVerified createdAt');
         
         if (!user) {
             return res.status(404).json({
@@ -31,51 +29,124 @@ const getProfile = async (req, res) => {
     }
 };
 
-// @desc    Update user profile
+// @desc    Update user profile (handles all updates including skills)
 // @route   PUT /api/profile/update
 // @access  Protected
 const updateProfile = async (req, res) => {
     try {
-        // ✅ FIXED: Get user ID from auth middleware
         const userId = req.user.id;
         
-        if(!req.body) {
+        if (!req.body || Object.keys(req.body).length === 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Request body is required'
+                message: 'Request body is required with at least one field to update'
             });
         }
 
-        const { name, bio, avatar, skillsToTeach, skillsToLearn } = req.body;
+        const { 
+            name, 
+            bio, 
+            avatar, 
+            skillsToTeach,  // Replace entire teaching skills array
+            skillsToLearn,  // Replace entire learning skills array
+            addTeachingSkill,    // Single skill to add to teaching
+            addLearningSkill,    // Single skill to add to learning  
+            removeTeachingSkill, // Single skill to remove from teaching
+            removeLearningSkill  // Single skill to remove from learning
+        } = req.body;
 
-        // Build update object with only provided fields
+        // Get current user to work with existing data
+        const currentUser = await User.findById(userId);
+        if (!currentUser) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Start with current skills
+        let updatedSkillsToTeach = [...currentUser.skillsToTeach];
+        let updatedSkillsToLearn = [...currentUser.skillsToLearn];
+
+        // Handle complete array replacement (highest priority)
+        if (skillsToTeach !== undefined) {
+            if (!Array.isArray(skillsToTeach)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'skillsToTeach must be an array'
+                });
+            }
+            // Clean and validate the array
+            updatedSkillsToTeach = [...new Set(skillsToTeach.map(skill => skill.trim()).filter(skill => skill.length > 0))];
+        }
+
+        if (skillsToLearn !== undefined) {
+            if (!Array.isArray(skillsToLearn)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'skillsToLearn must be an array'
+                });
+            }
+            // Clean and validate the array
+            updatedSkillsToLearn = [...new Set(skillsToLearn.map(skill => skill.trim()).filter(skill => skill.length > 0))];
+        }
+
+        // Handle single skill additions (medium priority)
+        if (addTeachingSkill && typeof addTeachingSkill === 'string') {
+            const skill = addTeachingSkill.trim();
+            if (skill && !updatedSkillsToTeach.includes(skill)) {
+                updatedSkillsToTeach.push(skill);
+            }
+        }
+
+        if (addLearningSkill && typeof addLearningSkill === 'string') {
+            const skill = addLearningSkill.trim();
+            if (skill && !updatedSkillsToLearn.includes(skill)) {
+                updatedSkillsToLearn.push(skill);
+            }
+        }
+
+        // Handle single skill removals (lowest priority)
+        if (removeTeachingSkill && typeof removeTeachingSkill === 'string') {
+            const skill = removeTeachingSkill.trim();
+            updatedSkillsToTeach = updatedSkillsToTeach.filter(s => s !== skill);
+        }
+
+        if (removeLearningSkill && typeof removeLearningSkill === 'string') {
+            const skill = removeLearningSkill.trim();
+            updatedSkillsToLearn = updatedSkillsToLearn.filter(s => s !== skill);
+        }
+
+        // Build update object
         const updateFields = {};
         if (name !== undefined) updateFields.name = name;
         if (bio !== undefined) updateFields.bio = bio;
         if (avatar !== undefined) updateFields.avatar = avatar;
-        if (skillsToTeach !== undefined) updateFields.skillsToTeach = skillsToTeach;
-        if (skillsToLearn !== undefined) updateFields.skillsToLearn = skillsToLearn;
+        
+        // Always update skills (even if unchanged, they're validated)
+        updateFields.skillsToTeach = updatedSkillsToTeach;
+        updateFields.skillsToLearn = updatedSkillsToLearn;
 
-        if(Object.keys(updateFields).length == 0){
+        if (Object.keys(updateFields).length === 0) {
             return res.status(400).json({
                 success: false,
-                message: 'No fields to update provided'
+                message: 'No valid fields to update provided'
             });
         }
 
         const updatedUser = await User.findByIdAndUpdate(
-            userId, // ✅ Using authenticated user's ID
+            userId,
             updateFields,
             { 
-                new: true, // Return updated document
-                runValidators: true // Run schema validators
+                new: true,
+                runValidators: true
             }
-        ).select('-password');
+        ).select('name email avatar bio skillsToTeach skillsToLearn rating totalSession lastLogin isEmailVerified createdAt');
 
         if (!updatedUser) {
             return res.status(404).json({
                 success: false,
-                message: 'User not found'
+                message: 'User not found after update'
             });
         }
 
@@ -102,232 +173,8 @@ const updateProfile = async (req, res) => {
     }
 };
 
-// @desc    Add a skill to skillsToTeach
-// @route   POST /api/profile/skills/teach
-// @access  Protected
-const addTeachingSkill = async (req, res) => {
-    try {
-        // ✅ FIXED: Get user ID from auth middleware
-        const userId = req.user.id;
-        
-        if(!req.body){
-            return res.status(400).json({
-                success: false,
-                message: 'Request body is required'
-            }); 
-        }   
-        const { skill } = req.body;
-
-        if (!skill || skill.trim() === '') {
-            return res.status(400).json({
-                success: false,
-                message: 'Skill is required'
-            });
-        }
-
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        // Check if skill already exists
-        if (user.skillsToTeach.includes(skill.trim())) {
-            return res.status(400).json({
-                success: false,
-                message: 'Skill already exists in teaching skills'
-            });
-        }
-
-        // Add skill to array
-        user.skillsToTeach.push(skill.trim());
-        await user.save();
-
-        res.status(200).json({
-            success: true,
-            message: 'Teaching skill added successfully',
-            data: user
-        });
-    } catch (error) {
-        console.error('Add teaching skill error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error while adding teaching skill'
-        });
-    }
-};
-
-// @desc    Add a skill to skillsToLearn
-// @route   POST /api/profile/skills/learn
-// @access  Protected
-const addLearningSkill = async (req, res) => {
-    try {
-        // ✅ FIXED: Get user ID from auth middleware
-        const userId = req.user.id;
-        
-        if(!req.body){
-            return res.status(400).json({
-                success: false,
-                message: 'Request body is required'
-            });
-        }
-        
-        const { skill } = req.body;
-
-        if (!skill || skill.trim() === '') {
-            return res.status(400).json({
-                success: false,
-                message: 'Skill is required'
-            });
-        }
-
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        // Check if skill already exists
-        if (user.skillsToLearn.includes(skill.trim())) {
-            return res.status(400).json({
-                success: false,
-                message: 'Skill already exists in learning skills'
-            });
-        }
-
-        // Add skill to array
-        user.skillsToLearn.push(skill.trim());
-        await user.save();
-
-        res.status(200).json({
-            success: true,
-            message: 'Learning skill added successfully',
-            data: user
-        });
-    } catch (error) {
-        console.error('Add learning skill error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error while adding learning skill'
-        });
-    }
-};
-
-// @desc    Remove a skill from skillsToTeach
-// @route   DELETE /api/profile/skills/teach
-// @access  Protected
-const removeTeachingSkill = async (req, res) => {
-    try {
-        // ✅ FIXED: Get user ID from auth middleware
-        const userId = req.user.id;
-        
-        if(!req.body){
-            return res.status(400).json({
-                success: false,
-                message: 'Request body is required'
-            });
-        }
-        
-        const { skill } = req.body;
-
-        if (!skill) {
-            return res.status(400).json({
-                success: false,
-                message: 'Skill is required'
-            });
-        }
-
-        const updatedUser = await User.findByIdAndUpdate(
-            userId, // ✅ Using authenticated user's ID
-            {
-                $pull: { skillsToTeach: skill }
-            },
-            { new: true }
-        ).select('-password');
-
-        if (!updatedUser) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: 'Teaching skill removed successfully',
-            data: updatedUser
-        });
-    } catch (error) {
-        console.error('Remove teaching skill error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error while removing teaching skill'
-        });
-    }
-};
-
-// @desc    Remove a skill from skillsToLearn
-// @route   DELETE /api/profile/skills/learn
-// @access  Protected
-const removeLearningSkill = async (req, res) => {
-    try {
-        // ✅ FIXED: Get user ID from auth middleware
-        const userId = req.user.id;
-        
-        if(!req.body){
-            return res.status(400).json({
-                success: false,
-                message: 'Request body is required'
-            });
-        }
-        
-        const { skill } = req.body;
-
-        if (!skill) {
-            return res.status(400).json({
-                success: false,
-                message: 'Skill is required'
-            });
-        }
-
-        const updatedUser = await User.findByIdAndUpdate(
-            userId, // ✅ Using authenticated user's ID
-            {
-                $pull: { skillsToLearn: skill }
-            },
-            { new: true }
-        ).select('-password');
-
-        if (!updatedUser) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: 'Learning skill removed successfully',
-            data: updatedUser
-        });
-    } catch (error) {
-        console.error('Remove learning skill error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error while removing learning skill'
-        });
-    }
-};
-
 module.exports = {
     getProfile,
-    updateProfile,
-    addTeachingSkill,
-    addLearningSkill,
-    removeTeachingSkill,
-    removeLearningSkill
+    updateProfile
+    // Removed: addTeachingSkill, addLearningSkill, removeTeachingSkill, removeLearningSkill
 };
