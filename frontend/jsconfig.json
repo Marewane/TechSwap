@@ -1,6 +1,4 @@
 {
-    "files": [],
-    "references": [],
     "compilerOptions": {
         "baseUrl": ".",
         "paths": {
@@ -8,5 +6,8 @@
                 "./src/*"
             ]
         }
-    }
+    },
+    "include": [
+        "src"
+    ]
 }

@@ -1,3 +1,5 @@
+const { transformUserResponse } = require('../utils/userTransformer');
+
 const User = require("../models/UserModel");
 
 const passport = require("../config/passportConfig");
@@ -144,7 +146,10 @@ const verifyEmail = async (req, res) => {
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
-    const userResponse = await User.findById(user._id).select('-password');
+    // const userResponse = await User.findById(user._id).select('-password');
+
+    const userResponse = transformUserResponse(user);
+
 
     res.json({
       success: true,
@@ -248,7 +253,10 @@ const login = async (req, res) => {
     const refreshToken = generateRefreshToken(user._id);
 
     // Return user data without password
-    const userResponse = await User.findById(user._id).select("-password");
+    // const userResponse = await User.findById(user._id).select("-password");
+
+    const userResponse = transformUserResponse(user);
+
 
     return res.json({
       success: true,
@@ -360,21 +368,36 @@ const googleCallback = (req, res, next) => {
     const refreshToken = generateRefreshToken(user._id);
 
     // 📝 TEMPORARY: Show tokens in browser instead of redirecting
+
+    // res.send(`
+    //   <html>
+    //     <body>
+    //       <h2>OAuth Success! 🎉</h2>
+    //       <p><strong>User:</strong> ${user.name} (${user.email})</p>
+    //       <p><strong>Access Token:</strong> ${accessToken}</p>
+    //       <p><strong>Refresh Token:</strong> ${refreshToken}</p>
+    //       <script>
+    //         console.log('OAuth Success!', {
+    //           user: '${user.name}',
+    //           email: '${user.email}', 
+    //           accessToken: '${accessToken}',
+    //           refreshToken: '${refreshToken}'
+    //         });
+    //       </script>
+    //     </body>
+    //   </html>
+    // `);
+
+    const userResponse = transformUserResponse(user);
     res.send(`
       <html>
         <body>
           <h2>OAuth Success! 🎉</h2>
-          <p><strong>User:</strong> ${user.name} (${user.email})</p>
+          <p><strong>User:</strong> ${userResponse.name} (${userResponse.email})</p>
+          <p><strong>Clean User Data:</strong></p>
+          <pre>${JSON.stringify(userResponse, null, 2)}</pre>
           <p><strong>Access Token:</strong> ${accessToken}</p>
           <p><strong>Refresh Token:</strong> ${refreshToken}</p>
-          <script>
-            console.log('OAuth Success!', {
-              user: '${user.name}',
-              email: '${user.email}', 
-              accessToken: '${accessToken}',
-              refreshToken: '${refreshToken}'
-            });
-          </script>
         </body>
       </html>
     `);
@@ -425,21 +448,37 @@ const githubCallback = (req, res, next) => {
     const refreshToken = generateRefreshToken(user._id);
 
     // 📝 TEMPORARY: Show tokens in browser instead of redirecting
+
+    // res.send(`
+    //   <html>
+    //     <body>
+    //       <h2>GitHub OAuth Success! 🎉</h2>
+    //       <p><strong>User:</strong> ${user.name} (${user.email})</p>
+    //       <p><strong>Access Token:</strong> ${accessToken}</p>
+    //       <p><strong>Refresh Token:</strong> ${refreshToken}</p>
+    //       <script>
+    //         console.log('GitHub OAuth Success!', {
+    //           user: '${user.name}',
+    //           email: '${user.email}', 
+    //           accessToken: '${accessToken}',
+    //           refreshToken: '${refreshToken}'
+    //         });
+    //       </script>
+    //     </body>
+    //   </html>
+    // `);
+
+    
+    const userResponse = transformUserResponse(user);
     res.send(`
       <html>
         <body>
-          <h2>GitHub OAuth Success! 🎉</h2>
-          <p><strong>User:</strong> ${user.name} (${user.email})</p>
+          <h2>OAuth Success! 🎉</h2>
+          <p><strong>User:</strong> ${userResponse.name} (${userResponse.email})</p>
+          <p><strong>Clean User Data:</strong></p>
+          <pre>${JSON.stringify(userResponse, null, 2)}</pre>
           <p><strong>Access Token:</strong> ${accessToken}</p>
           <p><strong>Refresh Token:</strong> ${refreshToken}</p>
-          <script>
-            console.log('GitHub OAuth Success!', {
-              user: '${user.name}',
-              email: '${user.email}', 
-              accessToken: '${accessToken}',
-              refreshToken: '${refreshToken}'
-            });
-          </script>
         </body>
       </html>
     `);
