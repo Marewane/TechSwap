@@ -13,14 +13,39 @@ const logAdminAction = async ({ adminId, actionType, targetUserId, description }
     }
 };
 
-// ------------ USER MANAGEMENT --------------
+// ------------ FETCH USERS BY ROLE --------------
 
 exports.getAllUsers = async (req, res) => {
     try {
-        const users = await User.find().select('-password');
-        res.json(users);
+        const users = await User.find({ role: 'user' }).select('-password');
+        res.status(200).json({
+            success: true,
+            total: users.length,
+            users,
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching users',
+            error: error.message,
+        });
+    }
+};
+
+exports.getAllAdmins = async (req, res) => {
+    try {
+        const admins = await User.find({ role: 'admin' }).select('-password');
+        res.status(200).json({
+            success: true,
+            total: admins.length,
+            admins,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching admins',
+            error: error.message,
+        });
     }
 };
 
@@ -109,26 +134,6 @@ exports.unsuspendUser = async (req, res) => {
     }
 };
 
-exports.removeUser = async (req, res) => {
-    try {
-        const user = await User.findByIdAndDelete(req.params.id);
-        if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-        const adminId = req.user?._id || "000000000000000000000000";
-
-        await logAdminAction({
-            adminId,
-            actionType: "delete",
-            targetUserId: user._id,
-            description: `Deleted user ${user.name}`,
-        });
-
-        res.json({ success: true, message: `User ${user.name} has been removed.` });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
 // ------------ REVIEW MODERATION --------------
 
 exports.getAllReviews = async (req, res) => {
@@ -209,25 +214,6 @@ exports.updateReportStatus = async (req, res) => {
     }
 };
 
-exports.deleteReport = async (req, res) => {
-    try {
-        const report = await Report.findByIdAndDelete(req.params.id);
-        if (!report) return res.status(404).json({ success: false, message: "Report not found" });
-
-        const adminId = req.user?._id || "000000000000000000000000";
-
-        await logAdminAction({
-            adminId,
-            actionType: "delete",
-            targetUserId: report.reportedUserId,
-            description: `Deleted report ${report._id}`,
-        });
-
-        res.json({ success: true, message: "Report deleted" });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
 
 // ------------ SESSION OVERSIGHT --------------
 
