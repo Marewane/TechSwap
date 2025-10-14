@@ -75,6 +75,14 @@ const userSchema = new mongoose.Schema(
     verificationCodeExpires: {
         type: Date,
         select: false
+    },
+    resetPasswordToken: {
+    type: String,
+    select: false // Hide by default
+    },
+    resetPasswordExpires: {
+        type: Date,
+        select: false
     }
 },{timestamps:true});
 //This is a Mongoose middleware that runs before saving a user to the database to securely hash the password.

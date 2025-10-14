@@ -4,7 +4,7 @@ const User = require("../models/UserModel");
 
 const passport = require("../config/passportConfig");
 
-const { generateVerificationCode, sendVerificationEmail } = require('../services/emailService');
+const { generateVerificationCode, sendVerificationEmail, generateResetToken, sendPasswordResetEmail, sendPasswordResetConfirmation  } = require('../services/emailService');
 
 const {
   generateAccessToken,
@@ -485,6 +485,103 @@ const githubCallback = (req, res, next) => {
   })(req, res, next);
 };
 
+
+
+// 🔑 FORGOT PASSWORD - Step 1: Request reset
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    
+    // 📝 SECURITY: Always return success even if email doesn't exist
+    // This prevents email enumeration attacks
+    if (!user) {
+      return res.json({
+        success: true,
+        message: 'If the email exists, a reset link has been sent'
+      });
+    }
+
+    // Generate reset token and expiry
+    const resetToken = generateResetToken();
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Save token to user (include hidden fields)
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = resetTokenExpiry;
+    await user.save();
+
+    // Send reset email
+    const emailSent = await sendPasswordResetEmail(email, resetToken);
+    
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send reset email'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'If the email exists, a reset link has been sent'
+    });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during password reset request'
+    });
+  }
+};
+
+// 🔑 RESET PASSWORD - Step 2: Verify token and set new password
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    // Find user with valid reset token (include hidden fields)
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() } // Check if token not expired
+    }).select('+resetPasswordToken +resetPasswordExpires');
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset token'
+      });
+    }
+
+    // Update password (this will trigger password hashing middleware)
+    user.password = newPassword;
+    
+    // Clear reset token fields
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    
+    await user.save();
+
+    // Send confirmation email
+    await sendPasswordResetConfirmation(user.email);
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during password reset'
+    });
+  }
+};
+
+
 module.exports = {
   register,
   login,
@@ -495,5 +592,7 @@ module.exports = {
   githubAuth,
   githubCallback,
   verifyEmail,
-  resendVerificationCode
+  resendVerificationCode,
+  forgotPassword,
+  resetPassword
 };
