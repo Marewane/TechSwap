@@ -2,7 +2,7 @@ const User = require('../models/UserModel');
 const Review = require('../models/ReviewModel');
 const Report = require('../models/RaportModel'); 
 const Session = require('../models/SessionModel');
-const Wallet = require('../models/WalletModel');
+const Transaction = require('../models/TranscationModel');
 const AdminActionLog = require("../models/AdminActionLogModel");
 
 const logAdminAction = async ({ adminId, actionType, targetUserId, description }) => {
@@ -251,27 +251,68 @@ exports.cancelSession = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
-
-// ------------ ANALYTICS --------------
-
-exports.getReports = async (req, res) => {
+// ------------ DASHBOARD ANALYTICS --------------
+exports.getDashboardStats = async (req, res) => {
     try {
-        const totalUsers = await User.countDocuments();
-        const totalSessions = await Session.countDocuments();
-        const totalReviews = await Review.countDocuments();
-        const totalRevenue = await Wallet.aggregate([
-            { $unwind: "$transactions" },
-            { $group: { _id: null, sum: { $sum: "$transactions.amount" } } },
+        // 1️⃣ Basic counts
+        const [totalUsers, totalSessions, totalReports] = await Promise.all([
+            User.countDocuments(),
+            Session.countDocuments(),
+            Report.countDocuments()
         ]);
 
-        res.json({
+        // 2️⃣ Total Revenue (from platformShare)
+        const totalRevenueAgg = await Transaction.aggregate([
+            { $group: { _id: null, total: { $sum: "$platformShare" } } }
+        ]);
+        const totalRevenue = totalRevenueAgg[0]?.total || 0;
+
+        // 3️⃣ Monthly Revenue (for chart)
+        const monthlyRevenue = await Transaction.aggregate([
+            {
+                $group: {
+                    _id: { $month: "$createdAt" },
+                    total: { $sum: "$platformShare" }
+                }
+            },
+            { $sort: { "_id": 1 } }
+        ]);
+
+        // Convert month number → month name
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const formattedRevenue = monthlyRevenue.map(m => ({
+            month: months[m._id - 1],
+            total: m.total
+        }));
+
+        // 4️⃣ Recent Transactions (for table)
+        const recentTransactions = await Transaction.find()
+            .populate("fromUserId", "name")
+            .populate("toUserId", "name")
+            .sort({ createdAt: -1 })
+            .limit(8)
+            .lean();
+
+        // 5️⃣ Return response
+        res.status(200).json({
             success: true,
-            totalUsers,
-            totalSessions,
-            totalReviews,
-            totalRevenue: totalRevenue[0]?.sum || 0,
+            stats: {
+                totalUsers,
+                totalSessions,
+                totalReports,
+                totalRevenue
+            },
+            monthlyRevenue: formattedRevenue,
+            recentTransactions
         });
+
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("Dashboard analytics error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error generating dashboard analytics",
+            error: error.message
+        });
     }
 };
