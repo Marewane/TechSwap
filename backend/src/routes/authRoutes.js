@@ -25,6 +25,11 @@ router.get('/github', authController.githubAuth); // Starts GitHub OAuth flow
 router.get('/github/callback', authController.githubCallback); // GitHub redirects here after login
 
 
+// 🔑 Password Reset Routes
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
+
+
 
 
 
