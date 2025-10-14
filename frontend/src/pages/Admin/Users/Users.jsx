@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import UsersKPI from './components/KPI/UsersKPI';
 import UsersFilters from './components/Filters/UsersFilters';
 import UsersTable from './components/Table/UsersTable';
-import { getUsers } from '../../../services/userAPI';
+import { getUsers, suspendUser, reactivateUser, deleteUser } from '../../../services/userAPI';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -10,15 +10,21 @@ const Users = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      setLoading(true);
-      const userList = await getUsers();
-      setUsers(userList);
-      setLoading(false);
-    };
-    fetchUsers();
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    const userList = await getUsers();
+    setUsers(userList);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleAction = useCallback(async (action, userId) => {
+    await action(userId);
+    fetchUsers();
+  }, [fetchUsers]);
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
@@ -52,7 +58,13 @@ const Users = () => {
           onSearchChange={setSearchTerm}
           onStatusChange={setStatusFilter}
         />
-        <UsersTable users={filteredUsers} loading={loading} />
+        <UsersTable
+          users={filteredUsers}
+          loading={loading}
+          onSuspend={(userId) => handleAction(suspendUser, userId)}
+          onReactivate={(userId) => handleAction(reactivateUser, userId)}
+          onDelete={(userId) => handleAction(deleteUser, userId)}
+        />
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { Badge } from '../../../../../components/ui/badge';
 import { Button } from '../../../../../components/ui/button';
 import { Skeleton } from '../../../../../components/ui/skeleton';
 
-const UsersTable = ({ users, loading }) => {
+const UsersTable = ({ users, loading, onSuspend, onReactivate, onDelete }) => {
   if (loading) {
     return (
       <div>
@@ -52,8 +52,23 @@ const UsersTable = ({ users, loading }) => {
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <Button variant="ghost" size="sm">View</Button>
-                <Button variant="ghost" size="sm">Suspend</Button>
-                <Button variant="ghost" size="sm" className="text-red-500">Delete</Button>
+                {user.status === 'Active' ? (
+                  <Button variant="ghost" size="sm" onClick={() => onSuspend(user.id)}>
+                    Suspend
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={() => onReactivate(user.id)}>
+                    Reactivate
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500"
+                  onClick={() => onDelete(user.id)}
+                >
+                  Delete
+                </Button>
               </td>
             </tr>
           ))}
