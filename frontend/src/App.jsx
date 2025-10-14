@@ -6,12 +6,10 @@ import Dashboard from "./pages/admin/Dashboard/Dashboard";
 function App() {
   return (
       <Routes>
-        {/* Admin Routes with Sidebar */}
+        {/* Admin Routes with */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
-        </Route>
-        
-        {/* Other routes */}
+        </Route>        
       </Routes>
   );
 }

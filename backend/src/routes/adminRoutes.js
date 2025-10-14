@@ -29,5 +29,6 @@ router.patch("/sessions/:id/cancel", adminController.cancelSession); // cancel a
 
 // Analytics and Reporting
 router.get("/dashboard", adminController.getDashboardStats); // get platform analytics
+router.get("/transactions", adminController.getTransactions); // list all transactions with filters, search, pagination
 
 module.exports = router;

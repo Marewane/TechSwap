@@ -1,21 +1,21 @@
 import { Link, useLocation } from "react-router-dom";
-import { MdDashboard, MdPeople, MdFlag, MdVideoCall, MdLogout } from "react-icons/md";
+import { MdDashboard, MdPeople, MdFlag, MdVideoCall, MdSwapHoriz } from "react-icons/md";
+
 import {
     Sidebar,
     SidebarContent,
-    SidebarFooter,
     SidebarGroup,
     SidebarGroupContent,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarProvider,
-    SidebarTrigger,
+    useSidebar,
 } from "@/components/ui/sidebar";
 
 const AdminSidebar = () => {
     const location = useLocation();
+    const { open } = useSidebar();
 
     const links = [
         { name: "Dashboard", path: "/admin/dashboard", icon: MdDashboard },
@@ -26,10 +26,14 @@ const AdminSidebar = () => {
 
 
     return (
-        <Sidebar>
+        <Sidebar collapsible="icon" >
             <SidebarHeader>
-                <div className="flex items-center gap-2 px-2 py-4">
-                    <h1 className="text-2xl font-bold">TechSwap Admin</h1>
+                <div className="px-2 py-4">
+                    {open ? (
+                        <h1 className="text-2xl font-bold">TechSwap</h1>
+                    ) : (
+                        <MdSwapHoriz />
+                    )}
                 </div>
             </SidebarHeader>
 
