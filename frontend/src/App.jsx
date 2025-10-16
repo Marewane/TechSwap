@@ -17,9 +17,12 @@ function App() {
         <Route path="/register" element={<Register />} />
 
         {/* Admin routes */}
+        {/* Admin Routes with */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
         </Route>
+        
+        {/* Other routes */}
       </Routes>
     
   );

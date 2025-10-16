@@ -28,6 +28,7 @@ router.get("/sessions", adminController.getAllSessions); // list all sessions
 router.patch("/sessions/:id/cancel", adminController.cancelSession); // cancel a session
 
 // Analytics and Reporting
-router.get("/Analytics", adminController.getReports); 
+router.get("/dashboard", adminController.getDashboardStats); // get platform analytics
+router.get("/transactions", adminController.getTransactions); // list all transactions with filters, search, pagination
 
 module.exports = router;

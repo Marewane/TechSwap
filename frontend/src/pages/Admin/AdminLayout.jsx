@@ -5,19 +5,18 @@ import AdminSidebar from "../Admin/AdminSideBar";
 const AdminLayout = () => {
     return (
         <SidebarProvider>
-            <div className="flex min-h-screen w-full">
-                <AdminSidebar />
-                <main className="flex-1">
-                    {/* Sidebar Toggle Button - Mobile & Desktop */}
-                    <div className="border-b p-4">
-                        <SidebarTrigger />
-                    </div>
-
-                    {/* Page Content */}
-                    <div className="p-6">
-                        <Outlet />
-                    </div>
-                </main>
+            <div className="grid min-h-screen w-full grid-cols-1">
+                <div className="flex">
+                    <AdminSidebar />
+                    <main className="flex-1 min-w-0">
+                        <div className="border-b p-4">
+                            <SidebarTrigger />
+                        </div>
+                        <div className="p-6">
+                            <Outlet />
+                        </div>
+                    </main>
+                </div>
             </div>
         </SidebarProvider>
     );
