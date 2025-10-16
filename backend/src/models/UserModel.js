@@ -75,7 +75,10 @@ const userSchema = new mongoose.Schema(
     verificationCodeExpires: {
         type: Date,
         select: false
-    }
+    },
+    reviewCount: { type: Number, default: 0 },
+    averageRating: { type: Number, default: 0 },
+    isSuspended: { type: Boolean, default: false }
 },{timestamps:true});
 //This is a Mongoose middleware that runs before saving a user to the database to securely hash the password.
 // pre-save middleware (new users and .save() updates)

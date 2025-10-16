@@ -1,4 +1,5 @@
 const Session = require('../models/SessionModel');
+const ChatRoom = require('../models/ChatRoomModel');
 
 /**
  * Helper: check overlap between two intervals
@@ -30,58 +31,74 @@ async function findConflicts(participantIds, start, end, excludeSessionId = null
   });
 }
 
+/**
+ * Create a new session
+ */
 const createSession = async (req, res) => {
   try {
-    const { hostId, learnerId, scheduledTime, duration, title, description, sessionType, cost } = req.body;
+    const { chatRoomId, scheduledTime, duration, title, cost } = req.body;
 
-    if (!hostId || !learnerId || !scheduledTime || !duration) {
-      return res.status(400).json({ error: 'hostId, learnerId, scheduledTime and duration are required' });
+    // Validate required fields
+    if (!title || !cost) {
+      return res.status(400).json({ message: 'Session title and cost are required' });
     }
 
-    const start = new Date(scheduledTime);
-    const end = new Date(start.getTime() + duration * 60000);
-    const participantIds = [hostId, learnerId];
-
-    const conflicts = await findConflicts(participantIds, start, end);
-    if (conflicts.length > 0) {
-      return res.status(409).json({
-        error: 'Time slot conflict for one of the participants',
-        conflicts
-      });
+    if (!chatRoomId || !scheduledTime || !duration) {
+      return res.status(400).json({ message: 'Chat room, scheduled time, and duration are required' });
     }
 
-    const newSession = await Session.create({
-      hostId,
-      learnerId,
-      scheduledTime: start,
+    // 1 => Find chat room
+    const chatRoom = await ChatRoom.findById(chatRoomId);
+    if (!chatRoom) return res.status(404).json({ message: 'Chat room not found.' });
+
+    // 2 => Check participant authorization
+    if (!chatRoom.participants.includes(req.user._id)) {
+      return res.status(403).json({ message: 'Forbidden.' });
+    }
+
+    // 3 => Create the session
+    const session = await Session.create({
+      hostId: chatRoom.participants[0],
+      learnerId: chatRoom.participants[1],
+      scheduledTime,
       duration,
+      chatRoomId,
       title,
-      description,
-      sessionType,
       cost
     });
 
-    return res.status(201).json({ message: 'Session created successfully', data: newSession });
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
+    // 4 => Link the session to the chat room
+    chatRoom.sessionId = session._id;
+    await chatRoom.save();
+
+    res.status(201).json({
+      message: 'Session created and linked to chat room successfully.',
+      session,
+      chatRoom
+    });
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
+/**
+ * Get all sessions for the current user
+ */
 const getMySessions = async (req, res) => {
   try {
-    const userId = req.query.userId;
-    if (!userId) return res.status(400).json({ error: 'userId query param required' });
-
     const sessions = await Session.find({
-      $or: [{ hostId: userId }, { learnerId: userId }]
-    }).sort({ scheduledTime: -1 });
-
-    return res.json({ data: sessions });
+      $or: [{ hostId: req.user._id }, { learnerId: req.user._id }]
+    }).populate('hostId learnerId');
+    res.json(sessions);
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    res.status(500).json({ message: err.message });
   }
 };
 
+/**
+ * Get session by ID
+ */
 const getSessionById = async (req, res) => {
   try {
     const session = await Session.findById(req.params.id);
@@ -92,6 +109,9 @@ const getSessionById = async (req, res) => {
   }
 };
 
+/**
+ * Update a session
+ */
 const updateSession = async (req, res) => {
   try {
     const sessionId = req.params.id;
@@ -100,7 +120,7 @@ const updateSession = async (req, res) => {
     const session = await Session.findById(sessionId);
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
-    // determine candidate new start/end for availability check
+    // Determine candidate new start/end for availability check
     const newStart = updates.scheduledTime ? new Date(updates.scheduledTime) : new Date(session.scheduledTime);
     const newDuration = (updates.duration !== undefined) ? updates.duration : session.duration;
     const newEnd = new Date(newStart.getTime() + newDuration * 60000);
@@ -120,6 +140,9 @@ const updateSession = async (req, res) => {
   }
 };
 
+/**
+ * Cancel a session
+ */
 const cancelSession = async (req, res) => {
   try {
     const sessionId = req.params.id;
@@ -141,7 +164,6 @@ module.exports = {
   getSessionById,
   updateSession,
   cancelSession,
-  // helpers exported for tests if needed
   isOverlapping,
   findConflicts
 };

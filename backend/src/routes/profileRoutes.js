@@ -13,7 +13,7 @@ const { authMiddleware } = require('../middleware/authMiddleware');
 // Protect all profile routes
 router.use(authMiddleware);
 
-// ✅ FIXED: Remove :userId from URLs
+//  FIXED: Remove :userId from URLs
 // @route   GET /api/profile/view
 router.get('/view', getProfile);
 

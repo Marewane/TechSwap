@@ -57,6 +57,11 @@ const sessionSchema = new mongoose.Schema({
     endedAt: {
         type: Date,
         default: null
+    },
+    chatRoomId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'ChatRoom', 
+        default: null 
     }
 }, { timestamps: true });
 

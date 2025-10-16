@@ -19,10 +19,10 @@ const postSchema = new mongoose.Schema({
         type: [String],
         default: []
     },
-    status: {
+    status: { 
         type: String,
-        enum: ['active', 'expired', 'filled', 'draft'],
-        default: 'active'
+        enum: ['active', 'pending', 'accepted', 'rejected', 'filled', 'expired'], 
+        default: 'active' 
     },
     title: {
         type: String,
