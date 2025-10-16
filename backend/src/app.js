@@ -37,6 +37,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 app.use('/',userRoutes);
+
+
 app.use('/api/profile', profileRoutes);
 
 

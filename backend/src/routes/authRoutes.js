@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const authController = require('../controllers/authController');
 
+const { transformUserResponse } = require('../utils/userTransformer');
+
+
 // Routes → Controllers
 // Local authentication
 router.post('/register', authController.register);
@@ -22,6 +25,11 @@ router.get('/github', authController.githubAuth); // Starts GitHub OAuth flow
 router.get('/github/callback', authController.githubCallback); // GitHub redirects here after login
 
 
+// 🔑 Password Reset Routes
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
+
+
 
 
 
@@ -32,11 +40,13 @@ const { authMiddleware } = require('../middleware/authMiddleware');
 
 // 🛡️ TEST PROTECTED ROUTE i will delete it in future 
 router.get('/profile', authMiddleware, async (req, res) => {
+
+
   res.json({
     success: true,
     message: 'Protected route works!',
     data: {
-      user: req.user
+      user: transformUserResponse(req.user)
     }
   });
 });

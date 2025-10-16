@@ -64,21 +64,21 @@ const createSession = async (req, res) => {
       duration,
       chatRoomId,
       title,
-      cost
+      description,
+      sessionType,
+      cost,
+      createdBy: req.user && (req.user.id || req.user._id) ? (req.user.id || req.user._id) : undefined
     });
 
-    // 4 => Link the session to the chat room
-    chatRoom.sessionId = session._id;
-    await chatRoom.save();
+    // return populated session (host and learner names/emails)
+    const populated = await Session.findById(newSession._id)
+      .populate('hostId', 'name email')
+      .populate('learnerId', 'name email')
+      .populate('createdBy', 'name email');
 
-    res.status(201).json({
-      message: 'Session created and linked to chat room successfully.',
-      session,
-      chatRoom
-    });
-
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(201).json({ message: 'Session created successfully', data: populated });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -87,10 +87,20 @@ const createSession = async (req, res) => {
  */
 const getMySessions = async (req, res) => {
   try {
+    // prefer authenticated user id if available
+    const authUserId = req.user && (req.user.id || req.user._id) ? String(req.user.id || req.user._id) : null;
+    const userId = req.query.userId || authUserId;
+    if (!userId) return res.status(400).json({ error: 'userId query param required or authenticate' });
+
     const sessions = await Session.find({
-      $or: [{ hostId: req.user._id }, { learnerId: req.user._id }]
-    }).populate('hostId learnerId');
-    res.json(sessions);
+      $or: [{ hostId: userId }, { learnerId: userId }]
+    })
+      .sort({ scheduledTime: -1 })
+      .populate('hostId', 'name email')
+      .populate('learnerId', 'name email')
+      .populate('createdBy', 'name email');
+
+    return res.json({ data: sessions });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -101,7 +111,11 @@ const getMySessions = async (req, res) => {
  */
 const getSessionById = async (req, res) => {
   try {
-    const session = await Session.findById(req.params.id);
+    const session = await Session.findById(req.params.id)
+      .populate('hostId', 'name email')
+      .populate('learnerId', 'name email')
+      .populate('createdBy', 'name email');
+
     if (!session) return res.status(404).json({ error: 'Session not found' });
     return res.json({ data: session });
   } catch (error) {
@@ -134,7 +148,13 @@ const updateSession = async (req, res) => {
     Object.assign(session, updates);
     await session.save();
 
-    return res.json({ message: 'Session updated successfully', data: session });
+    // return populated session
+    const populated = await Session.findById(sessionId)
+      .populate('hostId', 'name email')
+      .populate('learnerId', 'name email')
+      .populate('createdBy', 'name email');
+
+    return res.json({ message: 'Session updated successfully', data: populated });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -152,7 +172,12 @@ const cancelSession = async (req, res) => {
     session.status = 'cancelled';
     await session.save();
 
-    return res.json({ message: 'Session cancelled', data: session });
+    const populated = await Session.findById(sessionId)
+      .populate('hostId', 'name email')
+      .populate('learnerId', 'name email')
+      .populate('createdBy', 'name email');
+
+    return res.json({ message: 'Session cancelled', data: populated });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

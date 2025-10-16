@@ -2,7 +2,7 @@ const User = require('../models/UserModel');
 const Review = require('../models/ReviewModel');
 const Report = require('../models/RaportModel'); 
 const Session = require('../models/SessionModel');
-const Wallet = require('../models/WalletModel');
+const Transaction = require('../models/TranscationModel');
 const AdminActionLog = require("../models/AdminActionLogModel");
 
 const logAdminAction = async ({ adminId, actionType, targetUserId, description }) => {
@@ -13,14 +13,39 @@ const logAdminAction = async ({ adminId, actionType, targetUserId, description }
     }
 };
 
-// ------------ USER MANAGEMENT --------------
+// ------------ FETCH USERS BY ROLE --------------
 
 exports.getAllUsers = async (req, res) => {
     try {
-        const users = await User.find().select('-password');
-        res.json(users);
+        const users = await User.find({ role: 'user' }).select('-password');
+        res.status(200).json({
+            success: true,
+            total: users.length,
+            users,
+        });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching users',
+            error: error.message,
+        });
+    }
+};
+
+exports.getAllAdmins = async (req, res) => {
+    try {
+        const admins = await User.find({ role: 'admin' }).select('-password');
+        res.status(200).json({
+            success: true,
+            total: admins.length,
+            admins,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching admins',
+            error: error.message,
+        });
     }
 };
 
@@ -109,26 +134,6 @@ exports.unsuspendUser = async (req, res) => {
     }
 };
 
-exports.removeUser = async (req, res) => {
-    try {
-        const user = await User.findByIdAndDelete(req.params.id);
-        if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-        const adminId = req.user?._id || "000000000000000000000000";
-
-        await logAdminAction({
-            adminId,
-            actionType: "delete",
-            targetUserId: user._id,
-            description: `Deleted user ${user.name}`,
-        });
-
-        res.json({ success: true, message: `User ${user.name} has been removed.` });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
 // ------------ REVIEW MODERATION --------------
 
 exports.getAllReviews = async (req, res) => {
@@ -209,25 +214,6 @@ exports.updateReportStatus = async (req, res) => {
     }
 };
 
-exports.deleteReport = async (req, res) => {
-    try {
-        const report = await Report.findByIdAndDelete(req.params.id);
-        if (!report) return res.status(404).json({ success: false, message: "Report not found" });
-
-        const adminId = req.user?._id || "000000000000000000000000";
-
-        await logAdminAction({
-            adminId,
-            actionType: "delete",
-            targetUserId: report.reportedUserId,
-            description: `Deleted report ${report._id}`,
-        });
-
-        res.json({ success: true, message: "Report deleted" });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
 
 // ------------ SESSION OVERSIGHT --------------
 
@@ -265,27 +251,199 @@ exports.cancelSession = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
-
-// ------------ ANALYTICS --------------
-
-exports.getReports = async (req, res) => {
+// ------------ DASHBOARD ANALYTICS --------------
+exports.getDashboardStats = async (req, res) => {
     try {
-        const totalUsers = await User.countDocuments();
-        const totalSessions = await Session.countDocuments();
-        const totalReviews = await Review.countDocuments();
-        const totalRevenue = await Wallet.aggregate([
-            { $unwind: "$transactions" },
-            { $group: { _id: null, sum: { $sum: "$transactions.amount" } } },
+        // 1️⃣ Basic counts
+        const [totalUsers, totalSessions, totalReports] = await Promise.all([
+            User.countDocuments(),
+            Session.countDocuments(),
+            Report.countDocuments()
         ]);
 
-        res.json({
+        // 2️⃣ Total Revenue (from platformShare)
+        const totalRevenueAgg = await Transaction.aggregate([
+            { $group: { _id: null, total: { $sum: "$platformShare" } } }
+        ]);
+        const totalRevenue = totalRevenueAgg[0]?.total || 0;
+
+// 3️⃣ Monthly Revenue for LAST 6 MONTHS - FIXED
+const sixMonthsAgo = new Date();
+sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+const monthlyRevenue = await Transaction.aggregate([
+    {
+        $addFields: {
+            // Convert createdAt to Date if it's a string
+            createdAtDate: {
+                $cond: {
+                    if: { $eq: [{ $type: "$createdAt" }, "string"] },
+                    then: { $toDate: "$createdAt" },
+                    else: "$createdAt"
+                }
+            }
+        }
+    },
+    {
+        // Filter for last 6 months
+        $match: {
+            createdAtDate: { $gte: sixMonthsAgo }
+        }
+    },
+    {
+        $group: {
+            // Group by both year AND month
+            _id: {
+                year: { $year: "$createdAtDate" },
+                month: { $month: "$createdAtDate" }
+            },
+            total: { $sum: "$platformShare" }
+        }
+    },
+    { $sort: { "_id.year": 1, "_id.month": 1 } }
+]);
+
+// Generate last 6 months array with year
+const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const last6Months = [];
+const currentDate = new Date();
+
+for (let i = 5; i >= 0; i--) {
+    const date = new Date();
+    date.setMonth(currentDate.getMonth() - i);
+    last6Months.push({
+        month: months[date.getMonth()],
+        year: date.getFullYear(),
+        monthNum: date.getMonth() + 1
+    });
+}
+
+// Map revenue data to last 6 months (fill with 0 if no data)
+const formattedRevenue = last6Months.map(item => {
+    const found = monthlyRevenue.find(
+        m => m._id.month === item.monthNum && m._id.year === item.year
+    );
+    return {
+        month: `${item.month} ${item.year}`,
+        revenue: found ? found.total : 0
+    };
+});
+
+        // 4️⃣ Recent Transactions (for table)
+        const recentTransactions = await Transaction.find()
+            .populate("fromUserId", "name")
+            .populate("toUserId", "name")
+            .sort({ createdAt: -1 })
+            .limit(8)
+            .lean();
+
+        // 5️⃣ Return response
+        res.status(200).json({
             success: true,
-            totalUsers,
-            totalSessions,
-            totalReviews,
-            totalRevenue: totalRevenue[0]?.sum || 0,
+            stats: {
+                totalUsers,
+                totalSessions,
+                totalReports,
+                totalRevenue
+            },
+            monthlyRevenue: formattedRevenue,
+            recentTransactions
         });
+
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("Dashboard analytics error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error generating dashboard analytics",
+            error: error.message
+        });
+    }
+};
+// ------------ TRANSACTION OVERSIGHT --------------
+exports.getTransactions = async (req, res) => {
+    try {
+        // Get query parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || "";
+        const type = req.query.type || "all";
+        const sortBy = req.query.sortBy || "createdAt";
+        const sortOrder = req.query.sortOrder === "asc" ? 1 : -1;
+
+        // Build filter query
+        const query = {};
+
+        // Type filter
+        if (type !== "all") {
+            query.type = type;
+        }
+
+        // Search filter (description, or user names)
+        if (search) {
+            query.$or = [
+                { description: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        // Calculate skip
+        const skip = (page - 1) * limit;
+
+        // Get total count for pagination
+        const totalTransactions = await Transaction.countDocuments(query);
+
+        // Fetch transactions
+        const transactions = await Transaction.find(query)
+            .populate("fromUserId", "name email")
+            .populate("toUserId", "name email")
+            .populate("walletId", "balance")
+            .sort({ [sortBy]: sortOrder })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        // If search includes user names, we need to filter after population
+        let filteredTransactions = transactions;
+        if (search) {
+            filteredTransactions = transactions.filter(t => {
+                const desc = t.description?.toLowerCase() || "";
+                const fromUser = t.fromUserId?.name?.toLowerCase() || "";
+                const toUser = t.toUserId?.name?.toLowerCase() || "";
+                const searchLower = search.toLowerCase();
+                
+                return desc.includes(searchLower) || 
+                        fromUser.includes(searchLower) || 
+                        toUser.includes(searchLower);
+            });
+        }
+
+        // Calculate pagination info
+        const totalPages = Math.ceil(totalTransactions / limit);
+        const hasNextPage = page < totalPages;
+        const hasPrevPage = page > 1;
+
+        res.status(200).json({
+            success: true,
+            data: {
+                transactions: filteredTransactions,
+                pagination: {
+                    currentPage: page,
+                    totalPages,
+                    totalTransactions,
+                    limit,
+                    hasNextPage,
+                    hasPrevPage
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error("Get transactions error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching transactions",
+            error: error.message
+        });
     }
 };
