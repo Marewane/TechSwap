@@ -15,6 +15,11 @@ const webHookRouters = require("./routes/webhooksRouter");
 const matchingRoutes = require('./routes/matchingRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const profileRoutes = require('./routes/profileRoutes');
+const postRoutes = require('./routes/postRoutes');
+const swapRequestRoutes = require('./routes/swapRequestRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const sessionRoutes = require('./routes/sessionRoutes');
 
 
 
@@ -37,7 +42,7 @@ app.use('/',userRoutes);
 app.use('/api/profile', profileRoutes);
 
 
-// ⚙️ Stripe webhook route — must be before express.json
+// Stripe webhook route — must be before express.json
 app.use("/api/stripe", webHookRouters);
 
 // Middleware
@@ -56,6 +61,11 @@ app.use("/api/reviews", reviewRouter);
 app.use('/api/users', searchRoutes); // Add this
 //the matching logic
 app.use('/api/matches', matchingRoutes);
+app.use('/api/swap-requests', swapRequestRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/sessions', sessionRoutes);
 
 
 // Health check route

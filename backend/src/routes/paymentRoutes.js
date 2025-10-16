@@ -1,7 +1,10 @@
-const express = require("express");
-const stripe = require("../services/stripeService");
-const {createPaymentIntent} = require('../controllers/payments/paymentController');
+const express = require('express');
 const router = express.Router();
+const paymentController = require('../controllers/payments/paymentController');
 
-router.post("/coins/purchase", createPaymentIntent);
+const auth = require('../middleware/authMiddleware');
+
+router.post('/buy-coins', auth.authMiddleware, paymentController.createPaymentIntent);
+router.post('/session', auth.authMiddleware, paymentController.handleSessionPayment);
+
 module.exports = router;

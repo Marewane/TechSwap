@@ -15,7 +15,7 @@ router.post("/users", addUser);
 
 
 
-// 🛡️ PROTECTED ROUTE - GET USER PROFILE i think it didnt work
+//  PROTECTED ROUTE - GET USER PROFILE i think it didnt work
 router.get("/profile", authMiddleware, async (req, res) => {
     try {
         // req.user is already set by authMiddleware
