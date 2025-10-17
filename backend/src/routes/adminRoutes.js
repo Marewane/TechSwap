@@ -20,8 +20,10 @@ router.get("/reviews", adminController.getAllReviews); // list all reviews
 router.delete("/reviews/:id", adminController.deleteReview); // delete a review
 
 // REPORT MANAGEMENT 
-router.get('/reports', adminController.getAllReports); // list all reports
-router.put('/reports/:id/status', adminController.updateReportStatus); // update report status
+router.get('/reports', adminController.getReports);
+router.get('/reports/:id', adminController.getReportById);
+router.patch('/reports/:id/status', adminController.updateReportStatus);
+router.delete('/reports/:id', adminController.deleteReport);
 
 // SESSION OVERSIGHT
 router.get("/sessions", adminController.getAllSessions); // list all sessions

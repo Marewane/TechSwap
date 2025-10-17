@@ -169,51 +169,213 @@ exports.deleteReview = async (req, res) => {
 
 // ------------ REPORT MANAGEMENT --------------
 
-exports.getAllReports = async (req, res) => {
+exports.getReports = async (req, res) => {
     try {
-        const reports = await Report.find()
-            .populate("reporterId", "name email")
-            .populate("reportedUserId", "name email")
-            .populate("sessionId", "title")
+        // Get query parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const status = req.query.status || "all";
+        const search = req.query.search || "";
+        const sortBy = req.query.sortBy || "createdAt";
+        const sortOrder = req.query.sortOrder === "asc" ? 1 : -1;
+
+        // Build filter query
+        const query = {};
+
+        // Status filter
+        if (status !== "all") {
+            query.status = status;
+        }
+
+        // Calculate skip
+        const skip = (page - 1) * limit;
+
+        // Get total count
+        const totalReports = await Report.countDocuments(query);
+
+        // Fetch reports with population
+        let reports = await Report.find(query)
+            .populate("reporterId", "name email avatar")
+            .populate("reportedUserId", "name email avatar")
+            .populate("sessionId", "title scheduledAt")
+            .sort({ [sortBy]: sortOrder })
+            .skip(skip)
+            .limit(limit)
             .lean();
+
+        // Search filter (after population)
+        if (search) {
+            reports = reports.filter(report => {
+                const reporterName = report.reporterId?.name?.toLowerCase() || "";
+                const reportedName = report.reportedUserId?.name?.toLowerCase() || "";
+                const reason = report.reason?.toLowerCase() || "";
+                const searchLower = search.toLowerCase();
+                
+                return reporterName.includes(searchLower) || 
+                        reportedName.includes(searchLower) || 
+                        reason.includes(searchLower);
+            });
+        }
+
+        // Calculate pagination
+        const totalPages = Math.ceil(totalReports / limit);
+        const hasNextPage = page < totalPages;
+        const hasPrevPage = page > 1;
+
+        // Get status counts for filter badges
+        const statusCounts = await Report.aggregate([
+            {
+                $group: {
+                    _id: "$status",
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const counts = {
+            all: totalReports,
+            pending: 0,
+            reviewed: 0,
+            resolved: 0
+        };
+
+        statusCounts.forEach(item => {
+            counts[item._id] = item.count;
+        });
 
         res.status(200).json({
             success: true,
-            total: reports.length,
-            reports,
+            data: {
+                reports,
+                pagination: {
+                    currentPage: page,
+                    totalPages,
+                    totalReports,
+                    limit,
+                    hasNextPage,
+                    hasPrevPage
+                },
+                counts
+            }
         });
+
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("Get reports error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching reports",
+            error: error.message
+        });
     }
 };
 
+// Get single report details
+exports.getReportById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const report = await Report.findById(id)
+            .populate("reporterId", "name email avatar phone")
+            .populate("reportedUserId", "name email avatar phone")
+            .populate("sessionId")
+            .lean();
+
+        if (!report) {
+            return res.status(404).json({
+                success: false,
+                message: "Report not found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: report
+        });
+
+    } catch (error) {
+        console.error("Get report by ID error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching report details",
+            error: error.message
+        });
+    }
+};
+
+// Update report status
 exports.updateReportStatus = async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
 
-        if (!['pending', 'reviewed', 'resolved', 'dismissed'].includes(status)) {
-            return res.status(400).json({ success: false, message: "Invalid status value" });
+        // Validate status
+        const validStatuses = ['pending', 'reviewed', 'resolved'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid status. Must be one of: pending, reviewed, resolved"
+            });
         }
 
-        const report = await Report.findByIdAndUpdate(id, { status }, { new: true });
-        if (!report) return res.status(404).json({ success: false, message: "Report not found" });
+        const report = await Report.findByIdAndUpdate(
+            id,
+            { status },
+            { new: true, runValidators: true }
+        )
+        .populate("reporterId", "name email")
+        .populate("reportedUserId", "name email");
 
-        const adminId = req.user?._id || "000000000000000000000000";
+        if (!report) {
+            return res.status(404).json({
+                success: false,
+                message: "Report not found"
+            });
+        }
 
-        await logAdminAction({
-            adminId,
-            actionType: "update",
-            targetUserId: report.reportedUserId,
-            description: `Changed report ${report._id} status to ${status}`,
+        res.status(200).json({
+            success: true,
+            message: "Report status updated successfully",
+            data: report
         });
 
-        res.json({ success: true, message: "Report status updated", report });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        console.error("Update report status error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error updating report status",
+            error: error.message
+        });
     }
 };
 
+// Delete report
+exports.deleteReport = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const report = await Report.findByIdAndDelete(id);
+
+        if (!report) {
+            return res.status(404).json({
+                success: false,
+                message: "Report not found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Report deleted successfully"
+        });
+
+    } catch (error) {
+        console.error("Delete report error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error deleting report",
+            error: error.message
+        });
+    }
+};
 
 // ------------ SESSION OVERSIGHT --------------
 
