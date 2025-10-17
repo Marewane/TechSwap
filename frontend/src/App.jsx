@@ -3,6 +3,7 @@ import AdminLayout from "./pages/Admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard/Dashboard";
 import Users from "./pages/Admin/Users/Users";
 import Reports from "./pages/Admin/Report/ReportsPage";
+import TransactionPage from "./pages/Admin/Transactions/TransactionPage";
 
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="users" element={<Users />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="transactions" element={<TransactionPage />} />
       </Route>
     </Routes>
   );

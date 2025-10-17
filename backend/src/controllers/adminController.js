@@ -493,12 +493,12 @@ const formattedRevenue = last6Months.map(item => {
     };
 });
 
-        // 4️⃣ Recent Transactions (for table)
+        // 4️⃣ Recent 5 Transactions
         const recentTransactions = await Transaction.find()
             .populate("fromUserId", "name")
             .populate("toUserId", "name")
             .sort({ createdAt: -1 })
-            .limit(8)
+            .limit(5)
             .lean();
 
         // 5️⃣ Return response

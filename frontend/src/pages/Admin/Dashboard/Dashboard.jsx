@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import DashboardStats from "./DashboardStats";
 import RevenueChart from "./RevenueChart";
-import TransactionList from "./TransactionList";
+import TransactionList from "../Transactions/TransactionPage";
+import RecentTransactions from "./RecentTransactions";
 
 const DashboardPage = () => {
     const [data, setData] = useState(null);
@@ -58,7 +59,7 @@ const DashboardPage = () => {
     const { stats, monthlyRevenue, recentTransactions } = data;
 
     return (
-        <div className="p-6 space-y-8 bg-gray-50 min-h-screen">
+        <div className="p-6 space-y-8 min-h-screen">
             {/* ---------- STATS SECTION ---------- */}
             <DashboardStats stats={stats} />
 
@@ -70,9 +71,10 @@ const DashboardPage = () => {
                     No revenue data available for the last 6 months
                 </div>
             )}
-
             {/* ---------- TRANSACTIONS TABLE ---------- */}
-            <TransactionList />
+            <div className="grid grid-cols-2">
+                <RecentTransactions transactions={recentTransactions} />
+            </div>
         </div>
     );
 };
