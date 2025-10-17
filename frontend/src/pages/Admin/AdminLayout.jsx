@@ -12,7 +12,7 @@ const AdminLayout = () => {
                         <div className="border-b p-4">
                             <SidebarTrigger />
                         </div>
-                        <div className="p-6">
+                        <div>
                             <Outlet />
                         </div>
                     </main>
