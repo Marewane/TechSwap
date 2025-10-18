@@ -70,7 +70,6 @@ const DashboardPage = () => {
                     No revenue data available for the last 6 months
                 </div>
             )}
-
             {/* ---------- TRANSACTIONS TABLE ---------- */}
             <TransactionList />
         </div>
