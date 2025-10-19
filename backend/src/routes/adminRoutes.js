@@ -9,9 +9,11 @@ const { authMiddleware, adminMiddleware } = require('../middleware/authMiddlewar
 // router.use(authMiddleware, adminMiddleware);
 
 // USER MANAGEMENT
+router.get('/users', adminController.getUsers); // comprehensive users list with pagination, search, filtering
 router.get('/users/role/user',adminController.getAllUsers); // list all normal users
 router.get('/users/role/admin',adminController.getAllAdmins); // list all admins
 router.patch("/users/:id/role", adminController.updateUserRole); // update user role
+router.patch("/users/:id/status", adminController.updateUserStatus); // update user status (active/suspended)
 router.patch("/users/:id/suspend", adminController.suspendUser); // suspend user
 router.patch("/users/:id/unsuspend", adminController.unsuspendUser); // unsuspend user
 

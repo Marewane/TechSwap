@@ -32,6 +32,99 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
+// Comprehensive admin users endpoint with pagination, search, and filtering
+exports.getUsers = async (req, res) => {
+    try {
+        // Get query parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const status = req.query.status || "all";
+        const search = req.query.search || "";
+        const sortBy = req.query.sortBy || "createdAt";
+        const sortOrder = req.query.sortOrder === "asc" ? 1 : -1;
+
+        // Build filter query
+        const query = {};
+
+        // Status filter
+        if (status !== "all") {
+            query.status = status;
+        }
+
+        // Search filter
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: "i" } },
+                { email: { $regex: search, $options: "i" } },
+                { _id: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        // Calculate skip
+        const skip = (page - 1) * limit;
+
+        // Get total count
+        const totalUsers = await User.countDocuments(query);
+
+        // Fetch users
+        const users = await User.find(query)
+            .select('-password -verificationCode -resetPasswordToken')
+            .sort({ [sortBy]: sortOrder })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        // Calculate pagination
+        const totalPages = Math.ceil(totalUsers / limit);
+        const hasNextPage = page < totalPages;
+        const hasPrevPage = page > 1;
+
+        // Get status counts for filter badges
+        const statusCounts = await User.aggregate([
+            {
+                $group: {
+                    _id: "$status",
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const counts = {
+            total: totalUsers,
+            active: 0,
+            suspended: 0,
+        };
+
+        statusCounts.forEach(item => {
+            counts[item._id] = item.count;
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                users,
+                pagination: {
+                    currentPage: page,
+                    totalPages,
+                    totalUsers,
+                    limit,
+                    hasNextPage,
+                    hasPrevPage
+                },
+                counts
+            }
+        });
+
+    } catch (error) {
+        console.error("Get users error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching users",
+            error: error.message
+        });
+    }
+};
+
 exports.getAllAdmins = async (req, res) => {
     try {
         const admins = await User.find({ role: 'admin' }).select('-password');
@@ -84,6 +177,59 @@ exports.updateUserRole = async (req, res) => {
             success: false,
             message: "An error occurred while updating user role.",
             error: error.message,
+        });
+    }
+};
+
+// Update user status (active/suspended)
+exports.updateUserStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Validate status
+        const validStatuses = ['active', 'suspended'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid status. Must be one of: active, suspended"
+            });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            id,
+            { status },
+            { new: true, runValidators: true }
+        ).select('-password -verificationCode -resetPasswordToken');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        const adminId = req.user?._id || "000000000000000000000000";
+
+        await logAdminAction({
+            adminId,
+            actionType: "update",
+            targetUserId: user._id,
+            description: `Status changed to ${status}`,
+        });
+
+        res.status(200).json({
+            success: true,
+            message: `User ${user.name}'s status updated to ${status}`,
+            data: user
+        });
+
+    } catch (error) {
+        console.error("Update user status error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error updating user status",
+            error: error.message
         });
     }
 };
