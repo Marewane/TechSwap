@@ -15,6 +15,7 @@ import {
     UserX,
     Users as UsersIcon,
     Shield,
+    X,
 } from "lucide-react";
 
 const Users = () => {
@@ -430,8 +431,17 @@ const Users = () => {
 
             {/* User Details Modal */}
             {isModalOpen && selectedUser && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div 
+                    className="fixed inset-0 flex items-center justify-center z-50 bg-white/80 backdrop-blur-sm"
+                    onClick={() => {
+                        setIsModalOpen(false);
+                        setSelectedUser(null);
+                    }}
+                >
+                    <div 
+                        className="bg-white rounded-lg shadow-2xl border border-gray-200 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="p-6">
                             {/* Modal Header */}
                             <div className="flex items-center justify-between mb-6">
@@ -443,8 +453,9 @@ const Users = () => {
                                         setIsModalOpen(false);
                                         setSelectedUser(null);
                                     }}
+                                    className="hover:bg-gray-100"
                                 >
-                                    ✕
+                                    <X className="h-4 w-4" />
                                 </Button>
                             </div>
 
@@ -583,8 +594,8 @@ const Users = () => {
                     </div>
                 </div>
             )}
-        </div>
-    );
+    </div>
+  );
 };
 
 export default Users;
