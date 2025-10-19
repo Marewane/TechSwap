@@ -13,7 +13,7 @@ const RevenueChart = ({ monthlyRevenue}) => {
     const chartConfig = {
         revenue: {
             label: "Revenue",
-            color: "hsl(221, 83%, 53%)", // Blue color matching your design
+            color: "hsl(221, 83%, 60%)", // Blue color matching your design
         },
     };
 

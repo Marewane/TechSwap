@@ -116,10 +116,8 @@ const DashboardPage = () => {
                             No revenue data available for the last 6 months
                         </div>
                     )}
-                    <div />
                 </div>
                 <TopUsers topUsers={topUsers} />
-
             </div>
             {/* ---------- TRANSACTIONS TABLE ---------- */}
             <div className="grid grid-cols-2 gap-4">

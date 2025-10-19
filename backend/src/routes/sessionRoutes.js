@@ -1,19 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware } = require('../middleware/authMiddleware'); // added
-const {
-  createSession,
-  getMySessions,
-  getSessionById,
-  updateSession,
-  cancelSession,
-} = require('../controllers/sessionController');
+const sessionController = require('../controllers/sessionController');
+const auth = require('../middleware/authMiddleware');
 
-// protect routes that require authentication
-router.post('/create', authMiddleware, createSession);
-router.get('/my', authMiddleware, getMySessions);
-router.get('/:id', authMiddleware, getSessionById);
-router.put('/update/:id', authMiddleware, updateSession);
-router.post('/cancel/:id', authMiddleware, cancelSession);
+router.post('/', auth.authMiddleware, sessionController.createSession);
+router.get('/my', auth.authMiddleware, sessionController.getMySessions);
 
 module.exports = router;

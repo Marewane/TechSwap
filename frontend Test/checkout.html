@@ -17,10 +17,15 @@
       const coinsNumber = document.getElementById("coinsNumber").value;
 
       // Send amount to backend
-      const res = await fetch("http://localhost:5000/api/payments/coins/purchase", {
+      const res = await fetch("http://localhost:5000/api/payments/buy-coins", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ coinsNumber,userId:'68e3a9276a5b11f73d38424f' }),  // Send user amount
+        
+        headers: { 
+          "Content-Type": "application/json" ,
+          // HERE YOU SHOULD DYNAMICALLY GET THE TOKEN FROM YOUR AUTH LOGIC
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGYwMDAwMDAwMDAwMDAwMDAwMDAwMDEiLCJpYXQiOjE3NjA0NTcyMjQsImV4cCI6MTc2MDQ1ODEyNH0.ChJ2pTL_aTbZXXPHejV0yF4V8AQ-h7SzxyhIZp6kGDM"
+        },
+        body: JSON.stringify({ coinsNumber,userId:'68e4d7081f6f7dc264ebb699' }),  // Send user amount
       });
 
       const session = await res.json();
@@ -34,3 +39,4 @@
   </script>
 </body>
 </html>
+
