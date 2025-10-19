@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle ,CardDescription} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -9,8 +9,8 @@ const RecentTransactions = ({ transactions }) => {
     // Format date
     const formatDate = (dateString) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
@@ -26,9 +26,14 @@ const RecentTransactions = ({ transactions }) => {
         <Card>
             <CardHeader>
                 <div className="flex items-center justify-between">
-                    <CardTitle>Recent Transactions</CardTitle>
-                    <Button 
-                        variant="ghost" 
+                    <div>
+                        <CardTitle>Recent Transactions</CardTitle>
+                        <CardDescription>
+                            Latest transactions on the platform.
+                        </CardDescription>
+                    </div>
+                    <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => navigate('/admin/transactions')}
                         className="text-blue-600 hover:text-blue-700"
@@ -39,21 +44,20 @@ const RecentTransactions = ({ transactions }) => {
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-1">
                     {transactions && transactions.length > 0 ? (
                         transactions.map((transaction) => (
-                            <div 
-                                key={transaction._id} 
+                            <div
+                                key={transaction._id}
                                 className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors border"
                             >
                                 {/* Left side - Icon and Info */}
                                 <div className="flex items-center gap-3 flex-1">
                                     {/* Icon */}
-                                    <div className={`p-2 rounded-full ${
-                                        transaction.type === 'credit' 
-                                            ? 'bg-green-100' 
+                                    <div className={`p-2 rounded-full ${transaction.type === 'credit'
+                                            ? 'bg-green-100'
                                             : 'bg-red-100'
-                                    }`}>
+                                        }`}>
                                         {transaction.type === 'credit' ? (
                                             <TrendingUp className="h-4 w-4 text-green-600" />
                                         ) : (
@@ -82,11 +86,10 @@ const RecentTransactions = ({ transactions }) => {
 
                                 {/* Right side - Amount */}
                                 <div className="text-right ml-4">
-                                    <p className={`font-semibold text-sm ${
-                                        transaction.type === 'credit' 
-                                            ? 'text-green-600' 
+                                    <p className={`font-semibold text-sm ${transaction.type === 'credit'
+                                            ? 'text-green-600'
                                             : 'text-red-600'
-                                    }`}>
+                                        }`}>
                                         {transaction.type === 'credit' ? '+' : '-'}
                                         {formatCurrency(transaction.amount)}
                                     </p>

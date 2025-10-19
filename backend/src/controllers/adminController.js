@@ -492,6 +492,85 @@ const formattedRevenue = last6Months.map(item => {
         revenue: found ? found.total : 0
     };
 });
+    const monthlyUsers = await User.aggregate([
+    {
+        $addFields: {
+            createdAtDate: {
+                $cond: {
+                    if: { $eq: [{ $type: "$createdAt" }, "string"] },
+                    then: { $toDate: "$createdAt" },
+                    else: "$createdAt"
+                }
+            }
+        }
+    },
+    {
+        $match: {
+            createdAtDate: { $gte: sixMonthsAgo }
+        }
+    },
+    {
+        $group: {
+            _id: {
+                year: { $year: "$createdAtDate" },
+                month: { $month: "$createdAtDate" }
+            },
+            count: { $sum: 1 }
+        }
+    },
+    { $sort: { "_id.year": 1, "_id.month": 1 } }
+]);
+
+const formattedUserGrowth = last6Months.map(item => {
+    const found = monthlyUsers.find(
+        m => m._id.month === item.monthNum && m._id.year === item.year
+    );
+    return {
+        month: `${item.month} ${item.year}`,
+        users: found ? found.count : 0
+    };
+});
+
+// REPORTS PER MONTH (last 6 months)
+    const monthlyReports = await Report.aggregate([
+        {
+            $addFields: {
+                createdAtDate: {
+                    $cond: {
+                        if: { $eq: [{ $type: "$createdAt" }, "string"] },
+                        then: { $toDate: "$createdAt" },
+                        else: "$createdAt"
+                    }
+                }
+            }
+        },
+        {
+            $match: {
+                createdAtDate: { $gte: sixMonthsAgo }
+            }
+        },
+        {
+            $group: {
+                _id: {
+                    year: { $year: "$createdAtDate" },
+                    month: { $month: "$createdAtDate" }
+                },
+                count: { $sum: 1 }
+            }
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } }
+    ]);
+
+    const formattedReports = last6Months.map(item => {
+        const found = monthlyReports.find(
+            m => m._id.month === item.monthNum && m._id.year === item.year
+        );
+        return {
+            month: `${item.month} ${item.year}`,
+            reports: found ? found.count : 0
+        };
+    });
+
 
         // 4️⃣ Recent 5 Transactions
         const recentTransactions = await Transaction.find()
@@ -501,18 +580,58 @@ const formattedRevenue = last6Months.map(item => {
             .limit(5)
             .lean();
 
-        // 5️⃣ Return response
-        res.status(200).json({
-            success: true,
-            stats: {
-                totalUsers,
-                totalSessions,
-                totalReports,
-                totalRevenue
+        // Top 5 Users by Revenue Generated
+            const topUsers = await Transaction.aggregate([
+            {
+                $match: {
+                    platformShare: { $gt: 0 }
+                }
             },
-            monthlyRevenue: formattedRevenue,
-            recentTransactions
-        });
+            {
+                $group: {
+                    _id: "$fromUserId",
+                    totalRevenue: { $sum: "$platformShare" },
+                    transactionCount: { $sum: 1 }
+                }
+            },
+            { $sort: { totalRevenue: -1 } },
+            { $limit: 5 },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "userInfo"
+                }
+            },
+            { $unwind: "$userInfo" },
+            {
+                $project: {
+                    _id: 1,
+                    name: "$userInfo.name",
+                    email: "$userInfo.email",
+                    avatar: "$userInfo.avatar",
+                    totalRevenue: 1,
+                    transactionCount: 1
+                }
+            }
+        ]);
+
+    res.status(200).json({
+        success: true,
+        stats: {
+            totalUsers,
+            totalSessions,
+            totalReports,
+            totalRevenue
+        },
+        monthlyRevenue: formattedRevenue,
+        userGrowth: formattedUserGrowth,
+        reportsPerMonth: formattedReports,
+        recentTransactions,
+        topUsers
+});
+
 
     } catch (error) {
         console.error("Dashboard analytics error:", error);
@@ -523,6 +642,7 @@ const formattedRevenue = last6Months.map(item => {
         });
     }
 };
+
 // ------------ TRANSACTION OVERSIGHT --------------
 exports.getTransactions = async (req, res) => {
     try {
