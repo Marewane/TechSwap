@@ -13,7 +13,7 @@ import {
     Eye,
     UserCheck,
     UserX,
-    Users,
+    Users as UsersIcon,
     Shield,
     MoreHorizontal,
 } from "lucide-react";
@@ -130,7 +130,7 @@ const Users = () => {
     const getRoleBadge = (role) => {
         const roleConfig = {
             admin: { color: "bg-purple-100 text-purple-800", icon: Shield },
-            user: { color: "bg-gray-100 text-gray-800", icon: Users },
+            user: { color: "bg-gray-100 text-gray-800", icon: UsersIcon },
         };
 
         const config = roleConfig[role] || roleConfig.user;
@@ -176,7 +176,7 @@ const Users = () => {
                     <CardHeader className="flex flex-row items-center justify-between space-y-0">
                         <CardTitle className="text-sm text-muted-foreground font-medium">Total Registered Users</CardTitle>
                         <div className="p-2.5 rounded-lg bg-blue-50 flex items-center justify-center">
-                            <Users className="w-4 h-4 text-blue-600" />
+                            <UsersIcon className="w-4 h-4 text-blue-600" />
                         </div>
                     </CardHeader>
                     <CardContent className="pt-0">
