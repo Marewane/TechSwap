@@ -15,7 +15,6 @@ import {
     UserX,
     Users as UsersIcon,
     Shield,
-    MoreHorizontal,
 } from "lucide-react";
 
 const Users = () => {
@@ -39,6 +38,10 @@ const Users = () => {
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+
+    // Modal state
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Debounce search
     useEffect(() => {
@@ -93,6 +96,12 @@ const Users = () => {
             console.error("Error updating user status:", error);
             alert("Failed to update user status");
         }
+    };
+
+    // Handle view user details
+    const handleViewDetails = (user) => {
+        setSelectedUser(user);
+        setIsModalOpen(true);
     };
 
     // Format date
@@ -313,6 +322,7 @@ const Users = () => {
                                                                     variant="outline"
                                                                     className="bg-red-50 text-red-700 hover:bg-red-100"
                                                                     onClick={() => handleStatusUpdate(user._id, "suspended")}
+                                                                    title="Suspend user"
                                                                 >
                                                                     <UserX className="h-4 w-4" />
                                                                 </Button>
@@ -322,6 +332,7 @@ const Users = () => {
                                                                     variant="outline"
                                                                     className="bg-green-50 text-green-700 hover:bg-green-100"
                                                                     onClick={() => handleStatusUpdate(user._id, "active")}
+                                                                    title="Activate user"
                                                                 >
                                                                     <UserCheck className="h-4 w-4" />
                                                                 </Button>
@@ -331,18 +342,10 @@ const Users = () => {
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
-                                                                onClick={() => {/* TODO: Implement view details */}}
+                                                                onClick={() => handleViewDetails(user)}
+                                                                title="View user details"
                                                             >
                                                                 <Eye className="h-4 w-4" />
-                                                            </Button>
-
-                                                            {/* More Actions */}
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => {/* TODO: Implement more actions */}}
-                                                            >
-                                                                <MoreHorizontal className="h-4 w-4" />
                                                             </Button>
                                                         </div>
                                                     </td>
@@ -424,8 +427,164 @@ const Users = () => {
                     )}
                 </CardContent>
             </Card>
-    </div>
-  );
+
+            {/* User Details Modal */}
+            {isModalOpen && selectedUser && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-bold text-gray-900">User Details</h2>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        setIsModalOpen(false);
+                                        setSelectedUser(null);
+                                    }}
+                                >
+                                    ✕
+                                </Button>
+                            </div>
+
+                            {/* User Info */}
+                            <div className="space-y-6">
+                                {/* Basic Info */}
+                                <div className="flex items-center gap-4">
+                                    {getUserAvatar(selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`)}
+                                    <div>
+                                        <h3 className="text-xl font-semibold">
+                                            {selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`}
+                                        </h3>
+                                        <p className="text-gray-600">{selectedUser.email}</p>
+                                    </div>
+                                </div>
+
+                                {/* Status and Role */}
+                                <div className="flex gap-4">
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500">Status</label>
+                                        <div className="mt-1">
+                                            {getStatusBadge(selectedUser.status || 'active')}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500">Role</label>
+                                        <div className="mt-1">
+                                            {getRoleBadge(selectedUser.role || 'user')}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Additional Details */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500">User ID</label>
+                                        <p className="text-sm text-gray-900 mt-1">
+                                            {selectedUser.userId || selectedUser._id?.slice(-6)?.toUpperCase()}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500">Email Verified</label>
+                                        <p className="text-sm text-gray-900 mt-1">
+                                            {selectedUser.isEmailVerified ? 'Yes' : 'No'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500">Rating</label>
+                                        <p className="text-sm text-gray-900 mt-1">
+                                            {selectedUser.rating || 0}/5
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500">Total Sessions</label>
+                                        <p className="text-sm text-gray-900 mt-1">
+                                            {selectedUser.totalSession || 0}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500">Last Login</label>
+                                        <p className="text-sm text-gray-900 mt-1">
+                                            {selectedUser.lastLogin ? formatDate(selectedUser.lastLogin) : 'Never'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500">Member Since</label>
+                                        <p className="text-sm text-gray-900 mt-1">
+                                            {formatDate(selectedUser.createdAt)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Bio */}
+                                {selectedUser.bio && (
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500">Bio</label>
+                                        <p className="text-sm text-gray-900 mt-1">{selectedUser.bio}</p>
+                                    </div>
+                                )}
+
+                                {/* Skills */}
+                                {(selectedUser.skillsToTeach?.length > 0 || selectedUser.skillsToLearn?.length > 0) && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {selectedUser.skillsToTeach?.length > 0 && (
+                                            <div>
+                                                <label className="text-sm font-medium text-gray-500">Skills to Teach</label>
+                                                <div className="flex flex-wrap gap-2 mt-1">
+                                                    {selectedUser.skillsToTeach.map((skill, index) => (
+                                                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                                            {skill}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {selectedUser.skillsToLearn?.length > 0 && (
+                                            <div>
+                                                <label className="text-sm font-medium text-gray-500">Skills to Learn</label>
+                                                <div className="flex flex-wrap gap-2 mt-1">
+                                                    {selectedUser.skillsToLearn.map((skill, index) => (
+                                                        <span key={index} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                                            {skill}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setIsModalOpen(false);
+                                        setSelectedUser(null);
+                                    }}
+                                >
+                                    Close
+                                </Button>
+                                <Button
+                                    variant={selectedUser.status === "active" ? "destructive" : "default"}
+                                    onClick={() => {
+                                        const newStatus = selectedUser.status === "active" ? "suspended" : "active";
+                                        handleStatusUpdate(selectedUser._id, newStatus);
+                                        setIsModalOpen(false);
+                                        setSelectedUser(null);
+                                    }}
+                                >
+                                    {selectedUser.status === "active" ? "Suspend User" : "Activate User"}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
 export default Users;
