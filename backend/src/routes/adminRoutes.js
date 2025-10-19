@@ -28,7 +28,9 @@ router.patch('/reports/:id/status', adminController.updateReportStatus);
 router.delete('/reports/:id', adminController.deleteReport);
 
 // SESSION OVERSIGHT
-router.get("/sessions", adminController.getAllSessions); // list all sessions
+router.get("/sessions", adminController.getSessions); // comprehensive sessions list with pagination, search, filtering
+router.get("/sessions/all", adminController.getAllSessions); // list all sessions (legacy)
+router.patch("/sessions/:id/status", adminController.updateSessionStatus); // update session status
 router.patch("/sessions/:id/cancel", adminController.cancelSession); // cancel a session
 
 // Analytics and Reporting

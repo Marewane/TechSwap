@@ -528,11 +528,119 @@ exports.deleteReport = async (req, res) => {
 exports.getAllSessions = async (req, res) => {
     try {
         const sessions = await Session.find()
-            .populate("hostId", "name")
-            .populate("learnerId", "name");
+            .populate("hostId", "name email")
+            .populate("learnerId", "name email");
         res.json(sessions);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Comprehensive admin sessions endpoint with pagination, search, and filtering
+exports.getSessions = async (req, res) => {
+    try {
+        // Get query parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const status = req.query.status || "all";
+        const search = req.query.search || "";
+        const startDate = req.query.startDate || "";
+        const endDate = req.query.endDate || "";
+        const sortBy = req.query.sortBy || "createdAt";
+        const sortOrder = req.query.sortOrder === "asc" ? 1 : -1;
+
+        // Build filter query
+        const query = {};
+
+        // Status filter
+        if (status !== "all") {
+            query.status = status;
+        }
+
+        // Date range filter
+        if (startDate || endDate) {
+            query.scheduledTime = {};
+            if (startDate) {
+                query.scheduledTime.$gte = new Date(startDate);
+            }
+            if (endDate) {
+                query.scheduledTime.$lte = new Date(endDate);
+            }
+        }
+
+        // Search filter
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { description: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        // Calculate skip
+        const skip = (page - 1) * limit;
+
+        // Get total count
+        const totalSessions = await Session.countDocuments(query);
+
+        // Fetch sessions
+        const sessions = await Session.find(query)
+            .populate("hostId", "name email avatar")
+            .populate("learnerId", "name email avatar")
+            .sort({ [sortBy]: sortOrder })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        // Calculate pagination
+        const totalPages = Math.ceil(totalSessions / limit);
+        const hasNextPage = page < totalPages;
+        const hasPrevPage = page > 1;
+
+        // Get status counts for filter badges
+        const statusCounts = await Session.aggregate([
+            {
+                $group: {
+                    _id: "$status",
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const counts = {
+            total: totalSessions,
+            scheduled: 0,
+            completed: 0,
+            cancelled: 0,
+            "in-progress": 0,
+        };
+
+        statusCounts.forEach(item => {
+            counts[item._id] = item.count;
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                sessions,
+                pagination: {
+                    currentPage: page,
+                    totalPages,
+                    totalSessions,
+                    limit,
+                    hasNextPage,
+                    hasPrevPage
+                },
+                counts
+            }
+        });
+
+    } catch (error) {
+        console.error("Get sessions error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching sessions",
+            error: error.message
+        });
     }
 };
 
@@ -557,6 +665,73 @@ exports.cancelSession = async (req, res) => {
         res.json({ success: true, message: "Session cancelled" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Update session status
+exports.updateSessionStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Validate status
+        const validStatuses = ['scheduled', 'completed', 'cancelled', 'in-progress'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid status. Must be one of: scheduled, completed, cancelled, in-progress"
+            });
+        }
+
+        const updateData = { status };
+        
+        // If completing a session, set endedAt
+        if (status === "completed") {
+            updateData.endedAt = new Date();
+        }
+        
+        // If starting a session, set startedAt
+        if (status === "in-progress") {
+            updateData.startedAt = new Date();
+        }
+
+        const session = await Session.findByIdAndUpdate(
+            id,
+            updateData,
+            { new: true, runValidators: true }
+        )
+        .populate("hostId", "name email")
+        .populate("learnerId", "name email");
+
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                message: "Session not found"
+            });
+        }
+
+        const adminId = req.user?._id || "000000000000000000000000";
+
+        await logAdminAction({
+            adminId,
+            actionType: "update",
+            targetUserId: session.learnerId,
+            description: `Session status changed to ${status}`,
+        });
+
+        res.status(200).json({
+            success: true,
+            message: `Session status updated to ${status}`,
+            data: session
+        });
+
+    } catch (error) {
+        console.error("Update session status error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error updating session status",
+            error: error.message
+        });
     }
 };
 // ------------ DASHBOARD ANALYTICS --------------
