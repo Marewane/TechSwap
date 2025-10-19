@@ -11,10 +11,11 @@ function App() {
   return (
     <Routes>
       {/* Public Routes */}
+      <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/home" element={<Home />} />
-
+      <Route path="/home" element={<Home />} /> 
+    
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminLayout />}>
         <Route path="dashboard" element={<Dashboard />} />
