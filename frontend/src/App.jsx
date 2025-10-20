@@ -4,6 +4,8 @@ import Dashboard from "./pages/Admin/Dashboard/Dashboard";
 import Users from "./pages/Admin/Users/Users";
 import Sessions from "./pages/Admin/Sessions/Sessions";
 import Reports from "./pages/Admin/Report/ReportsPage";
+import TransactionPage from "./pages/Admin/Transactions/TransactionPage";
+
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Home from "./pages/Home";
@@ -22,6 +24,7 @@ function App() {
         <Route path="users" element={<Users />} />
         <Route path="sessions" element={<Sessions />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="transactions" element={<TransactionPage />} />
       </Route>
     </Routes>
   );
