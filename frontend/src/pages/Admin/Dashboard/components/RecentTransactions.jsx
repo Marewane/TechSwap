@@ -29,7 +29,7 @@ const RecentTransactions = ({ transactions }) => {
                     <div>
                         <CardTitle>Recent Transactions</CardTitle>
                         <CardDescription>
-                            Latest transactions on the platform.
+                            Last 5 transactions on the platform.
                         </CardDescription>
                     </div>
                     <Button

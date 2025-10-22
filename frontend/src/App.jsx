@@ -9,6 +9,8 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Home from "./pages/Home";
 
+import PostsPage from "./pages/PostsPage";
+
 function App() {
   return (
     <Routes>
@@ -16,6 +18,8 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/home" element={<Home />} />
+      <Route path="/posts" element={<PostsPage />} />
+
 
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminLayout />}>
