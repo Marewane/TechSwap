@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import AdminLayout from "./pages/Admin/AdminLayout";
 import Dashboard from "./pages/Admin/Dashboard/Dashboard";
 import Users from "./pages/Admin/Users/Users";
+import Sessions from "./pages/Admin/Sessions/Sessions";
 import Reports from "./pages/Admin/Report/ReportsPage";
 import TransactionPage from "./pages/Admin/Transactions/TransactionPage";
 
@@ -25,6 +26,7 @@ function App() {
       <Route path="/admin" element={<AdminLayout />}>
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="users" element={<Users />} />
+        <Route path="sessions" element={<Sessions />} />
         <Route path="reports" element={<Reports />} />
         <Route path="transactions" element={<TransactionPage />} />
       </Route>
