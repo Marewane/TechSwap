@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Star, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Star, ChevronLeft, ChevronRight, Loader2, Clock, Calendar } from "lucide-react";
+import CreatePostModal from "./User/CreatePostModal";
 
 const PostsPage = () => {
     const dispatch = useDispatch();
@@ -54,18 +55,24 @@ const PostsPage = () => {
 
     const getInitials = (name) => {
         return name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase();
+            ?.split(" ")
+            ?.map((n) => n[0])
+            ?.join("")
+            ?.toUpperCase() || "U";
     };
 
     return (
-        <div className="min-h-screen p-6">
-            <div className="mx-auto px-4">
+        <div className="min-h-screen bg-gray-50 p-6">
+            <div className="mx-auto">
+                {/* Header */}
+                <div className="mb-8 text-center">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Skill Swap Community</h1>
+                    <p className="text-gray-600">Connect with others to exchange skills and knowledge</p>
+                </div>
+
                 {/* Error Alert */}
                 {error && (
-                    <Alert variant="destructive" className="mb-4">
+                    <Alert variant="destructive" className="mb-6">
                         <AlertDescription className="flex items-center justify-between">
                             {error}
                             <Button
@@ -81,7 +88,7 @@ const PostsPage = () => {
 
                 {/* Swap Error Alert */}
                 {swapError && (
-                    <Alert variant="destructive" className="mb-4">
+                    <Alert variant="destructive" className="mb-6">
                         <AlertDescription className="flex items-center justify-between">
                             {swapError}
                             <Button
@@ -97,7 +104,7 @@ const PostsPage = () => {
 
                 {/* Success Alert */}
                 {swapSuccess && (
-                    <Alert className="mb-4 border-green-500 bg-green-50">
+                    <Alert className="mb-6 border-green-500 bg-green-50">
                         <AlertDescription className="text-green-700">
                             {swapSuccess}
                         </AlertDescription>
@@ -109,93 +116,142 @@ const PostsPage = () => {
                         <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-gray-400" />
                         <p className="text-gray-500">Loading posts...</p>
                     </div>
-                ) : posts.length === 0 ? (
+                ) : posts?.length === 0 ? (
                     <div className="text-center py-12">
-                        <p className="text-gray-500">No posts available</p>
+                        <div className="bg-white rounded-lg shadow-sm p-8 max-w-md mx-auto">
+                            <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">No posts yet</h3>
+                            <p className="text-gray-600 mb-4">Be the first to create a post and start swapping skills!</p>
+                        </div>
                     </div>
                 ) : (
-                    <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-                        {posts.map((post) => (
-                            <Card key={post._id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                                <CardContent className="p-6">
+                    <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {posts?.map((post) => (
+                            <Card
+                                key={post?._id}
+                                className="overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-200 flex flex-col h-full"
+                            >
+                                <CardContent className="p-5 flex flex-col flex-1">
                                     {/* User Info Header */}
-                                    <div className="flex items-start gap-4 mb-4">
-                                        <Avatar className="w-14 h-14">
-                                            <AvatarImage src={post.userId?.avatar || "/default-avatar.png"} alt={post.userId?.name || "Unknown User"} />
-                                            <AvatarFallback className="bg-gray-400 text-white">
-                                                {getInitials(post.userId?.name || "U")}
+                                    <div className="flex items-start gap-3 mb-4">
+                                        <Avatar className="w-12 h-12 border-2 border-gray-100">
+                                            <AvatarImage src={post?.userId?.avatar || "/default-avatar.png"} alt={post?.userId?.name || "Unknown User"} />
+                                            <AvatarFallback className="bg-gradient-to-br from-gray-500 to-gray-600 text-white text-sm font-medium">
+                                                {getInitials(post?.userId?.name)}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <div className="flex-1">
-                                            <h2 className="text-xl font-semibold text-gray-900">
-                                                {post.userId?.name || "Unknown User"}
-                                            </h2>
-                                            <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-lg font-semibold text-gray-900 truncate">
+                                                {post?.userId?.name || "Unknown User"}
+                                            </h3>
+                                            <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
                                                 <div className="flex items-center gap-1">
                                                     <Star className="w-4 h-4 fill-current text-yellow-500" />
-                                                    <span className="font-medium">{post.userId?.rating || "N/A"}</span>
+                                                    <span className="font-medium">{post?.userId?.rating || "0"}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
+                                    {/* Title */}
+                                    <h4 className="text-base font-semibold text-gray-900 mb-3 line-clamp-2 leading-tight">
+                                        {post?.title || "Untitled Post"}
+                                    </h4>
+
+                                    {/* Description */}
+                                    <p className="text-gray-700 mb-4 leading-relaxed text-sm line-clamp-3 flex-1">
+                                        {post?.content || "No description provided"}
+                                    </p>
+
                                     {/* Skills Offered */}
                                     <div className="mb-3">
-                                        <p className="text-sm font-medium text-gray-700 mb-2">Offering:</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {post.skillsOffered.map((skill, idx) => (
+                                        <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Offering</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {post?.skillsOffered?.slice(0, 3).map((skill, idx) => (
                                                 <Badge
                                                     key={idx}
                                                     variant="secondary"
-                                                    className="bg-gray-600 text-white hover:bg-gray-700"
+                                                    className="bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:from-gray-700 hover:to-gray-800 text-xs px-2 py-1"
                                                 >
                                                     {skill}
                                                 </Badge>
                                             ))}
+                                            {post?.skillsOffered?.length > 3 && (
+                                                <Badge variant="outline" className="text-xs px-2 py-1">
+                                                    +{post.skillsOffered.length - 3}
+                                                </Badge>
+                                            )}
+                                            {(!post?.skillsOffered || post.skillsOffered.length === 0) && (
+                                                <span className="text-xs text-gray-500 italic">No skills offered</span>
+                                            )}
                                         </div>
                                     </div>
 
                                     {/* Skills Wanted */}
                                     <div className="mb-4">
-                                        <p className="text-sm font-medium text-gray-700 mb-2">Wanting:</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {post.skillsWanted.map((skill, idx) => (
+                                        <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Wanting</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {post?.skillsWanted?.slice(0, 3).map((skill, idx) => (
                                                 <Badge
                                                     key={idx}
                                                     variant="outline"
-                                                    className="border-gray-400 text-gray-700"
+                                                    className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs px-2 py-1"
                                                 >
                                                     {skill}
                                                 </Badge>
                                             ))}
+                                            {post?.skillsWanted?.length > 3 && (
+                                                <Badge variant="outline" className="text-xs px-2 py-1">
+                                                    +{post.skillsWanted.length - 3}
+                                                </Badge>
+                                            )}
+                                            {(!post?.skillsWanted || post.skillsWanted.length === 0) && (
+                                                <span className="text-xs text-gray-500 italic">No skills wanted</span>
+                                            )}
                                         </div>
                                     </div>
 
-                                    {/* Description */}
-                                    <p className="text-gray-700 mb-4 leading-relaxed">{post.content}</p>
-
                                     {/* Availability */}
-                                    <div className="mb-4">
-                                        <p className="text-sm font-semibold text-gray-900">
-                                            {post.availability.map((slot) => slot.day).join(" & ")}
-                                        </p>
-                                    </div>
+                                    {post?.availability?.days && post.availability.days.length > 0 && (
+                                        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Clock className="w-4 h-4 text-gray-600" />
+                                                <p className="text-sm font-semibold text-gray-900">Availability</p>
+                                            </div>
+                                            <p className="text-xs text-gray-700 mb-1">
+                                                <span className="font-medium">{post.availability.days.slice(0, 2).join(", ")}</span>
+                                                {post.availability.days.length > 2 && ` +${post.availability.days.length - 2} more`}
+                                            </p>
+                                            {post.availability.startTime && post.availability.endTime && (
+                                                <p className="text-xs text-gray-600">
+                                                    {post.availability.startTime} - {post.availability.endTime}
+                                                </p>
+                                            )}
+                                            {post?.timeSlotsAvailable && post.timeSlotsAvailable.length > 0 && (
+                                                <p className="text-xs text-blue-600 font-medium mt-1">
+                                                    {post.timeSlotsAvailable.length} slots available
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Request Button */}
-                                    <Button
-                                        className="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium"
-                                        onClick={() => handleRequestSwap(post._id)}
-                                        disabled={requestingSwap === post._id}
-                                    >
-                                        {requestingSwap === post._id ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                                Requesting...
-                                            </>
-                                        ) : (
-                                            'Request Swap'
-                                        )}
-                                    </Button>
+                                    <div className="mt-auto pt-3">
+                                        <Button
+                                            className="w-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-medium py-2.5 transition-all duration-200"
+                                            onClick={() => handleRequestSwap(post?._id)}
+                                            disabled={requestingSwap === post?._id}
+                                        >
+                                            {requestingSwap === post?._id ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                    Requesting...
+                                                </>
+                                            ) : (
+                                                'Request Swap'
+                                            )}
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
                         ))}
@@ -203,25 +259,31 @@ const PostsPage = () => {
                 )}
 
                 {/* Pagination */}
-                {!loading && posts.length > 0 && (
-                    <div className="flex items-center justify-between mt-8 px-2">
+                {!loading && posts?.length > 0 && (
+                    <div className="flex items-center justify-between mt-12 px-4">
                         <Button
                             onClick={handlePrev}
                             disabled={currentPage === 1}
                             variant="outline"
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 border-gray-300 hover:bg-gray-50"
                         >
                             <ChevronLeft className="w-4 h-4" />
                             Previous
                         </Button>
-                        <span className="text-sm text-gray-600 font-medium">
-                            Page {currentPage} of {totalPages}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600 font-medium">
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <span className="text-sm text-gray-400">•</span>
+                            <span className="text-sm text-gray-500">
+                                {posts.length} posts
+                            </span>
+                        </div>
                         <Button
                             onClick={handleNext}
                             disabled={currentPage === totalPages}
                             variant="outline"
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 border-gray-300 hover:bg-gray-50"
                         >
                             Next
                             <ChevronRight className="w-4 h-4" />
@@ -229,6 +291,7 @@ const PostsPage = () => {
                     </div>
                 )}
             </div>
+            <CreatePostModal />
         </div>
     );
 };

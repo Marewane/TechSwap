@@ -9,7 +9,7 @@ const postSchema = new mongoose.Schema({
     type: {
         type: String,
         enum: ['swap', 'teach', 'learn'],
-        default: 'swap' 
+        default: 'swap'
     },
     title: {
         type: String,
@@ -28,20 +28,31 @@ const postSchema = new mongoose.Schema({
         type: [String],
         default: []
     },
-    availability: [ // array of day + time slots
-        {
-            day: { type: String, required: true }, // e.g., "Monday"
-            times: { type: [String], required: true } // e.g., ["10:00", "14:00"]
+    availability: {
+        days: {
+            type: [String],
+            default: []
+        },
+        startTime: {
+            type: String,
+            default: ""
+        },
+        endTime: {
+            type: String,
+            default: ""
         }
-    ],
+    },
+    timeSlotsAvailable: {
+        type: [String],
+        default: []
+    },
     expiresAt: {
         type: Date,
         default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
     }
 }, { timestamps: true });
 
-// Indexes for performance
 postSchema.index({ userId: 1 });
-postSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // auto-remove expired
+postSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model('Post', postSchema);

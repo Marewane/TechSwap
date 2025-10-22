@@ -95,9 +95,18 @@ const postsSlice = createSlice({
                 state.loading = true;
                 state.error = null;
             })
+            // Create post
             .addCase(createPost.fulfilled, (state, action) => {
                 state.loading = false;
-                state.posts.unshift(action.payload);
+                const newPost = action.payload.data || action.payload;
+                if (newPost) {
+                    state.posts.unshift({
+                        skillsOffered: [],
+                        skillsWanted: [],
+                        availability: { days: [] },
+                        ...newPost
+                    });
+                }
                 state.successMessage = "Post created successfully!";
             })
             .addCase(createPost.rejected, (state, action) => {
