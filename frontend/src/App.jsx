@@ -8,9 +8,8 @@ import TransactionPage from "./pages/Admin/Transactions/TransactionPage";
 
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import Home from "./pages/Home";
 
-import PostsPage from "./pages/PostsPage";
+import PostsPage from "./pages/User/Post/PostsPage";
 
 function App() {
   return (
@@ -18,8 +17,7 @@ function App() {
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/home" element={<Home />} />
-      <Route path="/posts" element={<PostsPage />} />
+      <Route path="/home" element={<PostsPage />} />
 
 
       {/* Admin Routes */}

@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchPosts, setPage, clearError, clearSuccess, requestSwap } from "../features/posts/postsSlice";
+import { fetchPosts, setPage, clearError, clearSuccess, requestSwap } from "../../../features/posts/postsSlice";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Star, ChevronLeft, ChevronRight, Loader2, Clock, Calendar } from "lucide-react";
-import CreatePostModal from "./User/CreatePostModal";
+import CreatePostModal from "./components/CreatePostModal";
 
 const PostsPage = () => {
     const dispatch = useDispatch();
