@@ -260,7 +260,7 @@ const PostsPage = () => {
 
                 {/* Pagination */}
                 {!loading && posts?.length > 0 && (
-                    <div className="flex items-center justify-between mt-12 px-4">
+                    <div className="flex items-center justify-between mt-12 px-4 w-1/2 mx-auto">
                         <Button
                             onClick={handlePrev}
                             disabled={currentPage === 1}
