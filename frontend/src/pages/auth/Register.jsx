@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
+import api from "@/services/api"; // Use your API service
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -21,68 +22,60 @@ export default function Register() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-  // Validation
-  if (formData.password !== formData.confirmPassword) {
-    setError("Passwords do not match!");
-    setLoading(false);
-    return;
-  }
+    // Validation
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match!");
+      setLoading(false);
+      return;
+    }
 
-  if (formData.password.length < 6) {
-    setError("Password must be at least 6 characters");
-    setLoading(false);
-    return;
-  }
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters");
+      setLoading(false);
+      return;
+    }
 
-  try {
-    const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000/api";
-    
-    const res = await fetch(`${API_BASE}/auth/register`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    try {
+      const res = await api.post("/auth/register", {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-      }),
-    });
+      });
 
-    const data = await res.json();
-
-    if (res.ok && data.success) {
-      // Store the user ID for verification
-      localStorage.setItem('pendingVerification', JSON.stringify({
-        userId: data.data.userId,
-        email: data.data.email
-      }));
-      
-      // Redirect to email verification page
-      navigate("/verify-email");
-    } else {
-      setError(data.message || "Registration failed. Please try again.");
+      if (res.data.success) {
+        // Store the user ID for verification
+        localStorage.setItem('pendingVerification', JSON.stringify({
+          userId: res.data.data.userId,
+          email: res.data.data.email
+        }));
+        
+        // Redirect to email verification
+        navigate("/verify-email");
+      } else {
+        setError(res.data.message || "Registration failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      if (error.response?.data?.message) {
+        setError(error.response.data.message);
+      } else {
+        setError("Network error. Please check your connection.");
+      }
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Registration error:", error);
-    setError("Network error. Please check your connection.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleGoogleAuth = () => {
-    // FIX: Use direct URL without double /api
     window.location.href = "http://localhost:5000/api/auth/google";
   };
 
   const handleGithubAuth = () => {
-    // FIX: Use direct URL without double /api
     window.location.href = "http://localhost:5000/api/auth/github";
   };
 

@@ -13,21 +13,21 @@ export default function OAuthSuccess() {
       const accessToken = searchParams.get("accessToken");
       const refreshToken = searchParams.get("refreshToken");
 
-      console.log("OAuth Success - Tokens received:", { accessToken, refreshToken });
+      console.log("OAuth Success - Tokens received");
 
       if (accessToken && refreshToken) {
         try {
           // Decode the token to get user info
           const payload = JSON.parse(atob(accessToken.split('.')[1]));
           
-          console.log("Decoded token payload:", payload);
+          // Create user object from token
+          const user = {
+            id: payload.userId,
+            role: payload.role || 'user'
+          };
 
-          // Create auth data
           const authData = {
-            user: {
-              id: payload.userId,
-              role: payload.role || 'user'
-            },
+            user,
             tokens: { 
               accessToken, 
               refreshToken 
@@ -38,20 +38,12 @@ export default function OAuthSuccess() {
           dispatch(setAuth(authData));
 
           // Redirect based on role
-          if (payload.role === "admin") {
+          if (user.role === "admin") {
             navigate("/admin/dashboard");
           } else {
-  // Check if user needs to complete profile setup
-  // You might want to check if skills arrays are empty
-  const authData = JSON.parse(localStorage.getItem('auth') || '{}');
-  const user = authData.user;
-  
-  if (user && (!user.skillsToLearn || user.skillsToLearn.length === 0)) {
-    navigate("/onboarding/learn-skills");
-  } else {
-    navigate("/home");
-  }
-}
+            // For now, redirect to home - we'll add profile setup check later
+            navigate("/home");
+          }
         } catch (error) {
           console.error("Error processing OAuth success:", error);
           navigate("/login?error=oauth_processing_error");

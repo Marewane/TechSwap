@@ -16,6 +16,7 @@ const popularSkills = [
 export default function StepTeachSkills() {
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [customSkill, setCustomSkill] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const toggleSkill = (skill) => {
@@ -39,16 +40,21 @@ export default function StepTeachSkills() {
       return;
     }
 
+    setLoading(true);
+
     try {
-      // Save skills to user profile
+      // Save teaching skills to user profile
       await api.patch("/users/profile", {
         skillsToTeach: selectedSkills
       });
 
       navigate("/onboarding/profile-info");
     } catch (error) {
-      console.error("Error saving skills:", error);
+      console.error("Error saving teaching skills:", error);
+      // Still navigate to next step even if save fails
       navigate("/onboarding/profile-info");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -119,8 +125,8 @@ export default function StepTeachSkills() {
           <Button variant="outline" onClick={handleSkip}>
             Skip for now
           </Button>
-          <Button onClick={handleContinue}>
-            Continue
+          <Button onClick={handleContinue} disabled={loading}>
+            {loading ? "Saving..." : "Continue"}
           </Button>
         </CardFooter>
       </Card>

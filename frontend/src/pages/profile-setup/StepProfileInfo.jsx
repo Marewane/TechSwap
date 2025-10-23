@@ -38,16 +38,17 @@ export default function StepProfileInfo() {
     setLoading(true);
 
     try {
-      // Save profile info
+      // Save profile info to database
       await api.patch("/users/profile", {
         bio: formData.bio,
-        avatar: formData.avatar
+        avatar: formData.avatar || "https://i.pravatar.cc/150?img=4" // Default avatar
       });
 
-      // Redirect to home page
+      // Redirect to home page after successful save
       navigate("/home");
     } catch (error) {
       console.error("Error saving profile:", error);
+      alert("Failed to save profile information. You can update it later.");
       // Still redirect to home even if save fails
       navigate("/home");
     } finally {
@@ -56,6 +57,7 @@ export default function StepProfileInfo() {
   };
 
   const handleSkip = () => {
+    // Skip profile setup and go directly to home
     navigate("/home");
   };
 
@@ -91,13 +93,13 @@ export default function StepProfileInfo() {
             />
           </div>
 
-          {/* Bio - Using Textarea for multi-line input */}
+          {/* Bio */}
           <div>
             <Label htmlFor="bio">Bio</Label>
             <Textarea
               id="bio"
               name="bio"
-              placeholder="Tell us about yourself..."
+              placeholder="Tell us about yourself, your interests, and what you hope to achieve..."
               value={formData.bio}
               onChange={handleChange}
               rows={4}
