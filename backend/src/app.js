@@ -20,7 +20,7 @@ const swapRequestRoutes = require('./routes/swapRequestRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
-
+const uploadRoutes = require('./routes/uploadRoutes');
 
 
 // Import middlewares
@@ -78,6 +78,12 @@ app.get("/api/health", (req, res) => {
 });
 app.use("/",userRoutes);
 app.use('/api/session-payment',sessionPaymentRoutes);
+
+
+
+//route for uploading images 
+
+
 
 // Error handling (should be last)
 app.use(notFoundHandler);

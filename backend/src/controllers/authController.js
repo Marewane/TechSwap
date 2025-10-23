@@ -143,9 +143,9 @@ const verifyEmail = async (req, res) => {
     await user.save();
 
     // Generate tokens for auto-login after verification
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-
+    // Generate tokens
+const accessToken = generateAccessToken(user._id, user.role);
+const refreshToken = generateRefreshToken(user._id, user.role);
     // const userResponse = await User.findById(user._id).select('-password');
 
     const userResponse = transformUserResponse(user);
@@ -249,9 +249,9 @@ const login = async (req, res) => {
     await user.save();
 
     // generate tokens
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-
+    // Generate tokens
+const accessToken = generateAccessToken(user._id, user.role);
+const refreshToken = generateRefreshToken(user._id, user.role);
     // Return user data without password
     // const userResponse = await User.findById(user._id).select("-password");
 
@@ -351,56 +351,23 @@ const googleAuth = (req, res, next) => {
 
 
 const googleCallback = (req, res, next) => {
-  passport.authenticate('google', { session: false }, (err, user) => {
+  passport.authenticate("google", { session: false }, (err, user) => {
     if (err || !user) {
-      // 📝 Also change the error to show in browser
-      return res.send(`
-        <html>
-          <body>
-            <h2>OAuth Failed!</h2>
-            <p>Error: ${err ? err.message : 'User not found'}</p>
-          </body>
-        </html>
-      `);
+      return res.redirect(
+        `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=oauth_failed`
+      );
     }
 
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+     console.log('Google OAuth success for user:', user.email);
 
-    // 📝 TEMPORARY: Show tokens in browser instead of redirecting
+    const accessToken = generateAccessToken(user._id, user.role);
+    const refreshToken = generateRefreshToken(user._id, user.role);
 
-    // res.send(`
-    //   <html>
-    //     <body>
-    //       <h2>OAuth Success! 🎉</h2>
-    //       <p><strong>User:</strong> ${user.name} (${user.email})</p>
-    //       <p><strong>Access Token:</strong> ${accessToken}</p>
-    //       <p><strong>Refresh Token:</strong> ${refreshToken}</p>
-    //       <script>
-    //         console.log('OAuth Success!', {
-    //           user: '${user.name}',
-    //           email: '${user.email}', 
-    //           accessToken: '${accessToken}',
-    //           refreshToken: '${refreshToken}'
-    //         });
-    //       </script>
-    //     </body>
-    //   </html>
-    // `);
-
-    const userResponse = transformUserResponse(user);
-    res.send(`
-      <html>
-        <body>
-          <h2>OAuth Success! 🎉</h2>
-          <p><strong>User:</strong> ${userResponse.name} (${userResponse.email})</p>
-          <p><strong>Clean User Data:</strong></p>
-          <pre>${JSON.stringify(userResponse, null, 2)}</pre>
-          <p><strong>Access Token:</strong> ${accessToken}</p>
-          <p><strong>Refresh Token:</strong> ${refreshToken}</p>
-        </body>
-      </html>
-    `);
+    // Redirect to frontend with tokens
+     const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-success?accessToken=${accessToken}&refreshToken=${refreshToken}`;
+    console.log('Redirecting to:', redirectUrl);
+    
+    res.redirect(redirectUrl);
   })(req, res, next);
 };
 
@@ -431,57 +398,21 @@ const githubAuth = (req, res, next) => {
 
 // this is just for test 
 const githubCallback = (req, res, next) => {
-  passport.authenticate('github', { session: false }, (err, user) => {
+  passport.authenticate("github", { session: false }, (err, user) => {
     if (err || !user) {
-      // 📝 Show error in browser
-      return res.send(`
-        <html>
-          <body>
-            <h2>GitHub OAuth Failed!</h2>
-            <p>Error: ${err ? err.message : 'User not found'}</p>
-          </body>
-        </html>
-      `);
+      return res.redirect(
+        `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=oauth_failed`
+      );
     }
+     console.log('GitHub OAuth success for user:', user.email);
 
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+    const accessToken = generateAccessToken(user._id, user.role);
+    const refreshToken = generateRefreshToken(user._id, user.role);
 
-    // 📝 TEMPORARY: Show tokens in browser instead of redirecting
-
-    // res.send(`
-    //   <html>
-    //     <body>
-    //       <h2>GitHub OAuth Success! 🎉</h2>
-    //       <p><strong>User:</strong> ${user.name} (${user.email})</p>
-    //       <p><strong>Access Token:</strong> ${accessToken}</p>
-    //       <p><strong>Refresh Token:</strong> ${refreshToken}</p>
-    //       <script>
-    //         console.log('GitHub OAuth Success!', {
-    //           user: '${user.name}',
-    //           email: '${user.email}', 
-    //           accessToken: '${accessToken}',
-    //           refreshToken: '${refreshToken}'
-    //         });
-    //       </script>
-    //     </body>
-    //   </html>
-    // `);
-
+   const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-success?accessToken=${accessToken}&refreshToken=${refreshToken}`;
+    console.log('Redirecting to:', redirectUrl);
     
-    const userResponse = transformUserResponse(user);
-    res.send(`
-      <html>
-        <body>
-          <h2>OAuth Success! 🎉</h2>
-          <p><strong>User:</strong> ${userResponse.name} (${userResponse.email})</p>
-          <p><strong>Clean User Data:</strong></p>
-          <pre>${JSON.stringify(userResponse, null, 2)}</pre>
-          <p><strong>Access Token:</strong> ${accessToken}</p>
-          <p><strong>Refresh Token:</strong> ${refreshToken}</p>
-        </body>
-      </html>
-    `);
+    res.redirect(redirectUrl);
   })(req, res, next);
 };
 
@@ -542,6 +473,8 @@ const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
+    console.log('Reset password attempt - token:', token); // Debug log
+
     // Find user with valid reset token (include hidden fields)
     const user = await User.findOne({
       resetPasswordToken: token,
@@ -549,11 +482,14 @@ const resetPassword = async (req, res) => {
     }).select('+resetPasswordToken +resetPasswordExpires');
 
     if (!user) {
+      console.log('Invalid or expired reset token'); // Debug log
       return res.status(400).json({
         success: false,
         message: 'Invalid or expired reset token'
       });
     }
+
+    console.log('User found for password reset:', user.email); // Debug log
 
     // Update password (this will trigger password hashing middleware)
     user.password = newPassword;
@@ -564,6 +500,8 @@ const resetPassword = async (req, res) => {
     
     await user.save();
 
+    console.log('Password reset successful for:', user.email); // Debug log
+
     // Send confirmation email
     await sendPasswordResetConfirmation(user.email);
 
@@ -573,10 +511,11 @@ const resetPassword = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error('Reset password error details:', error); // Detailed error log
     res.status(500).json({
       success: false,
-      message: 'Server error during password reset'
+      message: 'Server error during password reset',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
