@@ -1,132 +1,124 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import {
-    ChevronLeft,
-    ChevronRight,
-    Search,
-    Loader2,
-    Eye,
-    CheckCircle,
-    Clock,
-} from "lucide-react";
-import ReportDetailModal from "./ReportDetailModal";
+import { useState, useEffect } from "react"
+import axios from "axios"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { ChevronLeft, ChevronRight, Search, Loader2, Eye, CheckCircle, Clock } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import ReportDetailModal from "./components/ReportDetailModal"
 
 const ReportsPage = () => {
-    const [reports, setReports] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [reports, setReports] = useState([])
+    const [loading, setLoading] = useState(true)
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
         totalReports: 0,
-        limit: 10
-    });
+        limit: 10,
+    })
     const [counts, setCounts] = useState({
         all: 0,
         pending: 0,
         reviewed: 0,
         resolved: 0,
-    });
+    })
 
     // Filter states
-    const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
-    const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [debouncedSearch, setDebouncedSearch] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState("")
+    const [statusFilter, setStatusFilter] = useState("all")
+    const [itemsPerPage, setItemsPerPage] = useState(10)
+    const [debouncedSearch, setDebouncedSearch] = useState("")
+    const [currentPage, setCurrentPage] = useState(1)
 
     // Modal state
-    const [selectedReport, setSelectedReport] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedReport, setSelectedReport] = useState(null)
+    const [isModalOpen, setIsModalOpen] = useState(false)
 
     // Debounce search
     useEffect(() => {
         const timer = setTimeout(() => {
-            setDebouncedSearch(searchTerm);
-            setCurrentPage(1);
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [searchTerm]);
+            setDebouncedSearch(searchTerm)
+            setCurrentPage(1)
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [searchTerm])
 
     // Fetch reports
     useEffect(() => {
-        fetchReports();
-    }, [currentPage, debouncedSearch, statusFilter, itemsPerPage]);
+        fetchReports()
+    }, [currentPage, debouncedSearch, statusFilter, itemsPerPage])
 
     const fetchReports = async () => {
-        setLoading(true);
+        setLoading(true)
         try {
             const params = {
                 page: currentPage,
                 limit: itemsPerPage,
                 search: debouncedSearch,
-                status: statusFilter
-            };
+                status: statusFilter,
+            }
 
-            const response = await axios.get("http://localhost:5000/admin/reports", { params });
+            const response = await axios.get("http://localhost:5000/admin/reports", { params })
 
             if (response.data.success) {
-                setReports(response.data.data.reports);
-                setPagination(response.data.data.pagination);
-                setCounts(response.data.data.counts);
+                setReports(response.data.data.reports)
+                setPagination(response.data.data.pagination)
+                setCounts(response.data.data.counts)
             }
         } catch (error) {
-            console.error("Error fetching reports:", error);
+            console.error("Error fetching reports:", error)
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
-    };
+    }
 
     // Handle status update
     const handleStatusUpdate = async (reportId, newStatus) => {
         try {
-            const response = await axios.patch(
-                `http://localhost:5000/admin/reports/${reportId}/status`,
-                { status: newStatus }
-            );
+            const response = await axios.patch(`http://localhost:5000/admin/reports/${reportId}/status`, {
+                status: newStatus,
+            })
 
             if (response.data.success) {
-                fetchReports(); // Refresh list
+                fetchReports() // Refresh list
                 if (isModalOpen) {
-                    setIsModalOpen(false);
+                    setIsModalOpen(false)
                 }
             }
         } catch (error) {
-            console.error("Error updating report status:", error);
-            alert("Failed to update report status");
+            console.error("Error updating report status:", error)
+            alert("Failed to update report status")
         }
-    };
+    }
 
     // Handle view details
     const handleViewDetails = async (reportId) => {
         try {
-            const response = await axios.get(`http://localhost:5000/admin/reports/${reportId}`);
-            console.log("report detail response:", response.data);
+            const response = await axios.get(`http://localhost:5000/admin/reports/${reportId}`)
+            console.log("report detail response:", response.data)
             if (response.data.success) {
-                const payload = response.data.data?.report || response.data.data || response.data;
-                setSelectedReport(payload);
-                setIsModalOpen(true);
+                const payload = response.data.data?.report || response.data.data || response.data
+                setSelectedReport(payload)
+                setIsModalOpen(true)
             }
         } catch (error) {
-            console.error("Error fetching report details:", error);
+            console.error("Error fetching report details:", error)
         }
-    };
+    }
 
     // Format date
     const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
+        const date = new Date(dateString)
+        return date.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        })
+    }
 
     // Get status badge
     const getStatusBadge = (status) => {
@@ -134,21 +126,21 @@ const ReportsPage = () => {
             pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock },
             reviewed: { color: "bg-blue-100 text-blue-800", icon: Eye },
             resolved: { color: "bg-green-100 text-green-800", icon: CheckCircle },
-        };
+        }
 
-        const config = statusConfig[status] || statusConfig.pending;
-        const Icon = config.icon;
+        const config = statusConfig[status] || statusConfig.pending
+        const Icon = config.icon
 
         return (
             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
                 <Icon className="h-3 w-3" />
                 {status}
             </span>
-        );
-    };
+        )
+    }
 
     return (
-        <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+        <div className="p-6 space-y-8 min-h-screen">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -165,14 +157,14 @@ const ReportsPage = () => {
                             { value: "all", label: "All Reports", count: counts.all },
                             { value: "pending", label: "Pending", count: counts.pending },
                             { value: "reviewed", label: "Reviewed", count: counts.reviewed },
-                            { value: "resolved", label: "Resolved", count: counts.resolved }
+                            { value: "resolved", label: "Resolved", count: counts.resolved },
                         ].map((tab) => (
                             <Button
                                 key={tab.value}
                                 variant={statusFilter === tab.value ? "default" : "outline"}
                                 onClick={() => {
-                                    setStatusFilter(tab.value);
-                                    setCurrentPage(1);
+                                    setStatusFilter(tab.value)
+                                    setCurrentPage(1)
                                 }}
                                 className="flex items-center gap-2"
                             >
@@ -204,10 +196,13 @@ const ReportsPage = () => {
                                 />
                             </div>
 
-                            <Select value={itemsPerPage.toString()} onValueChange={(val) => {
-                                setItemsPerPage(Number(val));
-                                setCurrentPage(1);
-                            }}>
+                            <Select
+                                value={itemsPerPage.toString()}
+                                onValueChange={(val) => {
+                                    setItemsPerPage(Number(val))
+                                    setCurrentPage(1)
+                                }}
+                            >
                                 <SelectTrigger className="w-full sm:w-32">
                                     <SelectValue />
                                 </SelectTrigger>
@@ -231,43 +226,37 @@ const ReportsPage = () => {
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b">
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Reporter</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Reported User</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Reason</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                                            <th className="text-right py-3 px-4 font-medium text-gray-600">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Reporter</TableHead>
+                                            <TableHead>Reported User</TableHead>
+                                            <TableHead>Reason</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {reports.length > 0 ? (
                                             reports.map((report) => (
-                                                <tr key={report._id} className="border-b hover:bg-gray-50 transition-colors">
-                                                    <td className="py-3 px-4 text-sm text-gray-600">
-                                                        {formatDate(report.createdAt)}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-sm">
+                                                <TableRow key={report._id}>
+                                                    <TableCell className="text-sm text-gray-600">{formatDate(report.createdAt)}</TableCell>
+                                                    <TableCell className="text-sm">
                                                         <div>
                                                             <p className="font-medium">{report.reporterId?.name || "N/A"}</p>
                                                             <p className="text-xs text-gray-500">{report.reporterId?.email || ""}</p>
                                                         </div>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-sm">
+                                                    </TableCell>
+                                                    <TableCell className="text-sm">
                                                         <div>
                                                             <p className="font-medium">{report.reportedUserId?.name || "N/A"}</p>
                                                             <p className="text-xs text-gray-500">{report.reportedUserId?.email || ""}</p>
                                                         </div>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-sm max-w-xs truncate">
-                                                        {report.reason}
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        {getStatusBadge(report.status)}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-right">
+                                                    </TableCell>
+                                                    <TableCell className="text-sm max-w-xs truncate">{report.reason}</TableCell>
+                                                    <TableCell>{getStatusBadge(report.status)}</TableCell>
+                                                    <TableCell className="text-right">
                                                         <div className="flex items-center justify-end gap-2">
                                                             {/* Status Buttons */}
                                                             {report.status === "pending" && (
@@ -279,8 +268,7 @@ const ReportsPage = () => {
                                                                 >
                                                                     Review
                                                                 </Button>
-                                                            )
-                                                            }
+                                                            )}
                                                             {report.status === "reviewed" && (
                                                                 <Button
                                                                     size="sm"
@@ -292,42 +280,37 @@ const ReportsPage = () => {
                                                                 </Button>
                                                             )}
                                                             {/* View Details */}
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() => handleViewDetails(report._id)}
-                                                            >
+                                                            <Button size="sm" variant="outline" onClick={() => handleViewDetails(report._id)}>
                                                                 <Eye className="h-4 w-4" />
                                                             </Button>
                                                         </div>
-                                                    </td>
-
-                                                </tr>
+                                                    </TableCell>
+                                                </TableRow>
                                             ))
                                         ) : (
-                                            <tr>
-                                                <td colSpan="6" className="py-8 text-center text-gray-500">
+                                            <TableRow>
+                                                <TableCell colSpan="6" className="py-8 text-center text-gray-500">
                                                     No reports found
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         )}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
 
                             {/* Pagination */}
                             {reports.length > 0 && (
                                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
                                     <div className="text-sm text-gray-600">
-                                        Showing page {pagination.currentPage} of {pagination.totalPages}
-                                        ({pagination.totalReports} total reports)
+                                        Showing page {pagination.currentPage} of {pagination.totalPages}({pagination.totalReports} total
+                                        reports)
                                     </div>
 
                                     <div className="flex items-center gap-2">
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => setCurrentPage(prev => prev - 1)}
+                                            onClick={() => setCurrentPage((prev) => prev - 1)}
                                             disabled={!pagination.hasPrevPage || loading}
                                         >
                                             <ChevronLeft className="h-4 w-4" />
@@ -336,7 +319,7 @@ const ReportsPage = () => {
 
                                         <div className="flex items-center gap-1">
                                             {[...Array(pagination.totalPages)].map((_, index) => {
-                                                const pageNumber = index + 1;
+                                                const pageNumber = index + 1
                                                 if (
                                                     pageNumber === 1 ||
                                                     pageNumber === pagination.totalPages ||
@@ -353,21 +336,22 @@ const ReportsPage = () => {
                                                         >
                                                             {pageNumber}
                                                         </Button>
-                                                    );
-                                                } else if (
-                                                    pageNumber === currentPage - 2 ||
-                                                    pageNumber === currentPage + 2
-                                                ) {
-                                                    return <span key={pageNumber} className="px-2">...</span>;
+                                                    )
+                                                } else if (pageNumber === currentPage - 2 || pageNumber === currentPage + 2) {
+                                                    return (
+                                                        <span key={pageNumber} className="px-2">
+                                                            ...
+                                                        </span>
+                                                    )
                                                 }
-                                                return null;
+                                                return null
                                             })}
                                         </div>
 
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => setCurrentPage(prev => prev + 1)}
+                                            onClick={() => setCurrentPage((prev) => prev + 1)}
                                             disabled={!pagination.hasNextPage || loading}
                                         >
                                             Next
@@ -386,13 +370,13 @@ const ReportsPage = () => {
                 report={selectedReport}
                 isOpen={isModalOpen}
                 onClose={() => {
-                    setIsModalOpen(false);
-                    setSelectedReport(null);
+                    setIsModalOpen(false)
+                    setSelectedReport(null)
                 }}
                 onStatusUpdate={handleStatusUpdate}
             />
         </div>
-    );
-};
+    )
+}
 
-export default ReportsPage;
+export default ReportsPage

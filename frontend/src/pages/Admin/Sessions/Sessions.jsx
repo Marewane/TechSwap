@@ -11,37 +11,43 @@ import {
     Search,
     Loader2,
     Eye,
-    UserCheck,
-    UserX,
+    Play,
+    Square,
+    Calendar,
+    Clock,
     Users as UsersIcon,
-    Shield,
+    DollarSign,
     X,
 } from "lucide-react";
 
-const Users = () => {
-    const [users, setUsers] = useState([]);
+const Sessions = () => {
+    const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
-        totalUsers: 0,
+        totalSessions: 0,
         limit: 10
     });
     const [counts, setCounts] = useState({
         total: 0,
-        active: 0,
-        suspended: 0,
+        scheduled: 0,
+        completed: 0,
+        cancelled: 0,
+        "in-progress": 0,
     });
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
 
     // Modal state
-    const [selectedUser, setSelectedUser] = useState(null);
+    const [selectedSession, setSelectedSession] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Debounce search
@@ -53,55 +59,57 @@ const Users = () => {
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
-    // Fetch users
+    // Fetch sessions
     useEffect(() => {
-        fetchUsers();
-    }, [currentPage, debouncedSearch, statusFilter, itemsPerPage]);
+        fetchSessions();
+    }, [currentPage, debouncedSearch, statusFilter, itemsPerPage, startDate, endDate]);
 
-    const fetchUsers = async () => {
+    const fetchSessions = async () => {
         setLoading(true);
         try {
             const params = {
                 page: currentPage,
                 limit: itemsPerPage,
                 search: debouncedSearch,
-                status: statusFilter
+                status: statusFilter,
+                startDate: startDate,
+                endDate: endDate
             };
 
-            const response = await axios.get("http://localhost:5000/admin/users", { params });
+            const response = await axios.get("http://localhost:5000/admin/sessions", { params });
 
             if (response.data.success) {
-                setUsers(response.data.data.users);
+                setSessions(response.data.data.sessions);
                 setPagination(response.data.data.pagination);
                 setCounts(response.data.data.counts);
             }
         } catch (error) {
-            console.error("Error fetching users:", error);
+            console.error("Error fetching sessions:", error);
         } finally {
             setLoading(false);
         }
     };
 
-    // Handle status update
-    const handleStatusUpdate = async (userId, newStatus) => {
+    // Handle session status update
+    const handleStatusUpdate = async (sessionId, newStatus) => {
         try {
             const response = await axios.patch(
-                `http://localhost:5000/admin/users/${userId}/status`,
+                `http://localhost:5000/admin/sessions/${sessionId}/status`,
                 { status: newStatus }
             );
 
             if (response.data.success) {
-                fetchUsers(); // Refresh list
+                fetchSessions(); // Refresh list
             }
         } catch (error) {
-            console.error("Error updating user status:", error);
-            alert("Failed to update user status");
+            console.error("Error updating session status:", error);
+            alert("Failed to update session status");
         }
     };
 
-    // Handle view user details
-    const handleViewDetails = (user) => {
-        setSelectedUser(user);
+    // Handle view session details
+    const handleViewDetails = (session) => {
+        setSelectedSession(session);
         setIsModalOpen(true);
     };
 
@@ -120,36 +128,19 @@ const Users = () => {
     // Get status badge
     const getStatusBadge = (status) => {
         const statusConfig = {
-            active: { color: "bg-green-100 text-green-800", icon: UserCheck },
-            suspended: { color: "bg-red-100 text-red-800", icon: UserX },
-            inactive: { color: "bg-gray-100 text-gray-800", icon: UserX },
+            scheduled: { color: "bg-yellow-100 text-yellow-800", icon: Calendar },
+            completed: { color: "bg-green-100 text-green-800", icon: Square },
+            cancelled: { color: "bg-red-100 text-red-800", icon: X },
+            "in-progress": { color: "bg-blue-100 text-blue-800", icon: Play },
         };
 
-        const config = statusConfig[status] || statusConfig.active;
+        const config = statusConfig[status] || statusConfig.scheduled;
         const Icon = config.icon;
 
         return (
             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
                 <Icon className="h-3 w-3" />
                 {status}
-            </span>
-        );
-    };
-
-    // Get role badge
-    const getRoleBadge = (role) => {
-        const roleConfig = {
-            admin: { color: "bg-purple-100 text-purple-800", icon: Shield },
-            user: { color: "bg-gray-100 text-gray-800", icon: UsersIcon },
-        };
-
-        const config = roleConfig[role] || roleConfig.user;
-        const Icon = config.icon;
-
-        return (
-            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
-                <Icon className="h-3 w-3" />
-                {role}
             </span>
         );
     };
@@ -170,23 +161,23 @@ const Users = () => {
         );
     };
 
-  return (
+    return (
         <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Users</h1>
-                    <p className="text-gray-600 mt-1">Manage user accounts and permissions</p>
+                    <h1 className="text-3xl font-bold text-gray-900">Sessions</h1>
+                    <p className="text-gray-600 mt-1">Manage active, ended, and pending user sessions</p>
                 </div>
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm text-muted-foreground font-medium">Total Registered Users</CardTitle>
+                        <CardTitle className="text-sm text-muted-foreground font-medium">Total Sessions</CardTitle>
                         <div className="p-2.5 rounded-lg bg-blue-50 flex items-center justify-center">
-                            <UsersIcon className="w-4 h-4 text-blue-600" />
+                            <Calendar className="w-4 h-4 text-blue-600" />
                         </div>
                     </CardHeader>
                     <CardContent className="pt-0">
@@ -196,41 +187,53 @@ const Users = () => {
 
                 <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm text-muted-foreground font-medium">Active Users</CardTitle>
+                        <CardTitle className="text-sm text-muted-foreground font-medium">Active Sessions</CardTitle>
                         <div className="p-2.5 rounded-lg bg-green-50 flex items-center justify-center">
-                            <UserCheck className="w-4 h-4 text-green-600" />
+                            <Play className="w-4 h-4 text-green-600" />
                         </div>
                     </CardHeader>
                     <CardContent className="pt-0">
-                        <p className="text-4xl font-bold tracking-tight">{counts.active}</p>
+                        <p className="text-4xl font-bold tracking-tight">{counts["in-progress"]}</p>
                     </CardContent>
                 </Card>
 
                 <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm text-muted-foreground font-medium">Suspended Users</CardTitle>
-                        <div className="p-2.5 rounded-lg bg-red-50 flex items-center justify-center">
-                            <UserX className="w-4 h-4 text-red-600" />
+                        <CardTitle className="text-sm text-muted-foreground font-medium">Completed</CardTitle>
+                        <div className="p-2.5 rounded-lg bg-gray-50 flex items-center justify-center">
+                            <Square className="w-4 h-4 text-gray-600" />
                         </div>
                     </CardHeader>
                     <CardContent className="pt-0">
-                        <p className="text-4xl font-bold tracking-tight">{counts.suspended}</p>
+                        <p className="text-4xl font-bold tracking-tight">{counts.completed}</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-sm text-muted-foreground font-medium">Cancelled</CardTitle>
+                        <div className="p-2.5 rounded-lg bg-red-50 flex items-center justify-center">
+                            <X className="w-4 h-4 text-red-600" />
+                        </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                        <p className="text-4xl font-bold tracking-tight">{counts.cancelled}</p>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Users Table */}
+            {/* Sessions Table */}
             <Card>
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <CardTitle>Users List</CardTitle>
+                        <CardTitle>Current Sessions</CardTitle>
 
                         {/* Filters */}
                         <div className="flex flex-col sm:flex-row gap-3">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                                 <Input
-                                    placeholder="Search users by name, email, or ID..."
+                                    placeholder="Search sessions by title, participants..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-10 w-full sm:w-64"
@@ -246,11 +249,34 @@ const Users = () => {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Statuses</SelectItem>
-                                    <SelectItem value="active">Active</SelectItem>
-                                    <SelectItem value="suspended">Suspended</SelectItem>
-                                    <SelectItem value="inactive">Inactive</SelectItem>
+                                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                                    <SelectItem value="in-progress">In Progress</SelectItem>
+                                    <SelectItem value="completed">Completed</SelectItem>
+                                    <SelectItem value="cancelled">Cancelled</SelectItem>
                                 </SelectContent>
                             </Select>
+
+                            <Input
+                                type="date"
+                                placeholder="Start Date"
+                                value={startDate}
+                                onChange={(e) => {
+                                    setStartDate(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full sm:w-40"
+                            />
+
+                            <Input
+                                type="date"
+                                placeholder="End Date"
+                                value={endDate}
+                                onChange={(e) => {
+                                    setEndDate(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full sm:w-40"
+                            />
 
                             <Select value={itemsPerPage.toString()} onValueChange={(val) => {
                                 setItemsPerPage(Number(val));
@@ -274,7 +300,7 @@ const Users = () => {
                     {loading ? (
                         <div className="flex items-center justify-center py-12">
                             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                            <span className="ml-2 text-gray-600">Loading users...</span>
+                            <span className="ml-2 text-gray-600">Loading sessions...</span>
                         </div>
                     ) : (
                         <>
@@ -282,60 +308,54 @@ const Users = () => {
                                 <table className="w-full">
                                     <thead>
                                         <tr className="border-b bg-gray-50">
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">ID</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">NAME</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">EMAIL</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">ROLE</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">STATUS</th>
-                                            <th className="text-right py-3 px-4 font-medium text-gray-600">ACTIONS</th>
+                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Session ID</th>
+                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Participants</th>
+                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Created At</th>
+                                            <th className="text-left py-3 px-4 font-medium text-gray-600">End Date</th>
+                                            <th className="text-right py-3 px-4 font-medium text-gray-600">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {users.length > 0 ? (
-                                            users.map((user) => (
-                                                <tr key={user._id} className="border-b hover:bg-gray-50 transition-colors">
+                                        {sessions.length > 0 ? (
+                                            sessions.map((session) => (
+                                                <tr key={session._id} className="border-b hover:bg-gray-50 transition-colors">
                                                     <td className="py-3 px-4 text-sm text-gray-600">
-                                                        {user.userId || user._id?.slice(-6)?.toUpperCase()}
+                                                        {session._id?.slice(-6)?.toUpperCase()}
                                                     </td>
                                                     <td className="py-3 px-4 text-sm">
-                                                        <div className="flex items-center gap-3">
-                                                            {getUserAvatar(user.name || user.firstName + ' ' + user.lastName)}
-    <div>
-                                                                <p className="font-medium">{user.name || `${user.firstName} ${user.lastName}`}</p>
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center gap-2">
+                                                                {getUserAvatar(session.hostId?.name || "Host")}
+                                                                <span className="font-medium">{session.hostId?.name || "Host"}</span>
                                                             </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {getUserAvatar(session.learnerId?.name || "Learner")}
+                                                                <span className="font-medium">{session.learnerId?.name || "Learner"}</span>
+                                                            </div>
+                                                            <p className="text-xs text-gray-500">(2 total)</p>
                                                         </div>
                                                     </td>
+                                                    <td className="py-3 px-4">
+                                                        {getStatusBadge(session.status || 'scheduled')}
+                                                    </td>
                                                     <td className="py-3 px-4 text-sm text-gray-600">
-                                                        {user.email}
+                                                        {formatDate(session.createdAt)}
                                                     </td>
-                                                    <td className="py-3 px-4">
-                                                        {getRoleBadge(user.role || 'user')}
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        {getStatusBadge(user.status || 'active')}
+                                                    <td className="py-3 px-4 text-sm text-gray-600">
+                                                        {session.endedAt ? formatDate(session.endedAt) : "N/A"}
                                                     </td>
                                                     <td className="py-3 px-4 text-right">
                                                         <div className="flex items-center justify-end gap-2">
-                                                            {/* Status Toggle */}
-                                                            {user.status === "active" ? (
+                                                            {/* Force End Button for Active Sessions */}
+                                                            {session.status === "in-progress" && (
                                                                 <Button
                                                                     size="sm"
-                                                                    variant="outline"
-                                                                    className="bg-red-50 text-red-700 hover:bg-red-100"
-                                                                    onClick={() => handleStatusUpdate(user._id, "suspended")}
-                                                                    title="Suspend user"
+                                                                    variant="destructive"
+                                                                    onClick={() => handleStatusUpdate(session._id, "completed")}
+                                                                    title="Force End Session"
                                                                 >
-                                                                    <UserX className="h-4 w-4" />
-                                                                </Button>
-                                                            ) : (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    className="bg-green-50 text-green-700 hover:bg-green-100"
-                                                                    onClick={() => handleStatusUpdate(user._id, "active")}
-                                                                    title="Activate user"
-                                                                >
-                                                                    <UserCheck className="h-4 w-4" />
+                                                                    Force End
                                                                 </Button>
                                                             )}
                                                             
@@ -343,8 +363,8 @@ const Users = () => {
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
-                                                                onClick={() => handleViewDetails(user)}
-                                                                title="View user details"
+                                                                onClick={() => handleViewDetails(session)}
+                                                                title="View session details"
                                                             >
                                                                 <Eye className="h-4 w-4" />
                                                             </Button>
@@ -355,7 +375,7 @@ const Users = () => {
                                         ) : (
                                             <tr>
                                                 <td colSpan="6" className="py-8 text-center text-gray-500">
-                                                    No users found
+                                                    No sessions found
                                                 </td>
                                             </tr>
                                         )}
@@ -364,11 +384,11 @@ const Users = () => {
                             </div>
 
                             {/* Pagination */}
-                            {users.length > 0 && (
+                            {sessions.length > 0 && (
                                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
                                     <div className="text-sm text-gray-600">
                                         Showing page {pagination.currentPage} of {pagination.totalPages}
-                                        ({pagination.totalUsers} total users)
+                                        ({pagination.totalSessions} total sessions)
                                     </div>
 
                                     <div className="flex items-center gap-2">
@@ -429,13 +449,13 @@ const Users = () => {
                 </CardContent>
             </Card>
 
-            {/* User Details Modal */}
-            {isModalOpen && selectedUser && (
+            {/* Session Details Modal */}
+            {isModalOpen && selectedSession && (
                 <div 
                     className="fixed inset-0 flex items-center justify-center z-50 bg-white/80 backdrop-blur-sm"
                     onClick={() => {
                         setIsModalOpen(false);
-                        setSelectedUser(null);
+                        setSelectedSession(null);
                     }}
                 >
                     <div 
@@ -445,13 +465,13 @@ const Users = () => {
                         <div className="p-6">
                             {/* Modal Header */}
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-2xl font-bold text-gray-900">User Details</h2>
+                                <h2 className="text-2xl font-bold text-gray-900">Session Details</h2>
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => {
                                         setIsModalOpen(false);
-                                        setSelectedUser(null);
+                                        setSelectedSession(null);
                                     }}
                                     className="hover:bg-gray-100"
                                 >
@@ -459,112 +479,89 @@ const Users = () => {
                                 </Button>
                             </div>
 
-                            {/* User Info */}
+                            {/* Session Info */}
                             <div className="space-y-6">
                                 {/* Basic Info */}
-                                <div className="flex items-center gap-4">
-                                    {getUserAvatar(selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`)}
+                                <div>
+                                    <h3 className="text-xl font-semibold mb-2">{selectedSession.title}</h3>
+                                    <p className="text-gray-600">{selectedSession.description}</p>
+                                </div>
+
+                                {/* Participants */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <h3 className="text-xl font-semibold">
-                                            {selectedUser.name || `${selectedUser.firstName} ${selectedUser.lastName}`}
-                                        </h3>
-                                        <p className="text-gray-600">{selectedUser.email}</p>
+                                        <label className="text-sm font-medium text-gray-500">Host</label>
+                                        <div className="flex items-center gap-3 mt-1">
+                                            {getUserAvatar(selectedSession.hostId?.name || "Host")}
+                                            <div>
+                                                <p className="font-medium">{selectedSession.hostId?.name || "Host"}</p>
+                                                <p className="text-sm text-gray-500">{selectedSession.hostId?.email || ""}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500">Learner</label>
+                                        <div className="flex items-center gap-3 mt-1">
+                                            {getUserAvatar(selectedSession.learnerId?.name || "Learner")}
+                                            <div>
+                                                <p className="font-medium">{selectedSession.learnerId?.name || "Learner"}</p>
+                                                <p className="text-sm text-gray-500">{selectedSession.learnerId?.email || ""}</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Status and Role */}
-                                <div className="flex gap-4">
+                                {/* Session Details */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-500">Session ID</label>
+                                        <p className="text-sm text-gray-900 mt-1">
+                                            {selectedSession._id?.slice(-6)?.toUpperCase()}
+                                        </p>
+                                    </div>
                                     <div>
                                         <label className="text-sm font-medium text-gray-500">Status</label>
                                         <div className="mt-1">
-                                            {getStatusBadge(selectedUser.status || 'active')}
+                                            {getStatusBadge(selectedSession.status || 'scheduled')}
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="text-sm font-medium text-gray-500">Role</label>
-                                        <div className="mt-1">
-                                            {getRoleBadge(selectedUser.role || 'user')}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Additional Details */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">User ID</label>
+                                        <label className="text-sm font-medium text-gray-500">Session Type</label>
                                         <p className="text-sm text-gray-900 mt-1">
-                                            {selectedUser.userId || selectedUser._id?.slice(-6)?.toUpperCase()}
+                                            {selectedSession.sessionType || 'skillExchange'}
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="text-sm font-medium text-gray-500">Email Verified</label>
+                                        <label className="text-sm font-medium text-gray-500">Cost</label>
                                         <p className="text-sm text-gray-900 mt-1">
-                                            {selectedUser.isEmailVerified ? 'Yes' : 'No'}
+                                            ${selectedSession.cost || 0}
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="text-sm font-medium text-gray-500">Rating</label>
+                                        <label className="text-sm font-medium text-gray-500">Duration</label>
                                         <p className="text-sm text-gray-900 mt-1">
-                                            {selectedUser.rating || 0}/5
+                                            {selectedSession.duration || 0} minutes
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="text-sm font-medium text-gray-500">Total Sessions</label>
+                                        <label className="text-sm font-medium text-gray-500">Scheduled Time</label>
                                         <p className="text-sm text-gray-900 mt-1">
-                                            {selectedUser.totalSession || 0}
+                                            {formatDate(selectedSession.scheduledTime)}
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="text-sm font-medium text-gray-500">Last Login</label>
+                                        <label className="text-sm font-medium text-gray-500">Started At</label>
                                         <p className="text-sm text-gray-900 mt-1">
-                                            {selectedUser.lastLogin ? formatDate(selectedUser.lastLogin) : 'Never'}
+                                            {selectedSession.startedAt ? formatDate(selectedSession.startedAt) : 'Not started'}
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="text-sm font-medium text-gray-500">Member Since</label>
+                                        <label className="text-sm font-medium text-gray-500">Ended At</label>
                                         <p className="text-sm text-gray-900 mt-1">
-                                            {formatDate(selectedUser.createdAt)}
+                                            {selectedSession.endedAt ? formatDate(selectedSession.endedAt) : 'Not ended'}
                                         </p>
                                     </div>
                                 </div>
-
-                                {/* Bio */}
-                                {selectedUser.bio && (
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Bio</label>
-                                        <p className="text-sm text-gray-900 mt-1">{selectedUser.bio}</p>
-                                    </div>
-                                )}
-
-                                {/* Skills */}
-                                {(selectedUser.skillsToTeach?.length > 0 || selectedUser.skillsToLearn?.length > 0) && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {selectedUser.skillsToTeach?.length > 0 && (
-                                            <div>
-                                                <label className="text-sm font-medium text-gray-500">Skills to Teach</label>
-                                                <div className="flex flex-wrap gap-2 mt-1">
-                                                    {selectedUser.skillsToTeach.map((skill, index) => (
-                                                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                                            {skill}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {selectedUser.skillsToLearn?.length > 0 && (
-                                            <div>
-                                                <label className="text-sm font-medium text-gray-500">Skills to Learn</label>
-                                                <div className="flex flex-wrap gap-2 mt-1">
-                                                    {selectedUser.skillsToLearn.map((skill, index) => (
-                                                        <span key={index} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                                                            {skill}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
                             </div>
 
                             {/* Modal Footer */}
@@ -573,29 +570,30 @@ const Users = () => {
                                     variant="outline"
                                     onClick={() => {
                                         setIsModalOpen(false);
-                                        setSelectedUser(null);
+                                        setSelectedSession(null);
                                     }}
                                 >
                                     Close
                                 </Button>
-                                <Button
-                                    variant={selectedUser.status === "active" ? "destructive" : "default"}
-                                    onClick={() => {
-                                        const newStatus = selectedUser.status === "active" ? "suspended" : "active";
-                                        handleStatusUpdate(selectedUser._id, newStatus);
-                                        setIsModalOpen(false);
-                                        setSelectedUser(null);
-                                    }}
-                                >
-                                    {selectedUser.status === "active" ? "Suspend User" : "Activate User"}
-                                </Button>
+                                {selectedSession.status === "in-progress" && (
+                                    <Button
+                                        variant="destructive"
+                                        onClick={() => {
+                                            handleStatusUpdate(selectedSession._id, "completed");
+                                            setIsModalOpen(false);
+                                            setSelectedSession(null);
+                                        }}
+                                    >
+                                        Force End Session
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </div>
                 </div>
             )}
-    </div>
-  );
+        </div>
+    );
 };
 
-export default Users;
+export default Sessions;

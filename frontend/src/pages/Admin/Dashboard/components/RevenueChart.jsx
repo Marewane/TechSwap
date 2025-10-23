@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 
-const RevenueChart = ({ monthlyRevenue }) => {
+const RevenueChart = ({ monthlyRevenue}) => {
     // Transform the data to match the chart format
     const chartData = monthlyRevenue.map(item => ({
         month: item.month,
@@ -21,17 +21,16 @@ const RevenueChart = ({ monthlyRevenue }) => {
     const formatCurrency = (value) => {
         return `$${value}`;
     };
-
     return (
-        <Card>
+        <Card className={`h-full flex flex-col`}>
             <CardHeader>
                 <CardTitle>Monthly Revenue</CardTitle>
                 <CardDescription>
                     Revenue performance over the last 6 months.
                 </CardDescription>
             </CardHeader>
-            <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <CardContent className="flex-1 flex flex-col">
+                <ChartContainer config={chartConfig} className="h-full w-full">
                     <LineChart
                         data={chartData}
                         margin={{ top : 5, right : 10, left : 10, bottom : 5 }}

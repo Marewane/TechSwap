@@ -9,9 +9,11 @@ const { authMiddleware, adminMiddleware } = require('../middleware/authMiddlewar
 // router.use(authMiddleware, adminMiddleware);
 
 // USER MANAGEMENT
+router.get('/users', adminController.getUsers); // comprehensive users list with pagination, search, filtering
 router.get('/users/role/user',adminController.getAllUsers); // list all normal users
 router.get('/users/role/admin',adminController.getAllAdmins); // list all admins
 router.patch("/users/:id/role", adminController.updateUserRole); // update user role
+router.patch("/users/:id/status", adminController.updateUserStatus); // update user status (active/suspended)
 router.patch("/users/:id/suspend", adminController.suspendUser); // suspend user
 router.patch("/users/:id/unsuspend", adminController.unsuspendUser); // unsuspend user
 
@@ -26,7 +28,9 @@ router.patch('/reports/:id/status', adminController.updateReportStatus);
 router.delete('/reports/:id', adminController.deleteReport);
 
 // SESSION OVERSIGHT
-router.get("/sessions", adminController.getAllSessions); // list all sessions
+router.get("/sessions", adminController.getSessions); // comprehensive sessions list with pagination, search, filtering
+router.get("/sessions/all", adminController.getAllSessions); // list all sessions (legacy)
+router.patch("/sessions/:id/status", adminController.updateSessionStatus); // update session status
 router.patch("/sessions/:id/cancel", adminController.cancelSession); // cancel a session
 
 // Analytics and Reporting

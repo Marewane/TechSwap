@@ -32,6 +32,99 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
+// Comprehensive admin users endpoint with pagination, search, and filtering
+exports.getUsers = async (req, res) => {
+    try {
+        // Get query parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const status = req.query.status || "all";
+        const search = req.query.search || "";
+        const sortBy = req.query.sortBy || "createdAt";
+        const sortOrder = req.query.sortOrder === "asc" ? 1 : -1;
+
+        // Build filter query
+        const query = {};
+
+        // Status filter
+        if (status !== "all") {
+            query.status = status;
+        }
+
+        // Search filter
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: "i" } },
+                { email: { $regex: search, $options: "i" } },
+                { _id: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        // Calculate skip
+        const skip = (page - 1) * limit;
+
+        // Get total count
+        const totalUsers = await User.countDocuments(query);
+
+        // Fetch users
+        const users = await User.find(query)
+            .select('-password -verificationCode -resetPasswordToken')
+            .sort({ [sortBy]: sortOrder })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        // Calculate pagination
+        const totalPages = Math.ceil(totalUsers / limit);
+        const hasNextPage = page < totalPages;
+        const hasPrevPage = page > 1;
+
+        // Get status counts for filter badges
+        const statusCounts = await User.aggregate([
+            {
+                $group: {
+                    _id: "$status",
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const counts = {
+            total: totalUsers,
+            active: 0,
+            suspended: 0,
+        };
+
+        statusCounts.forEach(item => {
+            counts[item._id] = item.count;
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                users,
+                pagination: {
+                    currentPage: page,
+                    totalPages,
+                    totalUsers,
+                    limit,
+                    hasNextPage,
+                    hasPrevPage
+                },
+                counts
+            }
+        });
+
+    } catch (error) {
+        console.error("Get users error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching users",
+            error: error.message
+        });
+    }
+};
+
 exports.getAllAdmins = async (req, res) => {
     try {
         const admins = await User.find({ role: 'admin' }).select('-password');
@@ -84,6 +177,59 @@ exports.updateUserRole = async (req, res) => {
             success: false,
             message: "An error occurred while updating user role.",
             error: error.message,
+        });
+    }
+};
+
+// Update user status (active/suspended)
+exports.updateUserStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Validate status
+        const validStatuses = ['active', 'suspended'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid status. Must be one of: active, suspended"
+            });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            id,
+            { status },
+            { new: true, runValidators: true }
+        ).select('-password -verificationCode -resetPasswordToken');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        const adminId = req.user?._id || "000000000000000000000000";
+
+        await logAdminAction({
+            adminId,
+            actionType: "update",
+            targetUserId: user._id,
+            description: `Status changed to ${status}`,
+        });
+
+        res.status(200).json({
+            success: true,
+            message: `User ${user.name}'s status updated to ${status}`,
+            data: user
+        });
+
+    } catch (error) {
+        console.error("Update user status error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error updating user status",
+            error: error.message
         });
     }
 };
@@ -382,11 +528,119 @@ exports.deleteReport = async (req, res) => {
 exports.getAllSessions = async (req, res) => {
     try {
         const sessions = await Session.find()
-            .populate("hostId", "name")
-            .populate("learnerId", "name");
+            .populate("hostId", "name email")
+            .populate("learnerId", "name email");
         res.json(sessions);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Comprehensive admin sessions endpoint with pagination, search, and filtering
+exports.getSessions = async (req, res) => {
+    try {
+        // Get query parameters
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const status = req.query.status || "all";
+        const search = req.query.search || "";
+        const startDate = req.query.startDate || "";
+        const endDate = req.query.endDate || "";
+        const sortBy = req.query.sortBy || "createdAt";
+        const sortOrder = req.query.sortOrder === "asc" ? 1 : -1;
+
+        // Build filter query
+        const query = {};
+
+        // Status filter
+        if (status !== "all") {
+            query.status = status;
+        }
+
+        // Date range filter
+        if (startDate || endDate) {
+            query.scheduledTime = {};
+            if (startDate) {
+                query.scheduledTime.$gte = new Date(startDate);
+            }
+            if (endDate) {
+                query.scheduledTime.$lte = new Date(endDate);
+            }
+        }
+
+        // Search filter
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { description: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        // Calculate skip
+        const skip = (page - 1) * limit;
+
+        // Get total count
+        const totalSessions = await Session.countDocuments(query);
+
+        // Fetch sessions
+        const sessions = await Session.find(query)
+            .populate("hostId", "name email avatar")
+            .populate("learnerId", "name email avatar")
+            .sort({ [sortBy]: sortOrder })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        // Calculate pagination
+        const totalPages = Math.ceil(totalSessions / limit);
+        const hasNextPage = page < totalPages;
+        const hasPrevPage = page > 1;
+
+        // Get status counts for filter badges
+        const statusCounts = await Session.aggregate([
+            {
+                $group: {
+                    _id: "$status",
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const counts = {
+            total: totalSessions,
+            scheduled: 0,
+            completed: 0,
+            cancelled: 0,
+            "in-progress": 0,
+        };
+
+        statusCounts.forEach(item => {
+            counts[item._id] = item.count;
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                sessions,
+                pagination: {
+                    currentPage: page,
+                    totalPages,
+                    totalSessions,
+                    limit,
+                    hasNextPage,
+                    hasPrevPage
+                },
+                counts
+            }
+        });
+
+    } catch (error) {
+        console.error("Get sessions error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching sessions",
+            error: error.message
+        });
     }
 };
 
@@ -411,6 +665,73 @@ exports.cancelSession = async (req, res) => {
         res.json({ success: true, message: "Session cancelled" });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Update session status
+exports.updateSessionStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Validate status
+        const validStatuses = ['scheduled', 'completed', 'cancelled', 'in-progress'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid status. Must be one of: scheduled, completed, cancelled, in-progress"
+            });
+        }
+
+        const updateData = { status };
+        
+        // If completing a session, set endedAt
+        if (status === "completed") {
+            updateData.endedAt = new Date();
+        }
+        
+        // If starting a session, set startedAt
+        if (status === "in-progress") {
+            updateData.startedAt = new Date();
+        }
+
+        const session = await Session.findByIdAndUpdate(
+            id,
+            updateData,
+            { new: true, runValidators: true }
+        )
+        .populate("hostId", "name email")
+        .populate("learnerId", "name email");
+
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                message: "Session not found"
+            });
+        }
+
+        const adminId = req.user?._id || "000000000000000000000000";
+
+        await logAdminAction({
+            adminId,
+            actionType: "update",
+            targetUserId: session.learnerId,
+            description: `Session status changed to ${status}`,
+        });
+
+        res.status(200).json({
+            success: true,
+            message: `Session status updated to ${status}`,
+            data: session
+        });
+
+    } catch (error) {
+        console.error("Update session status error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error updating session status",
+            error: error.message
+        });
     }
 };
 // ------------ DASHBOARD ANALYTICS --------------
@@ -492,27 +813,146 @@ const formattedRevenue = last6Months.map(item => {
         revenue: found ? found.total : 0
     };
 });
+    const monthlyUsers = await User.aggregate([
+    {
+        $addFields: {
+            createdAtDate: {
+                $cond: {
+                    if: { $eq: [{ $type: "$createdAt" }, "string"] },
+                    then: { $toDate: "$createdAt" },
+                    else: "$createdAt"
+                }
+            }
+        }
+    },
+    {
+        $match: {
+            createdAtDate: { $gte: sixMonthsAgo }
+        }
+    },
+    {
+        $group: {
+            _id: {
+                year: { $year: "$createdAtDate" },
+                month: { $month: "$createdAtDate" }
+            },
+            count: { $sum: 1 }
+        }
+    },
+    { $sort: { "_id.year": 1, "_id.month": 1 } }
+]);
 
-        // 4️⃣ Recent Transactions (for table)
+const formattedUserGrowth = last6Months.map(item => {
+    const found = monthlyUsers.find(
+        m => m._id.month === item.monthNum && m._id.year === item.year
+    );
+    return {
+        month: `${item.month} ${item.year}`,
+        users: found ? found.count : 0
+    };
+});
+
+// REPORTS PER MONTH (last 6 months)
+    const monthlyReports = await Report.aggregate([
+        {
+            $addFields: {
+                createdAtDate: {
+                    $cond: {
+                        if: { $eq: [{ $type: "$createdAt" }, "string"] },
+                        then: { $toDate: "$createdAt" },
+                        else: "$createdAt"
+                    }
+                }
+            }
+        },
+        {
+            $match: {
+                createdAtDate: { $gte: sixMonthsAgo }
+            }
+        },
+        {
+            $group: {
+                _id: {
+                    year: { $year: "$createdAtDate" },
+                    month: { $month: "$createdAtDate" }
+                },
+                count: { $sum: 1 }
+            }
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } }
+    ]);
+
+    const formattedReports = last6Months.map(item => {
+        const found = monthlyReports.find(
+            m => m._id.month === item.monthNum && m._id.year === item.year
+        );
+        return {
+            month: `${item.month} ${item.year}`,
+            reports: found ? found.count : 0
+        };
+    });
+
+
+        // 4️⃣ Recent 5 Transactions
         const recentTransactions = await Transaction.find()
             .populate("fromUserId", "name")
             .populate("toUserId", "name")
             .sort({ createdAt: -1 })
-            .limit(8)
+            .limit(5)
             .lean();
 
-        // 5️⃣ Return response
-        res.status(200).json({
-            success: true,
-            stats: {
-                totalUsers,
-                totalSessions,
-                totalReports,
-                totalRevenue
+        // Top 5 Users by Revenue Generated
+            const topUsers = await Transaction.aggregate([
+            {
+                $match: {
+                    platformShare: { $gt: 0 }
+                }
             },
-            monthlyRevenue: formattedRevenue,
-            recentTransactions
-        });
+            {
+                $group: {
+                    _id: "$fromUserId",
+                    totalRevenue: { $sum: "$platformShare" },
+                    transactionCount: { $sum: 1 }
+                }
+            },
+            { $sort: { totalRevenue: -1 } },
+            { $limit: 5 },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "userInfo"
+                }
+            },
+            { $unwind: "$userInfo" },
+            {
+                $project: {
+                    _id: 1,
+                    name: "$userInfo.name",
+                    email: "$userInfo.email",
+                    avatar: "$userInfo.avatar",
+                    totalRevenue: 1,
+                    transactionCount: 1
+                }
+            }
+        ]);
+
+    res.status(200).json({
+        success: true,
+        stats: {
+            totalUsers,
+            totalSessions,
+            totalReports,
+            totalRevenue
+        },
+        monthlyRevenue: formattedRevenue,
+        userGrowth: formattedUserGrowth,
+        reportsPerMonth: formattedReports,
+        recentTransactions,
+        topUsers
+});
+
 
     } catch (error) {
         console.error("Dashboard analytics error:", error);
@@ -523,6 +963,7 @@ const formattedRevenue = last6Months.map(item => {
         });
     }
 };
+
 // ------------ TRANSACTION OVERSIGHT --------------
 exports.getTransactions = async (req, res) => {
     try {
