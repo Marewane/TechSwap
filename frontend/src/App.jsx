@@ -6,6 +6,7 @@ import Reports from "./pages/Admin/Report/ReportsPage";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Home from "./pages/Home";
+import Events from './pages/Events/Events'; // Add this import
 
 function App() {
   return (
@@ -15,6 +16,8 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/home" element={<Home />} /> 
+      <Route path="/events" element={<Events />} /> {/* Add this route */}
+
     
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminLayout />}>
