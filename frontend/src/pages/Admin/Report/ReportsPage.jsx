@@ -149,40 +149,36 @@ const ReportsPage = () => {
                 </div>
             </div>
 
-            {/* Status Filter Tabs */}
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="flex flex-wrap gap-3">
-                        {[
-                            { value: "all", label: "All Reports", count: counts.all },
-                            { value: "pending", label: "Pending", count: counts.pending },
-                            { value: "reviewed", label: "Reviewed", count: counts.reviewed },
-                            { value: "resolved", label: "Resolved", count: counts.resolved },
-                        ].map((tab) => (
-                            <Button
-                                key={tab.value}
-                                variant={statusFilter === tab.value ? "default" : "outline"}
-                                onClick={() => {
-                                    setStatusFilter(tab.value)
-                                    setCurrentPage(1)
-                                }}
-                                className="flex items-center gap-2"
-                            >
-                                {tab.label}
-                                <Badge variant="secondary" className="ml-1">
-                                    {tab.count}
-                                </Badge>
-                            </Button>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-
             {/* Reports Table */}
             <Card>
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <CardTitle>Reports List</CardTitle>
+                        <div className="flex items-center gap-4">
+                            <CardTitle>Reports List</CardTitle>
+                            <div className="flex flex-wrap gap-3">
+                                {[
+                                    { value: "all", label: "All Reports", count: counts.all },
+                                    { value: "pending", label: "Pending", count: counts.pending },
+                                    { value: "reviewed", label: "Reviewed", count: counts.reviewed },
+                                    { value: "resolved", label: "Resolved", count: counts.resolved },
+                                ].map((tab) => (
+                                    <Button
+                                        key={tab.value}
+                                        variant={statusFilter === tab.value ? "default" : "outline"}
+                                        onClick={() => {
+                                            setStatusFilter(tab.value)
+                                            setCurrentPage(1)
+                                        }}
+                                        className="flex items-center gap-2"
+                                    >
+                                        {tab.label}
+                                        <Badge variant="secondary" className="ml-1">
+                                            {tab.count}
+                                        </Badge>
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
 
                         {/* Filters */}
                         <div className="flex flex-col sm:flex-row gap-3">

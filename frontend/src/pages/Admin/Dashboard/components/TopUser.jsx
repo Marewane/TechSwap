@@ -95,7 +95,6 @@ const TopUsers = ({ topUsers }) => {
                                 {/* Revenue */}
                                 <div className="text-right">
                                     <div className="flex items-center gap-1 text-green-600 font-bold">
-                                        <DollarSign className="h-4 w-4" />
                                         {formatCurrency(user.totalRevenue)}
                                     </div>
                                     <p className="text-xs text-gray-500">revenue</p>

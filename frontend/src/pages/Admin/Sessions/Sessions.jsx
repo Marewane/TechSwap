@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     ChevronLeft,
     ChevronRight,
@@ -171,56 +172,6 @@ const Sessions = () => {
                 </div>
             </div>
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm text-muted-foreground font-medium">Total Sessions</CardTitle>
-                        <div className="p-2.5 rounded-lg bg-blue-50 flex items-center justify-center">
-                            <Calendar className="w-4 h-4 text-blue-600" />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <p className="text-4xl font-bold tracking-tight">{counts.total}</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm text-muted-foreground font-medium">Active Sessions</CardTitle>
-                        <div className="p-2.5 rounded-lg bg-green-50 flex items-center justify-center">
-                            <Play className="w-4 h-4 text-green-600" />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <p className="text-4xl font-bold tracking-tight">{counts["in-progress"]}</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm text-muted-foreground font-medium">Completed</CardTitle>
-                        <div className="p-2.5 rounded-lg bg-gray-50 flex items-center justify-center">
-                            <Square className="w-4 h-4 text-gray-600" />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <p className="text-4xl font-bold tracking-tight">{counts.completed}</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm text-muted-foreground font-medium">Cancelled</CardTitle>
-                        <div className="p-2.5 rounded-lg bg-red-50 flex items-center justify-center">
-                            <X className="w-4 h-4 text-red-600" />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <p className="text-4xl font-bold tracking-tight">{counts.cancelled}</p>
-                    </CardContent>
-                </Card>
-            </div>
 
             {/* Sessions Table */}
             <Card>
@@ -308,7 +259,6 @@ const Sessions = () => {
                                 <table className="w-full">
                                     <thead>
                                         <tr className="border-b bg-gray-50">
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Session ID</th>
                                             <th className="text-left py-3 px-4 font-medium text-gray-600">Participants</th>
                                             <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                                             <th className="text-left py-3 px-4 font-medium text-gray-600">Created At</th>
@@ -320,20 +270,32 @@ const Sessions = () => {
                                         {sessions.length > 0 ? (
                                             sessions.map((session) => (
                                                 <tr key={session._id} className="border-b hover:bg-gray-50 transition-colors">
-                                                    <td className="py-3 px-4 text-sm text-gray-600">
-                                                        {session._id?.slice(-6)?.toUpperCase()}
-                                                    </td>
                                                     <td className="py-3 px-4 text-sm">
-                                                        <div className="space-y-1">
-                                                            <div className="flex items-center gap-2">
-                                                                {getUserAvatar(session.hostId?.name || "Host")}
-                                                                <span className="font-medium">{session.hostId?.name || "Host"}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {getUserAvatar(session.learnerId?.name || "Learner")}
-                                                                <span className="font-medium">{session.learnerId?.name || "Learner"}</span>
-                                                            </div>
-                                                            <p className="text-xs text-gray-500">(2 total)</p>
+                                                        <div className="flex items-center">
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger>
+                                                                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white">
+                                                                            {session.hostId?.name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2)}
+                                                                        </div>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>{session.hostId?.name}</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger>
+                                                                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white -ml-4">
+                                                                            {session.learnerId?.name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2)}
+                                                                        </div>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>{session.learnerId?.name}</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
                                                         </div>
                                                     </td>
                                                     <td className="py-3 px-4">
@@ -374,7 +336,7 @@ const Sessions = () => {
                                             ))
                                         ) : (
                                             <tr>
-                                                <td colSpan="6" className="py-8 text-center text-gray-500">
+                                                <td colSpan="5" className="py-8 text-center text-gray-500">
                                                     No sessions found
                                                 </td>
                                             </tr>
@@ -513,12 +475,6 @@ const Sessions = () => {
 
                                 {/* Session Details */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Session ID</label>
-                                        <p className="text-sm text-gray-900 mt-1">
-                                            {selectedSession._id?.slice(-6)?.toUpperCase()}
-                                        </p>
-                                    </div>
                                     <div>
                                         <label className="text-sm font-medium text-gray-500">Status</label>
                                         <div className="mt-1">

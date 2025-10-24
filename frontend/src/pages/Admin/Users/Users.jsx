@@ -180,44 +180,6 @@ const Users = () => {
                 </div>
             </div>
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm text-muted-foreground font-medium">Total Registered Users</CardTitle>
-                        <div className="p-2.5 rounded-lg bg-blue-50 flex items-center justify-center">
-                            <UsersIcon className="w-4 h-4 text-blue-600" />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <p className="text-4xl font-bold tracking-tight">{counts.total}</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm text-muted-foreground font-medium">Active Users</CardTitle>
-                        <div className="p-2.5 rounded-lg bg-green-50 flex items-center justify-center">
-                            <UserCheck className="w-4 h-4 text-green-600" />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <p className="text-4xl font-bold tracking-tight">{counts.active}</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="relative overflow-hidden border shadow-sm hover:shadow-md transition-all duration-200">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm text-muted-foreground font-medium">Suspended Users</CardTitle>
-                        <div className="p-2.5 rounded-lg bg-red-50 flex items-center justify-center">
-                            <UserX className="w-4 h-4 text-red-600" />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <p className="text-4xl font-bold tracking-tight">{counts.suspended}</p>
-                    </CardContent>
-                </Card>
-            </div>
 
             {/* Users Table */}
             <Card>
@@ -282,7 +244,6 @@ const Users = () => {
                                 <table className="w-full">
                                     <thead>
                                         <tr className="border-b bg-gray-50">
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">ID</th>
                                             <th className="text-left py-3 px-4 font-medium text-gray-600">NAME</th>
                                             <th className="text-left py-3 px-4 font-medium text-gray-600">EMAIL</th>
                                             <th className="text-left py-3 px-4 font-medium text-gray-600">ROLE</th>
@@ -294,9 +255,6 @@ const Users = () => {
                                         {users.length > 0 ? (
                                             users.map((user) => (
                                                 <tr key={user._id} className="border-b hover:bg-gray-50 transition-colors">
-                                                    <td className="py-3 px-4 text-sm text-gray-600">
-                                                        {user.userId || user._id?.slice(-6)?.toUpperCase()}
-                                                    </td>
                                                     <td className="py-3 px-4 text-sm">
                                                         <div className="flex items-center gap-3">
                                                             {getUserAvatar(user.name || user.firstName + ' ' + user.lastName)}
