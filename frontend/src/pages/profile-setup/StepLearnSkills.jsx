@@ -34,30 +34,35 @@ export default function StepLearnSkills() {
     }
   };
 
-  const handleContinue = async () => {
-    if (selectedSkills.length === 0) {
-      alert("Please select at least one skill you want to learn");
-      return;
-    }
+const handleContinue = async () => {
+  if (selectedSkills.length === 0) {
+    alert("Please select at least one skill you want to learn");
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      // Save skills to user profile - use the correct endpoint
-      await api.patch("/users/profile", {
-        skillsToLearn: selectedSkills
-      });
+  try {
+    // Use PUT instead of PATCH
+    const response = await api.put("/profile/update", {
+      skillsToLearn: selectedSkills
+    });
 
+    if (response.data.success) {
       navigate("/onboarding/teach-skills");
-    } catch (error) {
-      console.error("Error saving skills:", error);
-      // Still navigate to next step even if save fails
-      navigate("/onboarding/teach-skills");
-    } finally {
-      setLoading(false);
+    } else {
+      throw new Error(response.data.message || "Failed to save skills");
     }
-  };
-
+  } catch (error) {
+    console.error("Error saving skills:", error);
+    console.error("Full error details:", error.response?.data);
+    
+    const errorMessage = error.response?.data?.message || "Failed to save your skills. Please try again.";
+    alert(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
   const handleSkip = () => {
     navigate("/onboarding/teach-skills");
   };

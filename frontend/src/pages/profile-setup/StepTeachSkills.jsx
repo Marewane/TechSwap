@@ -34,29 +34,35 @@ export default function StepTeachSkills() {
     }
   };
 
-  const handleContinue = async () => {
-    if (selectedSkills.length === 0) {
-      alert("Please select at least one skill you can teach");
-      return;
-    }
+const handleContinue = async () => {
+  if (selectedSkills.length === 0) {
+    alert("Please select at least one skill you can teach");
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      // Save teaching skills to user profile
-      await api.patch("/users/profile", {
-        skillsToTeach: selectedSkills
-      });
+  try {
+    // Use PUT instead of PATCH
+    const response = await api.put("/profile/update", {
+      skillsToTeach: selectedSkills
+    });
 
+    if (response.data.success) {
       navigate("/onboarding/profile-info");
-    } catch (error) {
-      console.error("Error saving teaching skills:", error);
-      // Still navigate to next step even if save fails
-      navigate("/onboarding/profile-info");
-    } finally {
-      setLoading(false);
+    } else {
+      throw new Error(response.data.message || "Failed to save teaching skills");
     }
-  };
+  } catch (error) {
+    console.error("Error saving teaching skills:", error);
+    console.error("Full error details:", error.response?.data);
+    
+    const errorMessage = error.response?.data?.message || "Failed to save your teaching skills. Please try again.";
+    alert(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSkip = () => {
     navigate("/onboarding/profile-info");
