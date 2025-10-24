@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import AdminLayout from "./pages/Admin/AdminLayout";
+import UserLayout from "./pages/User/UserLayout";
 import Dashboard from "./pages/Admin/Dashboard/Dashboard";
 import Users from "./pages/Admin/Users/Users";
 import Sessions from "./pages/Admin/Sessions/Sessions";
@@ -15,9 +16,12 @@ function App() {
   return (
     <Routes>
       {/* Public Routes */}
-      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/home" element={<PostsPage />} />
+      
+      <Route path="/" element={<UserLayout />}>
+        <Route path="home" element={<PostsPage />} />
+      </Route>
 
 
       {/* Admin Routes */}
