@@ -478,13 +478,24 @@ const startLiveSession = async (req, res) => {
     await session.save();
     //§§§§§§§§§§§§§§§§§§§§§§§§§
 
+    //v1
+    // // Emit socket event to notify other participant
+    // const io = require('../server').io; // Reference to socket.io instance
+    // io.to(`session-${id}`).emit('session-started', {
+    //   sessionId: id,
+    //   startedBy: userId,
+    //   startedAt: session.startedAt
+    // });
+
     // Emit socket event to notify other participant
-    const io = require('../server').io; // Reference to socket.io instance
-    io.to(`session-${id}`).emit('session-started', {
-      sessionId: id,
-      startedBy: userId,
-      startedAt: session.startedAt
-    });
+    const { io } = require('./server'); // Get the io instance
+    if (io) {
+      io.to(`session-${id}`).emit('session-started', {
+        sessionId: id,
+        startedBy: userId,
+        startedAt: session.startedAt
+      });
+    }
 
     const populated = await Session.findById(session._id)
       .populate('hostId', 'name email')

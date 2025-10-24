@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebRTC Signaling Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .signal-btn { margin: 5px; padding: 10px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; height: 200px; overflow-y: auto; }
+        input, button { margin: 5px; padding: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebRTC Signaling Test</h1>
+        
+        <div>
+            <input type="text" id="tokenInput" placeholder="JWT Token" value="YOUR_TOKEN_HERE">
+            <input type="text" id="sessionIdInput" placeholder="Session ID" value="YOUR_SESSION_ID_HERE">
+            <input type="text" id="targetUserIdInput" placeholder="Target User ID" value="TARGET_USER_ID_HERE">
+            <button onclick="connectSocket()">Connect</button>
+        </div>
+
+        <div>
+            <button class="signal-btn" onclick="joinSession()">Join Session</button>
+            <button class="signal-btn" onclick="sendOffer()">Send Offer</button>
+            <button class="signal-btn" onclick="sendAnswer()">Send Answer</button>
+            <button class="signal-btn" onclick="sendIceCandidate()">Send ICE Candidate</button>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        let socket;
+        let currentSessionId;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function connectSocket() {
+            const token = document.getElementById('tokenInput').value;
+            
+            socket = io('http://localhost:5000', {
+                auth: { token: token }
+            });
+
+            socket.on('connect', () => {
+                log('Connected to server');
+            });
+
+            socket.on('disconnect', () => {
+                log('Disconnected from server');
+            });
+
+            socket.on('user-joined', (data) => {
+                log(`User joined: ${data.userId}`);
+            });
+
+            socket.on('user-left', (data) => {
+                log(`User left: ${data.userId}`);
+            });
+
+            socket.on('webrtc-offer', (data) => {
+                log(`Received offer from: ${data.from}, target: ${data.targetUserId}`);
+            });
+
+            socket.on('webrtc-answer', (data) => {
+                log(`Received answer from: ${data.from}, target: ${data.targetUserId}`);
+            });
+
+            socket.on('webrtc-ice-candidate', (data) => {
+                log(`Received ICE candidate from: ${data.from}, target: ${data.targetUserId}`);
+            });
+
+            socket.on('session-started', (data) => {
+                log(`Session started by: ${data.startedBy}`);
+            });
+
+            socket.on('error', (data) => {
+                log(`Error: ${data.message}`);
+            });
+        }
+
+        function joinSession() {
+            currentSessionId = document.getElementById('sessionIdInput').value;
+            socket.emit('join-session', currentSessionId);
+        }
+
+        function sendOffer() {
+            const targetUserId = document.getElementById('targetUserIdInput').value;
+            const offer = { type: 'offer', sdp: 'fake-sdp-offer-data' };
+            
+            socket.emit('webrtc-offer', {
+                offer: offer,
+                targetUserId: targetUserId,
+                sessionId: currentSessionId
+            });
+            log('Offer sent');
+        }
+
+        function sendAnswer() {
+            const targetUserId = document.getElementById('targetUserIdInput').value;
+            const answer = { type: 'answer', sdp: 'fake-sdp-answer-data' };
+            
+            socket.emit('webrtc-answer', {
+                answer: answer,
+                targetUserId: targetUserId,
+                sessionId: currentSessionId
+            });
+            log('Answer sent');
+        }
+
+        function sendIceCandidate() {
+            const targetUserId = document.getElementById('targetUserIdInput').value;
+            const candidate = { candidate: 'fake-candidate-data', sdpMid: '0', sdpMLineIndex: 0 };
+            
+            socket.emit('webrtc-ice-candidate', {
+                candidate: candidate,
+                targetUserId: targetUserId,
+                sessionId: currentSessionId
+            });
+            log('ICE candidate sent');
+        }
+    </script>
+</body>
+</html>

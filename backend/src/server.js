@@ -38,17 +38,7 @@ app.use('/api/sessions', sessionRoutes);
 const server = http.createServer(app);
 
 // Configure Socket.IO with CORS
-//v1
-// const io = socketIo(server, {
-//   cors: {
-//     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-//     methods: ['GET', 'POST'],
-//     credentials: true
-//   },
-//   transports: ['websocket', 'polling'] // Ensure WebSocket is supported
-// });
-
-// v2 for testing cors 
+//v2 for testing cors 
 // Configure Socket.IO with updated CORS
 const io = socketIo(server, {
   cors: {
@@ -63,7 +53,6 @@ const io = socketIo(server, {
   },
   transports: ['websocket', 'polling']
 });
-
 
 // JWT authentication middleware for Socket.IO
 const jwt = require('jsonwebtoken');
@@ -123,17 +112,49 @@ io.use(authenticateSocket);
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.userId}`);
 
-  // Join session room
-  socket.on('join-session', (sessionId) => {
-    // Verify user is authorized to join this session
-    socket.join(`session-${sessionId}`);
-    console.log(`User ${socket.userId} joined session ${sessionId}`);
-    
-    // Notify other users in the room
-    socket.to(`session-${sessionId}`).emit('user-joined', {
-      userId: socket.userId,
-      timestamp: new Date()
-    });
+  // Join session room with authorization check
+  socket.on('join-session', async (sessionId) => {
+    try {
+      // Import Session model to check authorization
+      const Session = require('./models/SessionModel');
+      const session = await Session.findById(sessionId);
+      
+      if (!session) {
+        socket.emit('error', { message: 'Session not found' });
+        return;
+      }
+
+      // Check if user is authorized to join this session
+      const isAuthorized = session.hostId.toString() === socket.userId.toString() || 
+                         session.learnerId.toString() === socket.userId.toString();
+      
+      if (!isAuthorized) {
+        socket.emit('error', { message: 'Not authorized to join this session' });
+        return;
+      }
+
+      // Join the session room
+      socket.join(`session-${sessionId}`);
+      console.log(`User ${socket.userId} joined session ${sessionId}`);
+      
+      // Notify other users in the room
+      socket.to(`session-${sessionId}`).emit('user-joined', {
+        userId: socket.userId,
+        timestamp: new Date()
+      });
+
+      // Send current participants to the joining user
+      const room = io.sockets.adapter.rooms.get(`session-${sessionId}`);
+      const participants = room ? Array.from(room) : [];
+      socket.emit('session-participants', {
+        participants,
+        sessionId
+      });
+
+    } catch (error) {
+      console.error('Join session error:', error);
+      socket.emit('error', { message: 'Error joining session' });
+    }
   });
 
   // Leave session room
@@ -147,38 +168,79 @@ io.on('connection', (socket) => {
     });
   });
 
-  // WebRTC signaling
+  // WebRTC signaling - Handle offer from initiator
   socket.on('webrtc-offer', (data) => {
-    socket.to(data.roomId).emit('webrtc-offer', {
-      offer: data.offer,
-      from: socket.userId
-    });
+    try {
+      const { offer, targetUserId, sessionId } = data;
+      
+      // Verify user is in the session room
+      const roomName = `session-${sessionId}`;
+      if (socket.rooms.has(roomName)) {
+        // Send offer to target user only
+        socket.to(roomName).emit('webrtc-offer', {
+          offer,
+          from: socket.userId,
+          targetUserId
+        });
+      }
+    } catch (error) {
+      console.error('WebRTC offer error:', error);
+      socket.emit('error', { message: 'Error sending offer' });
+    }
   });
 
+  // WebRTC signaling - Handle answer from responder
   socket.on('webrtc-answer', (data) => {
-    socket.to(data.roomId).emit('webrtc-answer', {
-      answer: data.answer,
-      from: socket.userId
-    });
+    try {
+      const { answer, targetUserId, sessionId } = data;
+      
+      const roomName = `session-${sessionId}`;
+      if (socket.rooms.has(roomName)) {
+        // Send answer back to the original offerer
+        socket.to(roomName).emit('webrtc-answer', {
+          answer,
+          from: socket.userId,
+          targetUserId
+        });
+      }
+    } catch (error) {
+      console.error('WebRTC answer error:', error);
+      socket.emit('error', { message: 'Error sending answer' });
+    }
   });
 
+  // WebRTC signaling - Handle ICE candidates
   socket.on('webrtc-ice-candidate', (data) => {
-    socket.to(data.roomId).emit('webrtc-ice-candidate', {
-      candidate: data.candidate,
-      from: socket.userId
-    });
+    try {
+      const { candidate, targetUserId, sessionId } = data;
+      
+      const roomName = `session-${sessionId}`;
+      if (socket.rooms.has(roomName)) {
+        // Send ICE candidate to target user
+        socket.to(roomName).emit('webrtc-ice-candidate', {
+          candidate,
+          from: socket.userId,
+          targetUserId
+        });
+      }
+    } catch (error) {
+      console.error('WebRTC ICE candidate error:', error);
+      socket.emit('error', { message: 'Error sending ICE candidate' });
+    }
   });
 
-  // Session control
+  // Session control events
   socket.on('session-started', (data) => {
-    socket.to(`session-${data.sessionId}`).emit('session-started', {
+    const { sessionId } = data;
+    socket.to(`session-${sessionId}`).emit('session-started', {
       startedBy: socket.userId,
       timestamp: new Date()
     });
   });
 
   socket.on('session-ended', (data) => {
-    socket.to(`session-${data.sessionId}`).emit('session-ended', {
+    const { sessionId } = data;
+    socket.to(`session-${sessionId}`).emit('session-ended', {
       endedBy: socket.userId,
       timestamp: new Date()
     });
@@ -187,6 +249,11 @@ io.on('connection', (socket) => {
   // Handle disconnect
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.userId}`);
+  });
+
+  // Handle errors
+  socket.on('error', (error) => {
+    console.error('Socket error:', error);
   });
 });
 
@@ -202,13 +269,9 @@ io.on('connection_error', (error) => {
 
 const PORT = process.env.PORT || 5000;
 
-
-// app.listen(PORT, () => {
-//   console.log(`🚀 App listening on port ${PORT}`);
-// });
-
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Socket.IO server initialized`);
 });
+
 module.exports = { app, io, server };
