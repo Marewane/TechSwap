@@ -41,6 +41,8 @@ app.use('/',userRoutes);
 
 app.use('/api/profile', profileRoutes);
 
+app.use('/api/upload', uploadRoutes);
+
 
 // Stripe webhook route — must be before express.json
 app.use("/api/stripe", webHookRouters);

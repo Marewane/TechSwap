@@ -16,6 +16,7 @@ const popularSkills = [
 export default function StepTeachSkills() {
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [customSkill, setCustomSkill] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const toggleSkill = (skill) => {
@@ -33,24 +34,35 @@ export default function StepTeachSkills() {
     }
   };
 
-  const handleContinue = async () => {
-    if (selectedSkills.length === 0) {
-      alert("Please select at least one skill you can teach");
-      return;
-    }
+const handleContinue = async () => {
+  if (selectedSkills.length === 0) {
+    alert("Please select at least one skill you can teach");
+    return;
+  }
 
-    try {
-      // Save skills to user profile
-      await api.patch("/users/profile", {
-        skillsToTeach: selectedSkills
-      });
+  setLoading(true);
 
+  try {
+    // Use PUT instead of PATCH
+    const response = await api.put("/profile/update", {
+      skillsToTeach: selectedSkills
+    });
+
+    if (response.data.success) {
       navigate("/onboarding/profile-info");
-    } catch (error) {
-      console.error("Error saving skills:", error);
-      navigate("/onboarding/profile-info");
+    } else {
+      throw new Error(response.data.message || "Failed to save teaching skills");
     }
-  };
+  } catch (error) {
+    console.error("Error saving teaching skills:", error);
+    console.error("Full error details:", error.response?.data);
+    
+    const errorMessage = error.response?.data?.message || "Failed to save your teaching skills. Please try again.";
+    alert(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSkip = () => {
     navigate("/onboarding/profile-info");
@@ -119,8 +131,8 @@ export default function StepTeachSkills() {
           <Button variant="outline" onClick={handleSkip}>
             Skip for now
           </Button>
-          <Button onClick={handleContinue}>
-            Continue
+          <Button onClick={handleContinue} disabled={loading}>
+            {loading ? "Saving..." : "Continue"}
           </Button>
         </CardFooter>
       </Card>

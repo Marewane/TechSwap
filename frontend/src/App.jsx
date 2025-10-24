@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLayout from "./pages/Admin/AdminLayout";
 import UserLayout from "./pages/User/UserLayout";
 import Dashboard from "./pages/Admin/Dashboard/Dashboard";
@@ -9,20 +9,41 @@ import TransactionPage from "./pages/Admin/Transactions/TransactionPage";
 
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
+import OAuthSuccess from "./pages/auth/OAuthSuccess";
+import EmailVerification from "./pages/auth/EmailVerification";
 
+// Profile Setup
+import StepLearnSkills from "./pages/profile-setup/StepLearnSkills";
+import StepTeachSkills from "./pages/profile-setup/StepTeachSkills";
+import StepProfileInfo from "./pages/profile-setup/StepProfileInfo";
+
+// Other Pages
+import Home from "./pages/Home"; 
 import PostsPage from "./pages/User/Post/PostsPage";
 
 function App() {
   return (
     <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      {/* Root redirect to landing page */}
+      <Route path="/" element={<Navigate to="/landing-page" replace />} />
       
-      <Route path="/" element={<UserLayout />}>
-        <Route path="home" element={<PostsPage />} />
-      </Route>
-
+      {/* Public Routes */}
+      <Route path="/landing-page" element={<Home />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <Route path="/verify-email" element={<EmailVerification />} />
+      <Route path="/oauth-success" element={<OAuthSuccess />} />
+      
+      {/* App Routes (Protected) */}
+      <Route path="/home" element={<PostsPage />} />
+      {/* Profile Setup Routes */}
+      <Route path="/onboarding/learn-skills" element={<StepLearnSkills />} />
+      <Route path="/onboarding/teach-skills" element={<StepTeachSkills />} />
+      <Route path="/onboarding/profile-info" element={<StepProfileInfo />} />
 
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminLayout />}>
@@ -32,6 +53,9 @@ function App() {
         <Route path="reports" element={<Reports />} />
         <Route path="transactions" element={<TransactionPage />} />
       </Route>
+      
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/landing-page" replace />} />
     </Routes>
   );
 }

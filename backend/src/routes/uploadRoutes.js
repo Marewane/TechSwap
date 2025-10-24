@@ -1,51 +1,92 @@
 const express = require('express');
 const router = express.Router();
+const { authMiddleware } = require('../middleware/authMiddleware');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const { authMiddleware } = require('../middleware/authMiddleware');
-const streamifier = require('streamifier');
+const stream = require('stream');
 
-// Cloudinary config
+// Configure Cloudinary (make sure these env vars are set)
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer storage in memory (no temp files)
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
 
-// Upload route (protected)
-router.post('/avatar', authMiddleware, upload.single('avatar'), async (req, res) => {
+// Real Cloudinary upload
+router.post('/avatar', authMiddleware, upload.single('image'), async (req, res) => {
   try {
+    console.log("📤 Upload request received");
+    
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file uploaded' });
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
     }
 
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: 'techswap/avatars',
-        resource_type: 'image',
-      },
-      (error, result) => {
-        if (error) {
-          console.error('Cloudinary error:', error);
-          return res.status(500).json({ success: false, message: 'Upload failed' });
+    // Upload to Cloudinary
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'techswap/avatars',
+          transformation: [
+            { width: 200, height: 200, crop: 'fill', gravity: 'face' },
+            { quality: 'auto' },
+            { format: 'webp' }
+          ]
+        },
+        (error, result) => {
+          if (error) {
+            console.error('❌ Cloudinary upload error:', error);
+            reject(error);
+          } else {
+            console.log("✅ Image uploaded to Cloudinary:", result.secure_url);
+            resolve(result);
+          }
         }
+      );
 
-        // Return Cloudinary URL
-        res.status(200).json({
-          success: true,
-          url: result.secure_url,
-        });
-      }
-    );
+      // Create a buffer stream from the file buffer
+      const bufferStream = new stream.PassThrough();
+      bufferStream.end(req.file.buffer);
+      bufferStream.pipe(uploadStream);
+    })
+    .then(result => {
+      res.json({
+        success: true,
+        message: 'Image uploaded successfully',
+        imageUrl: result.secure_url
+      });
+    })
+    .catch(error => {
+      console.error('❌ Upload processing error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error uploading image to Cloudinary'
+      });
+    });
 
-    streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
   } catch (error) {
-    console.error('Avatar upload error:', error);
-    res.status(500).json({ success: false, message: 'Server error while uploading avatar' });
+    console.error('❌ Upload route error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during image upload'
+    });
   }
 });
 
