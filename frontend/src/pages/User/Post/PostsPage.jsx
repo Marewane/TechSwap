@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchPosts, setPage, clearError, clearSuccess, requestSwap } from "../../../features/posts/postsSlice";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Star, ChevronLeft, ChevronRight, Loader2, Clock, Calendar } from "lucide-react";
 import CreatePostModal from "./components/CreatePostModal";
+import SessionScheduler from "@/components/SessionScheduler"; // ✅ Import scheduler
 
 const PostsPage = () => {
     const dispatch = useDispatch();
@@ -22,6 +23,9 @@ const PostsPage = () => {
         swapError,
         swapSuccess
     } = useSelector((state) => state.posts);
+
+    // 🔥 NEW: State to manage scheduler popup
+    const [schedulerPost, setSchedulerPost] = useState(null);
 
     useEffect(() => {
         dispatch(fetchPosts({ page: currentPage, limit }));
@@ -49,8 +53,18 @@ const PostsPage = () => {
         }
     };
 
-    const handleRequestSwap = (postId) => {
-        dispatch(requestSwap(postId));
+    // 🔥 NEW: Open scheduler for a post
+    const openScheduler = (post) => {
+        setSchedulerPost(post);
+    };
+
+    // 🔥 NEW: Handle actual swap request with user-selected time
+    const handleSchedule = (data) => {
+        dispatch(requestSwap({
+            postId: schedulerPost._id,
+            ...data
+        }));
+        setSchedulerPost(null); // Close popup
     };
 
     const getInitials = (name) => {
@@ -239,7 +253,7 @@ const PostsPage = () => {
                                     <div className="mt-auto pt-3">
                                         <Button
                                             className="w-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-medium py-2.5 transition-all duration-200"
-                                            onClick={() => handleRequestSwap(post?._id)}
+                                            onClick={() => openScheduler(post)} // ✅ Open scheduler
                                             disabled={requestingSwap === post?._id}
                                         >
                                             {requestingSwap === post?._id ? (
@@ -291,6 +305,18 @@ const PostsPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* 🔥 CALENDAR POPUP */}
+            {schedulerPost && (
+                <SessionScheduler
+                    postOwnerName={schedulerPost.userId.name}
+                    skillsOffered={schedulerPost.skillsOffered}
+                    skillsWanted={schedulerPost.skillsWanted}
+                    onSchedule={handleSchedule}
+                    onClose={() => setSchedulerPost(null)}
+                />
+            )}
+
             <CreatePostModal />
         </div>
     );

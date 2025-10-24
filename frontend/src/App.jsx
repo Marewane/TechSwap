@@ -10,11 +10,13 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 
 import PostsPage from "./pages/User/Post/PostsPage";
+import Landing from "./components/Landing";
 
 function App() {
   return (
     <Routes>
       {/* Public Routes */}
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/home" element={<PostsPage />} />

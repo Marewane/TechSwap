@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../services/api";
+import api from "@/services/api";
 
 export const fetchPosts = createAsyncThunk(
     "posts/fetchPosts",
@@ -31,9 +31,13 @@ export const createPost = createAsyncThunk(
 
 export const requestSwap = createAsyncThunk(
     "posts/requestSwap",
-    async (postId, { rejectWithValue }) => {
+    async ({ postId, scheduledTime, duration }, { rejectWithValue }) => {
         try {
-            const res = await api.post(`/posts/${postId}/request-swap`);
+            const res = await api.post("/swap-requests", {
+                postId,
+                scheduledTime,
+                duration
+            });
             return res.data;
         } catch (err) {
             return rejectWithValue(

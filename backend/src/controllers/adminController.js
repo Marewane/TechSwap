@@ -1,8 +1,8 @@
 const User = require('../models/UserModel');
 const Review = require('../models/ReviewModel');
-const Report = require('../models/RaportModel'); 
+const Report = require('../models/ReportModel'); 
 const Session = require('../models/SessionModel');
-const Transaction = require('../models/TranscationModel');
+const Transaction = require('../models/TransactionModel');
 const AdminActionLog = require("../models/AdminActionLogModel");
 
 const logAdminAction = async ({ adminId, actionType, targetUserId, description }) => {

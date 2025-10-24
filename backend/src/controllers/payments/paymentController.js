@@ -1,9 +1,10 @@
 const stripe = require("../../services/stripeService");
 const Wallet = require('../../models/WalletModel');
-const Transaction = require('../../models/TranscationModel');
+const Transaction = require('../../models/TransactionModel');
 const Session = require('../../models/SessionModel');
+const ChatRoom = require('../../models/ChatRoomModel');
+const Notification = require('../../models/NotificationModel');
 
-// Stripe coin purchase
 const createPaymentIntent = async (req, res) => {
   const { coinsNumber, userId } = req.body;
   const dollarValuePerCoin = 0.1;
@@ -38,97 +39,100 @@ const createPaymentIntent = async (req, res) => {
   }
 };
 
-// Session payment (handles both skillExchange and skillTeaching)
 const handleSessionPayment = async (req, res) => {
   try {
-    const { sessionId, type } = req.body; // type: 'skillExchange' or 'skillTeaching'
-    const session = await Session.findById(sessionId).populate('hostId learnerId');
-    if (!session) return res.status(404).json({ message: 'Session not found' });
+    const { chatRoomId } = req.body;
+    const userId = req.user._id;
 
-    const learnerWallet = await Wallet.findOne({ userId: session.learnerId });
-    const teacherWallet = await Wallet.findOne({ userId: session.hostId });
-    const platformWallet = await Wallet.findOne({ isPlatform: true });
+    const chatRoom = await ChatRoom.findById(chatRoomId)
+      .populate('hostId', 'name')
+      .populate('learnerId', 'name')
+      .populate('postId', 'title');
 
-    if (!learnerWallet || !teacherWallet || !platformWallet)
-      return res.status(404).json({ message: 'Wallet(s) missing' });
+    if (!chatRoom) return res.status(404).json({ message: 'Chat room not found' });
 
-    if (type === 'skillExchange') {
-      if (learnerWallet.balance < 50 || teacherWallet.balance < 50)
-        return res.status(400).json({ message: 'Insufficient balance' });
+    const isHost = userId.equals(chatRoom.hostId._id);
+    const isLearner = userId.equals(chatRoom.learnerId._id);
 
-      learnerWallet.balance -= 50;
-      teacherWallet.balance -= 50;
+    if (!isHost && !isLearner) {
+      return res.status(403).json({ message: 'Not a participant' });
+    }
 
-      await learnerWallet.save();
-      await teacherWallet.save();
+    const wallet = await Wallet.findOne({ userId });
+    if (!wallet || wallet.balance < 50) {
+      return res.status(400).json({ message: 'Insufficient balance (50 coins required)' });
+    }
 
-      await Transaction.create([
+    wallet.balance -= 50;
+    await wallet.save();
+
+    if (isHost) chatRoom.hostPaid = true;
+    if (isLearner) chatRoom.learnerPaid = true;
+    await chatRoom.save();
+
+    await Transaction.create({
+      walletId: wallet._id,
+      type: 'debit',
+      amount: 50,
+      balanceAfter: wallet.balance,
+      description: 'Joined skill exchange session',
+      fromUserId: userId
+    });
+
+    let session = null;
+    if (chatRoom.hostPaid && chatRoom.learnerPaid) {
+      session = await Session.create({
+        hostId: chatRoom.hostId._id,
+        learnerId: chatRoom.learnerId._id,
+        createdBy: userId,
+        scheduledTime: chatRoom.scheduledTime,
+        duration: chatRoom.duration,
+        title: `Skill Swap: ${chatRoom.postId.title}`,
+        cost: 50,
+        sessionType: 'skillExchange',
+        status: 'scheduled'
+      });
+
+      chatRoom.sessionId = session._id;
+      await chatRoom.save();
+
+      await Transaction.updateMany(
+        { walletId: wallet._id, description: 'Joined skill exchange session' },
+        { sessionId: session._id }
+      );
+
+      await Notification.create([
         {
-          walletId: learnerWallet._id,
-          type: 'debit',
-          amount: 50,
-          balanceAfter: learnerWallet.balance,
-          description: 'Joined skill exchange session',
-          sessionId
+          userId: chatRoom.hostId._id,
+          type: 'session',
+          title: 'Session Confirmed!',
+          content: 'Your swap session is now confirmed. You can start it at the scheduled time.',
+          relatedId: session._id,
+          relatedModel: 'Session'
         },
         {
-          walletId: teacherWallet._id,
-          type: 'debit',
-          amount: 50,
-          balanceAfter: teacherWallet.balance,
-          description: 'Joined skill exchange session',
-          sessionId
-        }
-      ]);
-
-    } else if (type === 'skillTeaching') {
-      if (learnerWallet.balance < 150)
-        return res.status(400).json({ message: 'Insufficient balance' });
-
-      learnerWallet.balance -= 150;
-      teacherWallet.balance += 50;
-      platformWallet.balance += 100;
-
-      await learnerWallet.save();
-      await teacherWallet.save();
-      await platformWallet.save();
-
-      await Transaction.create([
-        {
-          walletId: learnerWallet._id,
-          type: 'debit',
-          amount: 150,
-          balanceAfter: learnerWallet.balance,
-          description: 'Paid for learning session',
-          sessionId,
-          toUserId: session.hostId
-        },
-        {
-          walletId: teacherWallet._id,
-          type: 'credit',
-          amount: 50,
-          balanceAfter: teacherWallet.balance,
-          description: 'Earned from teaching session',
-          sessionId,
-          fromUserId: session.learnerId
-        },
-        {
-          walletId: platformWallet._id,
-          type: 'credit',
-          amount: 100,
-          balanceAfter: platformWallet.balance,
-          description: 'Platform share from teaching session',
-          sessionId,
-          fromUserId: session.learnerId,
-          platformShare: 100
+          userId: chatRoom.learnerId._id,
+          type: 'session',
+          title: 'Session Confirmed!',
+          content: 'Your swap session is now confirmed. You can start it at the scheduled time.',
+          relatedId: session._id,
+          relatedModel: 'Session'
         }
       ]);
     }
 
-    res.status(200).json({ message: 'Payment handled successfully' });
+    res.status(200).json({
+      message: 'Payment validated',
+      sessionCreated: !!session,
+      session: session ? {
+        _id: session._id,
+        scheduledTime: session.scheduledTime,
+        duration: session.duration
+      } : null
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Internal server error', error: err.message });
+    res.status(500).json({ message: 'Payment failed', error: err.message });
   }
 };
 

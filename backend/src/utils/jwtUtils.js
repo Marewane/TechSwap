@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 
 const generateAccessToken = (userId, userRole = 'user') => {
-  console.log('JWT_ACCESS_SECRET:', process.env.JWT_ACCESS_SECRET); // Debug log
   return jwt.sign(
     { 
       userId, 
@@ -13,7 +12,6 @@ const generateAccessToken = (userId, userRole = 'user') => {
 };
 
 const generateRefreshToken = (userId, userRole = 'user') => {
-  console.log('JWT_REFRESH_SECRET:', process.env.JWT_REFRESH_SECRET); // Debug log
   return jwt.sign(
     { 
       userId, 

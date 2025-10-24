@@ -1,4 +1,5 @@
 const User = require('../models/UserModel');
+const Wallet = require('../models/WalletModel');
 
 const getUsers = async (req,res)=>{
     const users = await User.find();
@@ -24,5 +25,18 @@ const addUser = async (req,res)=>{
     }
 }
 
+// controllers/userController.js
 
-module.exports = {addUser,getUsers};
+const getMyWallet = async (req, res) => {
+  try {
+    const wallet = await Wallet.findOne({ userId: req.user._id });
+    if (!wallet) {
+      return res.status(404).json({ success: false, message: 'Wallet not found' });
+    }
+    res.json({ success: true, balance: wallet.balance });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+module.exports = {addUser,getUsers,getMyWallet};

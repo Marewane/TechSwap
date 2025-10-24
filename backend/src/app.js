@@ -19,7 +19,6 @@ const postRoutes = require('./routes/postRoutes');
 const swapRequestRoutes = require('./routes/swapRequestRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-const sessionRoutes = require('./routes/sessionRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 
 
@@ -65,7 +64,7 @@ app.use('/api/swap-requests', swapRequestRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/sessions', sessionRoutes);
+app.use('/api/upload', uploadRoutes);
 
 
 // Health check route
@@ -76,7 +75,6 @@ app.get("/api/health", (req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
-app.use("/",userRoutes);
 app.use('/api/session-payment',sessionPaymentRoutes);
 
 
