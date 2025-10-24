@@ -6,7 +6,7 @@ const UserLayout = () => {
         <div className="min-h-screen flex flex-col">
             <Navbar />
             <main className="flex-1 mt-16 p-6">
-                {/* <Outlet /> */}
+                <Outlet />
             </main>
         </div>
     );

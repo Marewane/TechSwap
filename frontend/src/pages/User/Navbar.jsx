@@ -3,7 +3,7 @@ import { Menu, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import ProfileDropdown from "@/pages/User/Profile/ProfileDropdown";
+import ProfileDropdown from "@/pages/User/Profile/components/ProfileDropdown";
 
 const Navbar = () => {
     const location = useLocation();
@@ -67,9 +67,9 @@ const Navbar = () => {
                     <SheetContent 
                         side="right" 
                         className="w-[300px] sm:w-[400px]"
-                        onCloseAutoFocus={(event) => {
-                            event.preventDefault();
-                        }}
+                        // onCloseAutoFocus={(event) => {
+                        //     event.preventDefault();
+                        // }}
                     >
                         <div className="flex flex-col space-y-4 mt-8">
                             {navItems.map((item) => (

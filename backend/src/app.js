@@ -21,6 +21,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const sessionRoutes = require('./routes/sessionRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
+const profileRoute = require("./routes/profileRoutes");
 
 
 // Import middlewares
@@ -55,6 +56,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/admin", adminRoute);
+app.use("/api/profile", profileRoute);
 
 // Session & Review routes (from sessions branch)
 app.use("/api/sessions", sessionRouter);

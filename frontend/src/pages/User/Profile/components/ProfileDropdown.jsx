@@ -20,9 +20,9 @@ const ProfileDropdown = () => {
             <DropdownMenuContent 
                 align="end" 
                 className="w-48"
-                onCloseAutoFocus={(event) => {
-                    event.preventDefault();
-                }}
+                // onCloseAutoFocus={(event) => {
+                //     event.preventDefault();
+                // }}
             >
                 <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">

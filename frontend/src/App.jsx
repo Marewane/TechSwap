@@ -6,6 +6,8 @@ import Users from "./pages/Admin/Users/Users";
 import Sessions from "./pages/Admin/Sessions/Sessions";
 import Reports from "./pages/Admin/Report/ReportsPage";
 import TransactionPage from "./pages/Admin/Transactions/TransactionPage";
+import PostsPage from "./pages/User/Post/PostsPage";
+import ProfilePage from "./pages/User/Profile/ProfilePage";
 
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -20,15 +22,14 @@ import StepTeachSkills from "./pages/profile-setup/StepTeachSkills";
 import StepProfileInfo from "./pages/profile-setup/StepProfileInfo";
 
 // Other Pages
-import Home from "./pages/Home"; 
-import PostsPage from "./pages/User/Post/PostsPage";
+import Home from "./pages/Home";
 
 function App() {
   return (
     <Routes>
       {/* Root redirect to landing page */}
       <Route path="/" element={<Navigate to="/landing-page" replace />} />
-      
+
       {/* Public Routes */}
       <Route path="/landing-page" element={<Home />} />
       <Route path="/login" element={<Login />} />
@@ -37,9 +38,13 @@ function App() {
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/verify-email" element={<EmailVerification />} />
       <Route path="/oauth-success" element={<OAuthSuccess />} />
-      
+
       {/* App Routes (Protected) */}
-      <Route path="/home" element={<PostsPage />} />
+      <Route path="/" element={<UserLayout />}>
+        <Route path="/home" element={<PostsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/profile/:userId" element={<ProfilePage />} />
+      </Route>
       {/* Profile Setup Routes */}
       <Route path="/onboarding/learn-skills" element={<StepLearnSkills />} />
       <Route path="/onboarding/teach-skills" element={<StepTeachSkills />} />
@@ -53,7 +58,7 @@ function App() {
         <Route path="reports" element={<Reports />} />
         <Route path="transactions" element={<TransactionPage />} />
       </Route>
-      
+
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/landing-page" replace />} />
     </Routes>
