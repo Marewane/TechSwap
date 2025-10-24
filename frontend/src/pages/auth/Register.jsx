@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux"; // ✅ added
+import { setAuth } from "@/features/user/userSlice"; // ✅ added
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
+import api from "@/services/api"; // Use your API service
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -16,73 +19,56 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const dispatch = useDispatch(); // ✅ needed for setAuth
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
+  // ✅ Fixed: function was outside the component block previously
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-  // Validation
-  if (formData.password !== formData.confirmPassword) {
-    setError("Passwords do not match!");
-    setLoading(false);
-    return;
-  }
-
-  if (formData.password.length < 6) {
-    setError("Password must be at least 6 characters");
-    setLoading(false);
-    return;
-  }
-
-  try {
-    const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000/api";
-    
-    const res = await fetch(`${API_BASE}/auth/register`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok && data.success) {
-      // Store the user ID for verification
-      localStorage.setItem('pendingVerification', JSON.stringify({
-        userId: data.data.userId,
-        email: data.data.email
-      }));
-      
-      // Redirect to email verification page
-      navigate("/verify-email");
-    } else {
-      setError(data.message || "Registration failed. Please try again.");
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
     }
-  } catch (error) {
-    console.error("Registration error:", error);
-    setError("Network error. Please check your connection.");
-  } finally {
-    setLoading(false);
-  }
-};
+
+    try {
+      const response = await api.post("/auth/register", formData);
+
+      if (response.data.success) {
+        // Save tokens and user data
+        const { user, tokens } = response.data.data;
+        const authData = { user, tokens };
+
+        // Save to Redux and localStorage
+        dispatch(setAuth(authData));
+        localStorage.setItem("auth", JSON.stringify(authData));
+        api.defaults.headers.common["Authorization"] = `Bearer ${tokens.accessToken}`;
+
+        // NEW USERS from registration go to profile setup
+        console.log("🆕 New registered user - redirecting to profile setup");
+        navigate("/onboarding/learn-skills");
+      } else {
+        setError(response.data.message || "Registration failed");
+      }
+    } catch (err) {
+      console.error("❌ Registration error:", err);
+      setError(err.response?.data?.message || "Registration failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGoogleAuth = () => {
-    // FIX: Use direct URL without double /api
     window.location.href = "http://localhost:5000/api/auth/google";
   };
 
   const handleGithubAuth = () => {
-    // FIX: Use direct URL without double /api
     window.location.href = "http://localhost:5000/api/auth/github";
   };
 
@@ -145,15 +131,9 @@ export default function Register() {
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-red-500 text-center">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
-          <Button 
-            type="submit" 
-            className="w-full"
-            disabled={loading}
-          >
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Creating Account..." : "Sign Up"}
           </Button>
         </form>
@@ -170,18 +150,18 @@ export default function Register() {
         </div>
 
         <div className="grid gap-2">
-          <Button 
-            variant="outline" 
-            className="w-full" 
+          <Button
+            variant="outline"
+            className="w-full"
             onClick={handleGoogleAuth}
             type="button"
           >
             <FcGoogle className="mr-2 h-4 w-4" />
             Continue with Google
           </Button>
-          <Button 
-            variant="outline" 
-            className="w-full" 
+          <Button
+            variant="outline"
+            className="w-full"
             onClick={handleGithubAuth}
             type="button"
           >
@@ -192,7 +172,10 @@ export default function Register() {
 
         <p className="text-sm text-center text-gray-600">
           Already have an account?{" "}
-          <a href="/login" className="font-semibold text-blue-600 hover:underline">
+          <a
+            href="/login"
+            className="font-semibold text-blue-600 hover:underline"
+          >
             Sign in
           </a>
         </p>

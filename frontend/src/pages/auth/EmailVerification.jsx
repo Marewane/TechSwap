@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,21 +15,17 @@ export default function EmailVerification() {
   const [pendingUser, setPendingUser] = useState(null);
   
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
-    // Get pending verification data from localStorage or location state
+    // Get pending verification data from localStorage
     const stored = localStorage.getItem('pendingVerification');
-    const stateUser = location.state?.user;
     
     if (stored) {
       setPendingUser(JSON.parse(stored));
-    } else if (stateUser) {
-      setPendingUser(stateUser);
     } else {
       navigate("/register");
     }
-  }, [location, navigate]);
+  }, [navigate]);
 
   const handleVerify = async (e) => {
     e.preventDefault();
@@ -54,10 +50,15 @@ export default function EmailVerification() {
           tokens: res.data.data.tokens
         }));
 
-        // Redirect to profile setup
-        navigate("/onboarding/learn-skills", { 
-          state: { user: res.data.data.user } 
-        });
+        // Check if user needs profile setup
+        const user = res.data.data.user;
+        if (!user.skillsToLearn || user.skillsToLearn.length === 0) {
+          // Redirect to profile setup
+          navigate("/onboarding/learn-skills");
+        } else {
+          // Redirect to home if profile is already set up
+          navigate("/home");
+        }
       }
     } catch (err) {
       setError(err.response?.data?.message || "Verification failed");
