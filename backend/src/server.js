@@ -1,3 +1,4 @@
+// process.env.TZ = 'UTC'; // Set timezone to UTC for consistency
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 

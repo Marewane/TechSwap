@@ -13,6 +13,6 @@ if (!refreshTokenSecret) {
 module.exports = {
   accessTokenSecret,
   refreshTokenSecret,
-  accessTokenExpiry: '15m',
+  accessTokenExpiry: '5d',
   refreshTokenExpiry: '7d'
 };
