@@ -1,8 +1,9 @@
-// src/pages/Events/Events.jsx (updated part)
+// src/pages/Events/Events.jsx
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { useSessions } from '../../hooks/useSessions';
-import { useSelector } from 'react-redux'; // Add this import
+import { useSelector } from 'react-redux';
+import SessionCard from '../../components/Session/SessionCard';
 
 const Events = () => {
   const {
@@ -13,8 +14,23 @@ const Events = () => {
     refreshSessions
   } = useSessions();
 
-  // Get authenticated user from Redux store
   const { user } = useSelector(state => state.user) || {};
+
+  // Mock handlers for now (we'll implement these later)
+  const handleJoinSession = (session) => {
+    console.log('Join session:', session._id);
+    // Navigate to live session page
+  };
+
+  const handleStartSession = (session) => {
+    console.log('Start session:', session._id);
+    // Start the session via API
+  };
+
+  const handleViewDetails = (session) => {
+    console.log('View details:', session._id);
+    // Show session details modal
+  };
 
   if (loading) {
     return (
@@ -103,51 +119,22 @@ const Events = () => {
               </div>
             </div>
           </CardHeader>
-          <div className="p-6">
+          <div className="p-6 space-y-4">
             {sessions.length === 0 ? (
               <p className="text-gray-500 text-center py-8">
                 No sessions found. Create your first session!
               </p>
             ) : (
-              <div className="space-y-4">
-                {sessions.map(session => {
-                  // Determine user's role in the session
-                  const isHost = user && session.hostId._id === user._id;
-                  const isLearner = user && session.learnerId._id === user._id;
-                  const otherUser = isHost ? session.learnerId : session.hostId;
-                  
-                  return (
-                    <div key={session._id} className="border rounded-lg p-4 hover:bg-gray-50">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold text-lg">{session.title}</h3>
-                          <p className="text-gray-600 text-sm mt-1">{session.description}</p>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              session.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                              session.status === 'in-progress' ? 'bg-green-100 text-green-800' :
-                              session.status === 'completed' ? 'bg-gray-100 text-gray-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {session.status}
-                            </span>
-                            <span>{new Date(session.scheduledTime).toLocaleString()}</span>
-                            <span>{session.sessionType}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-500">
-                            With: {otherUser.name}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            You are: {isHost ? 'Host' : 'Learner'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              sessions.map(session => (
+                <SessionCard
+                  key={session._id}
+                  session={session}
+                  currentUser={user}
+                  onJoinSession={handleJoinSession}
+                  onStartSession={handleStartSession}
+                  onViewDetails={handleViewDetails}
+                />
+              ))
             )}
           </div>
         </Card>

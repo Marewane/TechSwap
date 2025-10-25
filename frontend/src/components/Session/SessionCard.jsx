@@ -1,0 +1,156 @@
+// src/components/Session/SessionCard.jsx
+import React from 'react';
+import { Card, CardContent } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { 
+  Clock, 
+  User, 
+  Code, 
+  Video, 
+  Calendar,
+  MapPin,
+  Users 
+} from 'lucide-react';
+
+const SessionCard = ({ 
+  session, 
+  currentUser, 
+  onJoinSession,
+  onStartSession,
+  onViewDetails
+}) => {
+  // Determine user's role and other participant
+  const isHost = currentUser && session.hostId._id === currentUser._id;
+  const isLearner = currentUser && session.learnerId._id === currentUser._id;
+  const otherUser = isHost ? session.learnerId : session.hostId;
+  const userRole = isHost ? 'Host' : 'Learner';
+
+  // Format date and time
+  const scheduledDate = new Date(session.scheduledTime);
+  const formattedDateTime = scheduledDate.toLocaleString();
+  const timeUntil = scheduledDate - new Date();
+  const hoursUntil = Math.floor(timeUntil / (1000 * 60 * 60));
+  const isSoon = timeUntil > 0 && timeUntil <= 1000 * 60 * 60 * 2; // Within 2 hours
+
+  // Get button props based on session status and user role
+  const getButtonProps = () => {
+    switch (session.status) {
+      case 'scheduled':
+        if (isHost) {
+          return {
+            text: 'Start Session',
+            onClick: () => onStartSession(session),
+            variant: 'default',
+            disabled: hoursUntil < -1 // Can't start if more than 1 hour past scheduled time
+          };
+        } else if (isLearner) {
+          return {
+            text: 'Join Session',
+            onClick: () => onJoinSession(session),
+            variant: 'outline',
+            disabled: hoursUntil < -1
+          };
+        }
+        break;
+      case 'ready':
+        return {
+          text: isHost ? 'Start Session' : 'Join Session',
+          onClick: isHost ? () => onStartSession(session) : () => onJoinSession(session),
+          variant: isHost ? 'default' : 'outline'
+        };
+      case 'in-progress':
+        return {
+          text: 'Join Live Session',
+          onClick: () => onJoinSession(session),
+          variant: 'default'
+        };
+      case 'completed':
+        return {
+          text: 'View Recording',
+          onClick: () => onViewDetails(session),
+          variant: 'secondary'
+        };
+      case 'cancelled':
+        return {
+          text: 'Cancelled',
+          onClick: null,
+          variant: 'destructive',
+          disabled: true
+        };
+      default:
+        return {
+          text: 'View Details',
+          onClick: () => onViewDetails(session),
+          variant: 'ghost'
+        };
+    }
+  };
+
+  const buttonProps = getButtonProps();
+
+  return (
+    <Card className={`hover:shadow-md transition-shadow ${
+      isSoon && session.status === 'scheduled' ? 'border-2 border-yellow-400' : ''
+    }`}>
+      <CardContent className="p-6">
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900">{session.title}</h3>
+              <Badge variant={session.status === 'in-progress' ? 'default' : 'outline'}>
+                {session.status}
+              </Badge>
+            </div>
+            
+            <p className="text-gray-600 text-sm mb-3">{session.description}</p>
+            
+            <div className="space-y-2 text-sm text-gray-500">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                <span>{formattedDateTime}</span>
+                {isSoon && session.status === 'scheduled' && (
+                  <span className="text-yellow-600 font-medium">(Soon!)</span>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                <span>With: {otherUser.name}</span>
+                <span className="text-gray-400">•</span>
+                <span>You are: {userRole}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Code className="w-4 h-4" />
+                <span>Mode: {session.sessionType}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col items-end gap-2 ml-4">
+            <Button
+              onClick={buttonProps.onClick}
+              variant={buttonProps.variant}
+              size="sm"
+              disabled={buttonProps.disabled}
+            >
+              {buttonProps.text}
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onViewDetails(session)}
+              className="text-blue-600 hover:text-blue-700"
+            >
+              Details
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default SessionCard;
