@@ -1,8 +1,9 @@
 // src/components/Session/SessionCard.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import SessionPopup from './SessionPopup';
 import { 
   Clock, 
   User, 
@@ -10,7 +11,8 @@ import {
   Video, 
   Calendar,
   MapPin,
-  Users 
+  Users,
+  Info 
 } from 'lucide-react';
 
 const SessionCard = ({ 
@@ -20,6 +22,8 @@ const SessionCard = ({
   onStartSession,
   onViewDetails
 }) => {
+  const [showPopup, setShowPopup] = useState(false);
+
   // Determine user's role and other participant
   const isHost = currentUser && session.hostId._id === currentUser._id;
   const isLearner = currentUser && session.learnerId._id === currentUser._id;
@@ -67,7 +71,7 @@ const SessionCard = ({
         };
       case 'completed':
         return {
-          text: 'View Recording',
+          text: 'View Details',
           onClick: () => onViewDetails(session),
           variant: 'secondary'
         };
@@ -141,14 +145,23 @@ const SessionCard = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onViewDetails(session)}
+              onClick={() => setShowPopup(true)} // Open modal instead of hover
               className="text-blue-600 hover:text-blue-700"
             >
+              <Info className="w-4 h-4 mr-1" />
               Details
             </Button>
           </div>
         </div>
       </CardContent>
+
+      {/* Session Modal Popup */}
+      <SessionPopup
+        session={session}
+        currentUser={currentUser}
+        isOpen={showPopup}
+        onClose={() => setShowPopup(false)}
+      />
     </Card>
   );
 };
