@@ -1,17 +1,25 @@
 // src/pages/Events/Events.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { useSessions } from '../../hooks/useSessions';
 import { useSelector } from 'react-redux';
 import SessionCard from '../../components/Session/SessionCard';
 
 const Events = () => {
   const {
-    sessions,
+    filteredSessions,
     loading,
     error,
     stats,
-    refreshSessions
+    refreshSessions,
+    statusFilter,
+    setStatusFilter,
+    searchQuery,
+    setSearchQuery,
+    dateFilter,
+    setDateFilter
   } = useSessions();
 
   const { user } = useSelector(state => state.user) || {};
@@ -98,34 +106,93 @@ const Events = () => {
           </Card>
         </div>
 
-        {/* Sessions List */}
-        <Card>
-          <CardHeader className="p-6">
-            <div className="flex justify-between items-center">
-              <CardTitle>Your Sessions ({sessions.length})</CardTitle>
-              <div className="flex space-x-2">
-                <select className="border rounded px-3 py-2">
-                  <option>All Status</option>
-                  <option>Scheduled</option>
-                  <option>In Progress</option>
-                  <option>Completed</option>
-                </select>
+        {/* Filters */}
+        <Card className="mb-6">
+          <CardHeader className="p-4">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Status:</label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="scheduled">Scheduled</SelectItem>
+                      <SelectItem value="ready">Ready</SelectItem>
+                      <SelectItem value="in-progress">Live</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="no-show">No Show</SelectItem>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Date:</label>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="this-week">This Week</SelectItem>
+                      <SelectItem value="this-month">This Month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <Input
+                  placeholder="Search sessions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full md:w-64"
+                />
                 <button 
                   onClick={refreshSessions}
-                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
                 >
                   Refresh
                 </button>
               </div>
             </div>
           </CardHeader>
+        </Card>
+
+        {/* Sessions List */}
+        <Card>
+          <CardHeader className="p-6">
+            <div className="flex justify-between items-center">
+              <CardTitle>
+                Sessions ({filteredSessions.length}) 
+                {searchQuery && ` - Search: "${searchQuery}"`}
+              </CardTitle>
+            </div>
+          </CardHeader>
           <div className="p-6 space-y-4">
-            {sessions.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">
-                No sessions found. Create your first session!
-              </p>
+            {filteredSessions.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 mb-4">
+                  {searchQuery ? 'No sessions match your search.' : 
+                   statusFilter !== 'all' ? 'No sessions with this status.' :
+                   'No sessions found. Create your first session!'}
+                </p>
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="text-blue-600 hover:underline"
+                  >
+                    Clear search
+                  </button>
+                )}
+              </div>
             ) : (
-              sessions.map(session => (
+              filteredSessions.map(session => (
                 <SessionCard
                   key={session._id}
                   session={session}

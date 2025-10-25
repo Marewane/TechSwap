@@ -1,5 +1,5 @@
 // src/hooks/useSessions.js
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 
 export const useSessions = () => {
@@ -12,6 +12,11 @@ export const useSessions = () => {
     inProgress: 0,
     upcoming: 0
   });
+
+  // Add filter states
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState('all');
 
   // Fetch sessions
   const fetchSessions = useCallback(async () => {
@@ -65,6 +70,63 @@ export const useSessions = () => {
     setStats(statsCount);
   };
 
+  // Filter sessions based on filters
+  const filteredSessions = useMemo(() => {
+    let filtered = [...sessions];
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(session => {
+        if (statusFilter === 'upcoming') {
+          const now = new Date();
+          const scheduledTime = new Date(session.scheduledTime);
+          return scheduledTime >= now || session.status === 'in-progress';
+        } else if (statusFilter === 'live') {
+          return session.status === 'in-progress';
+        } else {
+          return session.status === statusFilter;
+        }
+      });
+    }
+
+    // Search filter (title, participant name, description)
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(session => 
+        session.title.toLowerCase().includes(query) ||
+        session.description.toLowerCase().includes(query) ||
+        session.hostId.name.toLowerCase().includes(query) ||
+        session.learnerId.name.toLowerCase().includes(query)
+      );
+    }
+
+    // Date filter
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      filtered = filtered.filter(session => {
+        const scheduledTime = new Date(session.scheduledTime);
+        
+        switch (dateFilter) {
+          case 'today':
+            const today = new Date();
+            return scheduledTime.toDateString() === today.toDateString();
+          case 'this-week':
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            return scheduledTime >= oneWeekAgo && scheduledTime <= new Date();
+          case 'this-month':
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+            return scheduledTime >= oneMonthAgo && scheduledTime <= new Date();
+          default:
+            return true;
+        }
+      });
+    }
+
+    return filtered;
+  }, [sessions, statusFilter, searchQuery, dateFilter]);
+
   // Refresh sessions
   const refreshSessions = () => {
     fetchSessions();
@@ -97,6 +159,7 @@ export const useSessions = () => {
 
   return {
     sessions,
+    filteredSessions,
     loading,
     error,
     stats,
@@ -104,6 +167,13 @@ export const useSessions = () => {
     refreshSessions,
     getSessionsByStatus,
     getUpcomingSessions,
-    getCompletedSessions
+    getCompletedSessions,
+    // Filter functions
+    statusFilter,
+    setStatusFilter,
+    searchQuery,
+    setSearchQuery,
+    dateFilter,
+    setDateFilter
   };
 };
