@@ -6,7 +6,7 @@ const Review = require('../models/ReviewModel');
 // @access  Protected
 const getMyProfile = async (req, res) => {
     try {
-        const userId = req.user._id; // From JWT token - using _id since your User model uses _id
+        const userId = req.user._id;
 
         const user = await User.findById(userId).select('name email role avatar bio skillsToLearn skillsToTeach rating totalSession lastLogin isEmailVerified createdAt');
         
@@ -17,26 +17,11 @@ const getMyProfile = async (req, res) => {
             });
         }
 
-        // Get user's reviews for the activity stats
-        const reviews = await Review.find({ reviewedUserId: userId });
-        
-        // Calculate stats
-        const totalReviews = reviews.length;
-        const averageRating = totalReviews > 0 
-            ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
-            : 0;
-
         res.status(200).json({
             success: true,
             data: {
                 user: user,
-                isOwner: true, // This is the owner's own profile
-                stats: {
-                    sessionsCompleted: user.totalSession || 0,
-                    matchingMade: 0,
-                    averageRating: parseFloat(averageRating.toFixed(1)),
-                    totalReviews
-                }
+                isOwner: true
             }
         });
     } catch (error) {
@@ -54,13 +39,12 @@ const getMyProfile = async (req, res) => {
 const getUserProfile = async (req, res) => {
     try {
         const { userId } = req.params;
-        const currentUserId = req.user._id; // From JWT token
+        const currentUserId = req.user._id;
 
         // Check if user is viewing their own profile
         const isOwner = userId === currentUserId.toString();
 
         if (isOwner) {
-            // If user is viewing their own profile, redirect to /me endpoint
             return getMyProfile(req, res);
         }
 
@@ -80,12 +64,6 @@ const getUserProfile = async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(10);
 
-        // Calculate stats
-        const totalReviews = reviews.length;
-        const averageRating = totalReviews > 0 
-            ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
-            : 0;
-
         // Format reviews for frontend
         const formattedReviews = reviews.map(review => ({
             id: review._id,
@@ -104,17 +82,11 @@ const getUserProfile = async (req, res) => {
                     avatar: user.avatar,
                     bio: user.bio,
                     skillsToTeach: user.skillsToTeach,
-                    rating: parseFloat(averageRating.toFixed(1)),
+                    rating: user.rating,
                     totalSession: user.totalSession,
                     createdAt: user.createdAt
                 },
-                isOwner: false, // This is not the owner's profile
-                stats: {
-                    sessionsCompleted: user.totalSession || 0,
-                    matchingMade: 0,
-                    averageRating: parseFloat(averageRating.toFixed(1)),
-                    totalReviews
-                },
+                isOwner: false,
                 reviews: formattedReviews
             }
         });
@@ -132,7 +104,7 @@ const getUserProfile = async (req, res) => {
 // @access  Protected
 const updateProfile = async (req, res) => {
     try {
-        const userId = req.user._id; // From JWT token - ensures user can only update their own profile
+        const userId = req.user._id;
         
         if (!req.body || Object.keys(req.body).length === 0) {
             return res.status(400).json({
@@ -226,7 +198,7 @@ const updateProfile = async (req, res) => {
         }
 
         const updatedUser = await User.findByIdAndUpdate(
-            userId, // Only update the authenticated user's profile
+            userId,
             updateFields,
             { 
                 new: true,

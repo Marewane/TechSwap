@@ -12,7 +12,6 @@ import {
 // Import components
 import ProfileLayout from './components/ProfileLayout';
 import ProfileHeader from './components/ProfileHeader';
-import ProfileStats from './components/ProfileStats';
 import ProfileSkills from './components/ProfileSkils';
 
 const ProfilePage = () => {
@@ -129,8 +128,6 @@ const ProfilePage = () => {
                         skillsToLearn={profileData.user?.skillsToLearn}
                         isOwner={isOwner}
                     />
-
-                    <ProfileStats stats={profileData.stats} />
 
                     {/* Reviews Preview */}
                     <div className="bg-white rounded-lg border p-6">

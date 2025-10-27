@@ -10,7 +10,7 @@ const Navbar = () => {
 
     const navItems = [
         { path: "/home", label: "Home" },
-        { path: "/sessions", label: "Sessions" },
+        { path: "/events", label: "Events" },
     ];
 
     const isActivePath = (path) => {

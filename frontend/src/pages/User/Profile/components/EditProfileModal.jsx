@@ -1,21 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { X, Plus, Edit } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { X, Plus, Edit, Upload, Camera } from "lucide-react";
+import { updateProfile } from "@/features/profile/profileSlice";
+import api from "@/services/api";
 
 const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
+    const dispatch = useDispatch();
+    const { loading, error } = useSelector((state) => state.profile);
+    
     const [formData, setFormData] = useState({
         name: "",
         bio: "",
+        avatar: "",
         skillsToTeach: [],
         skillsToLearn: []
     });
     const [newTeachingSkill, setNewTeachingSkill] = useState("");
     const [newLearningSkill, setNewLearningSkill] = useState("");
+    const [avatarPreview, setAvatarPreview] = useState("");
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef(null);
 
     // Initialize form data when profile changes
     useEffect(() => {
@@ -23,9 +34,11 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
             setFormData({
                 name: profile.user.name || "",
                 bio: profile.user.bio || "",
+                avatar: profile.user.avatar || "",
                 skillsToTeach: profile.user.skillsToTeach || [],
                 skillsToLearn: profile.user.skillsToLearn || []
             });
+            setAvatarPreview(profile.user.avatar || "");
         }
     }, [profile]);
 
@@ -34,6 +47,71 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
             ...prev,
             [field]: value
         }));
+    };
+
+    // Handle avatar file upload to Cloudinary
+    const handleAvatarUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Validate file
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image size should be less than 5MB');
+            return;
+        }
+
+        // Show immediate preview
+        const previewUrl = URL.createObjectURL(file);
+        setAvatarPreview(previewUrl);
+        
+        setUploading(true);
+
+        try {
+            const uploadFormData = new FormData();
+            uploadFormData.append('image', file);
+
+            console.log("🔼 Uploading avatar to Cloudinary...");
+            const response = await api.post('/upload/avatar', uploadFormData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+            console.log("📥 Upload response:", response.data);
+
+            if (response.data.success) {
+                // Use the Cloudinary URL from the response
+                const cloudinaryUrl = response.data.imageUrl || response.data.data?.avatar;
+                setFormData(prev => ({
+                    ...prev,
+                    avatar: cloudinaryUrl
+                }));
+                console.log("✅ Avatar uploaded to Cloudinary:", cloudinaryUrl);
+                
+                // Update preview to show the actual Cloudinary image
+                setAvatarPreview(cloudinaryUrl);
+            } else {
+                throw new Error(response.data.message || "Upload failed");
+            }
+        } catch (error) {
+            console.error("❌ Error uploading avatar:", error);
+            console.error("Error details:", error.response?.data);
+            alert("Failed to upload image. Please try again.");
+            
+            // Reset preview on error
+            setAvatarPreview(formData.avatar);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const triggerFileInput = () => {
+        fileInputRef.current?.click();
     };
 
     const addTeachingSkill = () => {
@@ -70,9 +148,35 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
         }));
     };
 
-    const handleSave = () => {
-        onSave(formData);
-        onClose();
+    // Handle save using Redux
+    const handleSave = async () => {
+        try {
+            // Prepare data for backend
+            const updateData = {
+                name: formData.name,
+                bio: formData.bio,
+                avatar: formData.avatar,
+                skillsToTeach: formData.skillsToTeach,
+                skillsToLearn: formData.skillsToLearn
+            };
+
+            console.log("💾 Saving profile data:", updateData);
+
+            // Dispatch the updateProfile action
+            const result = await dispatch(updateProfile(updateData)).unwrap();
+            
+            console.log("✅ Profile updated successfully:", result);
+            
+            // Call the parent onSave callback if provided
+            if (onSave) {
+                onSave(result.data);
+            }
+            
+            onClose();
+        } catch (error) {
+            console.error("❌ Error saving profile:", error);
+            // Error is already handled by the slice and will be in Redux state
+        }
     };
 
     const handleKeyPress = (e, type) => {
@@ -86,6 +190,16 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
         }
     };
 
+    // Get initials for avatar fallback
+    const getInitials = (name) => {
+        return name
+            .split(' ')
+            .map(word => word[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 2);
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -97,6 +211,57 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
                 </DialogHeader>
 
                 <div className="space-y-6">
+                    {/* Avatar Upload Section */}
+                    <div className="flex flex-col items-center space-y-4">
+                        <div className="relative">
+                            <Avatar className="h-32 w-32 border-4 border-white shadow-lg">
+                                <AvatarImage
+                                    src={avatarPreview || formData.avatar}
+                                    alt="Profile preview"
+                                    className="object-cover"
+                                />
+                                <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-2xl font-semibold">
+                                    {getInitials(formData.name || "User")}
+                                </AvatarFallback>
+                            </Avatar>
+                            <button
+                                type="button"
+                                onClick={triggerFileInput}
+                                disabled={uploading}
+                                className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+                            >
+                                <Camera className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleAvatarUpload}
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploading}
+                        />
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={triggerFileInput}
+                            size="sm"
+                            disabled={uploading}
+                        >
+                            <Upload className="h-4 w-4 mr-2" />
+                            {uploading ? "Uploading..." : "Change Photo"}
+                        </Button>
+
+                        {uploading && (
+                            <p className="text-sm text-blue-600">Uploading image to Cloudinary...</p>
+                        )}
+                        {formData.avatar && formData.avatar.includes('cloudinary') && !uploading && (
+                            <p className="text-sm text-green-600">✅ Avatar saved to Cloudinary</p>
+                        )}
+                    </div>
+
                     {/* Name Field */}
                     <div className="space-y-2">
                         <Label htmlFor="name">Name</Label>
@@ -185,14 +350,21 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
                             )}
                         </div>
                     </div>
+
+                    {/* Error Display */}
+                    {error && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <p className="text-red-800 text-sm">{error}</p>
+                        </div>
+                    )}
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-0">
-                    <Button variant="outline" onClick={onClose}>
+                    <Button variant="outline" onClick={onClose} disabled={uploading || loading}>
                         Cancel
                     </Button>
-                    <Button onClick={handleSave}>
-                        Save Changes
+                    <Button onClick={handleSave} disabled={uploading || loading}>
+                        {loading ? "Saving..." : uploading ? "Uploading..." : "Save Changes"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

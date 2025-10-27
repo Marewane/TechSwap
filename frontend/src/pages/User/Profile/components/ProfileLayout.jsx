@@ -5,7 +5,6 @@ import {
     Wallet, 
     Calendar, 
     Star, 
-    Settings, 
     CreditCard,
     LogOut
 } from "lucide-react";
@@ -13,13 +12,14 @@ import {
 const ProfileLayout = ({ children, activeTab, onTabChange, profile, isOwner }) => {
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Wallet },
+        { id: 'posts', label: 'Posts', icon: Calendar },
         { id: 'sessions', label: 'Sessions', icon: Calendar },
         { id: 'reviews', label: 'Reviews', icon: Star },
     ];
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-7xl mx-auto px-4">
+            <div className="max-w-8xl mx-auto px-4">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     
                     {/* Sidebar Navigation */}

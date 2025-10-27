@@ -54,7 +54,7 @@ const ProfileHeader = ({ profile, isOwner, onProfileUpdate }) => {
             <div className="bg-white rounded-lg border p-6 mb-6">
                 <div className="flex items-start space-x-4">
                     {/* Avatar */}
-                    <Avatar className=" border-2 border-gray-200">
+                    <Avatar className="size-40 border-2 border-gray-200">
                         <AvatarImage
                             src={user?.avatar}
                             alt={user?.name}
