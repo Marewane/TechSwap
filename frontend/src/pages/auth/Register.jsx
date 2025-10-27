@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { setAuth } from "@/features/user/userSlice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
+import api from "@/services/api";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -16,73 +19,75 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-  // Validation
-  if (formData.password !== formData.confirmPassword) {
-    setError("Passwords do not match!");
-    setLoading(false);
-    return;
-  }
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
 
-  if (formData.password.length < 6) {
-    setError("Password must be at least 6 characters");
-    setLoading(false);
-    return;
-  }
-
-  try {
-    const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000/api";
-    
-    const res = await fetch(`${API_BASE}/auth/register`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    try {
+      console.log("🔄 Sending registration request...");
+      const response = await api.post("/auth/register", {
         name: formData.name,
         email: formData.email,
-        password: formData.password,
-      }),
-    });
+        password: formData.password
+      });
 
-    const data = await res.json();
+      console.log("📥 Registration response:", response.data);
 
-    if (res.ok && data.success) {
-      // Store the user ID for verification
-      localStorage.setItem('pendingVerification', JSON.stringify({
-        userId: data.data.userId,
-        email: data.data.email
-      }));
+      if (response.data.success) {
+        // ✅ FIXED: Handle the actual response structure
+        // After registration, user needs to verify email first
+        // So we don't get tokens immediately
+        
+        const { userId, email } = response.data.data;
+        
+        console.log("✅ Registration successful - redirecting to email verification");
+        
+        // Redirect to email verification page with user info
+        navigate("/verify-email", { 
+          state: { 
+            userId: userId,
+            email: email 
+          } 
+        });
+        
+      } else {
+        setError(response.data.message || "Registration failed");
+      }
+    } catch (err) {
+      console.error("❌ Registration error:", err);
+      console.error("Error details:", err.response?.data);
       
-      // Redirect to email verification page
-      navigate("/verify-email");
-    } else {
-      setError(data.message || "Registration failed. Please try again.");
+      // More specific error messages
+      if (err.response?.status === 400) {
+        setError(err.response.data?.message || "Invalid registration data");
+      } else if (err.response?.status === 409) {
+        setError("User already exists with this email");
+      } else {
+        setError(err.response?.data?.message || "Registration failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Registration error:", error);
-    setError("Network error. Please check your connection.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleGoogleAuth = () => {
-    // FIX: Use direct URL without double /api
     window.location.href = "http://localhost:5000/api/auth/google";
   };
 
   const handleGithubAuth = () => {
-    // FIX: Use direct URL without double /api
     window.location.href = "http://localhost:5000/api/auth/github";
   };
 
@@ -146,14 +151,12 @@ export default function Register() {
           </div>
 
           {error && (
-            <p className="text-sm text-red-500 text-center">{error}</p>
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600 text-center">{error}</p>
+            </div>
           )}
 
-          <Button 
-            type="submit" 
-            className="w-full"
-            disabled={loading}
-          >
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Creating Account..." : "Sign Up"}
           </Button>
         </form>
@@ -170,18 +173,18 @@ export default function Register() {
         </div>
 
         <div className="grid gap-2">
-          <Button 
-            variant="outline" 
-            className="w-full" 
+          <Button
+            variant="outline"
+            className="w-full"
             onClick={handleGoogleAuth}
             type="button"
           >
             <FcGoogle className="mr-2 h-4 w-4" />
             Continue with Google
           </Button>
-          <Button 
-            variant="outline" 
-            className="w-full" 
+          <Button
+            variant="outline"
+            className="w-full"
             onClick={handleGithubAuth}
             type="button"
           >
@@ -192,7 +195,10 @@ export default function Register() {
 
         <p className="text-sm text-center text-gray-600">
           Already have an account?{" "}
-          <a href="/login" className="font-semibold text-blue-600 hover:underline">
+          <a
+            href="/login"
+            className="font-semibold text-blue-600 hover:underline"
+          >
             Sign in
           </a>
         </p>
