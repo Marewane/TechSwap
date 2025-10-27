@@ -37,13 +37,13 @@ const createSwapRequest = async (req, res) => {
     //  Fetch post
     const post = await Post.findById(postId);
     if (!post) {
-      console.log("❌ Post not found:", postId);
+      console.log(" Post not found:", postId);
       return res.status(404).json({ message: 'Post not found.' });
     }
 
     //  Prevent self-request
     if (post.userId.toString() === requesterId.toString()) {
-      console.log("❌ User tried to request own post:", { userId: requesterId, postId });
+      console.log(" User tried to request own post:", { userId: requesterId, postId });
       return res.status(400).json({ message: 'You cannot request a swap on your own post.' });
     }
 
@@ -71,11 +71,11 @@ const createSwapRequest = async (req, res) => {
       relatedModel: 'Post'
     });
 
-    console.log("✅ Swap request created:", swapRequest._id);
+    console.log(" Swap request created:", swapRequest._id);
     res.status(201).json(swapRequest);
 
   } catch (err) {
-    console.error("💥 Swap request error:", err);
+    console.error(" Swap request error:", err);
     res.status(500).json({ message: 'Server error during swap request' });
   }
 };
