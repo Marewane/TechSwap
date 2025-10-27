@@ -220,7 +220,7 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
                                     alt="Profile preview"
                                     className="object-cover"
                                 />
-                                <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-2xl font-semibold">
+                                <AvatarFallback className="bg-gradient-to from-blue-500 to-purple-600 text-white text-2xl font-semibold">
                                     {getInitials(formData.name || "User")}
                                 </AvatarFallback>
                             </Avatar>
