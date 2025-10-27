@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
-import { 
-    fetchMyProfile, 
-    fetchUserProfile, 
+import {
+    fetchMyProfile,
+    fetchUserProfile,
     updateProfile,
     clearError,
-    clearSuccess 
+    clearSuccess
 } from '@/features/profile/profileSlice';
 
 // Import components
@@ -32,7 +32,7 @@ const ProfilePage = () => {
     const handleProfileUpdate = async (updatedData) => {
         try {
             await dispatch(updateProfile(updatedData)).unwrap();
-            
+
             // Refresh profile data after successful update
             if (userId) {
                 dispatch(fetchUserProfile(userId));
@@ -96,8 +96,8 @@ const ProfilePage = () => {
     }
 
     return (
-        <ProfileLayout 
-            activeTab={activeTab} 
+        <ProfileLayout
+            activeTab={activeTab}
             onTabChange={setActiveTab}
             profile={profileData}
             isOwner={isOwner}
@@ -117,13 +117,13 @@ const ProfilePage = () => {
             {/* Overview Tab Content */}
             {activeTab === 'overview' && (
                 <div className="space-y-6">
-                    <ProfileHeader 
+                    <ProfileHeader
                         profile={profileData}
                         isOwner={isOwner}
                         onProfileUpdate={handleProfileUpdate}
                     />
-                    
-                    <ProfileSkills 
+
+                    <ProfileSkills
                         skillsToTeach={profileData.user?.skillsToTeach}
                         skillsToLearn={profileData.user?.skillsToLearn}
                         isOwner={isOwner}
@@ -137,8 +137,8 @@ const ProfilePage = () => {
                                 {profileData.reviews.slice(0, 2).map((review) => (
                                     <div key={review.id} className="border-b pb-4 last:border-b-0 last:pb-0">
                                         <div className="flex items-center gap-3 mb-2">
-                                            <img 
-                                                src={review.reviewerAvatar} 
+                                            <img
+                                                src={review.reviewerAvatar}
                                                 alt={review.reviewerName}
                                                 className="w-8 h-8 rounded-full"
                                             />
@@ -151,11 +151,10 @@ const ProfilePage = () => {
                                             {[...Array(5)].map((_, i) => (
                                                 <span
                                                     key={i}
-                                                    className={`text-lg ${
-                                                        i < review.rating 
-                                                            ? "text-yellow-400" 
+                                                    className={`text-lg ${i < review.rating
+                                                            ? "text-yellow-400"
                                                             : "text-gray-300"
-                                                    }`}
+                                                        }`}
                                                 >
                                                     ★
                                                 </span>
@@ -194,8 +193,8 @@ const ProfilePage = () => {
                             {profileData.reviews.map((review) => (
                                 <div key={review.id} className="border-b pb-6 last:border-b-0 last:pb-0">
                                     <div className="flex items-start gap-4">
-                                        <img 
-                                            src={review.reviewerAvatar} 
+                                        <img
+                                            src={review.reviewerAvatar}
                                             alt={review.reviewerName}
                                             className="w-12 h-12 rounded-full"
                                         />
@@ -215,11 +214,10 @@ const ProfilePage = () => {
                                                     {[...Array(5)].map((_, i) => (
                                                         <span
                                                             key={i}
-                                                            className={`text-xl ${
-                                                                i < review.rating 
-                                                                    ? "text-yellow-400" 
+                                                            className={`text-xl ${i < review.rating
+                                                                    ? "text-yellow-400"
                                                                     : "text-gray-300"
-                                                            }`}
+                                                                }`}
                                                         >
                                                             ★
                                                         </span>
@@ -238,27 +236,6 @@ const ProfilePage = () => {
                             <p className="text-gray-400 mt-2">Reviews from your sessions will appear here.</p>
                         </div>
                     )}
-                </div>
-            )}
-
-            {/* Settings Tab */}
-            {activeTab === 'settings' && (
-                <div className="bg-white rounded-lg border p-6">
-                    <h2 className="text-2xl font-bold mb-6">Settings</h2>
-                    <div className="space-y-6">
-                        <div className="border-b pb-4">
-                            <h3 className="text-lg font-semibold mb-3">Account Settings</h3>
-                            <p className="text-gray-600">Manage your account preferences and privacy settings.</p>
-                        </div>
-                        <div className="border-b pb-4">
-                            <h3 className="text-lg font-semibold mb-3">Notification Preferences</h3>
-                            <p className="text-gray-600">Control how and when you receive notifications.</p>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold mb-3">Privacy</h3>
-                            <p className="text-gray-600">Manage your privacy and data sharing settings.</p>
-                        </div>
-                    </div>
                 </div>
             )}
         </ProfileLayout>

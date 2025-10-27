@@ -220,18 +220,10 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
                                     alt="Profile preview"
                                     className="object-cover"
                                 />
-                                <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-2xl font-semibold">
+                                <AvatarFallback className="bg-gradient-to from-blue-500 to-purple-600 text-white text-2xl font-semibold">
                                     {getInitials(formData.name || "User")}
                                 </AvatarFallback>
                             </Avatar>
-                            <button
-                                type="button"
-                                onClick={triggerFileInput}
-                                disabled={uploading}
-                                className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-                            >
-                                <Camera className="h-4 w-4" />
-                            </button>
                         </div>
 
                         <input
@@ -253,13 +245,6 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
                             <Upload className="h-4 w-4 mr-2" />
                             {uploading ? "Uploading..." : "Change Photo"}
                         </Button>
-
-                        {uploading && (
-                            <p className="text-sm text-blue-600">Uploading image to Cloudinary...</p>
-                        )}
-                        {formData.avatar && formData.avatar.includes('cloudinary') && !uploading && (
-                            <p className="text-sm text-green-600">✅ Avatar saved to Cloudinary</p>
-                        )}
                     </div>
 
                     {/* Name Field */}
@@ -359,7 +344,7 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
                     )}
                 </div>
 
-                <DialogFooter className="gap-2 sm:gap-0">
+                <DialogFooter className="flex gap-2 ">
                     <Button variant="outline" onClick={onClose} disabled={uploading || loading}>
                         Cancel
                     </Button>

@@ -3,31 +3,44 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 const ProfileDropdown = () => {
+    // Get user data from user slice (this is where your login data is stored)
+    const { user } = useSelector((state) => state.user); // ← Change to state.user
+    
+    // Get initials for avatar fallback
+    const getInitials = (name) => {
+        if (!name) return "U";
+        return name
+            .split(' ')
+            .map(word => word[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 2);
+    };
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                     <Avatar className="h-9 w-9">
-                        <AvatarImage src="/avatars/user.jpg" alt="User" />
+                        <AvatarImage src={user?.avatar} alt={user?.name || "User"} />
                         <AvatarFallback className="bg-indigo-100 text-indigo-600 border">
-                            UN
+                            {getInitials(user?.name)}
                         </AvatarFallback>
                     </Avatar>
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent 
-                align="end" 
-                className="w-48"
-                // onCloseAutoFocus={(event) => {
-                //     event.preventDefault();
-                // }}
-            >
+            <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">John Doe</p>
-                        <p className="text-xs leading-none text-gray-500">john.doe@example.com</p>
+                        <p className="text-sm font-medium leading-none">
+                            {user?.name || "User"}
+                        </p>
+                        <p className="text-xs leading-none text-gray-500">
+                            {user?.email || "user@example.com"}
+                        </p>
                     </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
