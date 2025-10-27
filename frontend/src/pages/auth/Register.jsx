@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux"; // ✅ added
-import { setAuth } from "@/features/user/userSlice"; // ✅ added
+import { useDispatch } from "react-redux";
+import { setAuth } from "@/features/user/userSlice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
-import api from "@/services/api"; // Use your API service
+import api from "@/services/api";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -19,13 +19,12 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const dispatch = useDispatch(); // ✅ needed for setAuth
+  const dispatch = useDispatch();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // ✅ Fixed: function was outside the component block previously
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -38,27 +37,47 @@ export default function Register() {
     }
 
     try {
-      const response = await api.post("/auth/register", formData);
+      console.log("🔄 Sending registration request...");
+      const response = await api.post("/auth/register", {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password
+      });
+
+      console.log("📥 Registration response:", response.data);
 
       if (response.data.success) {
-        // Save tokens and user data
-        const { user, tokens } = response.data.data;
-        const authData = { user, tokens };
-
-        // Save to Redux and localStorage
-        dispatch(setAuth(authData));
-        localStorage.setItem("auth", JSON.stringify(authData));
-        api.defaults.headers.common["Authorization"] = `Bearer ${tokens.accessToken}`;
-
-        // NEW USERS from registration go to profile setup
-        console.log("🆕 New registered user - redirecting to profile setup");
-        navigate("/onboarding/learn-skills");
+        // ✅ FIXED: Handle the actual response structure
+        // After registration, user needs to verify email first
+        // So we don't get tokens immediately
+        
+        const { userId, email } = response.data.data;
+        
+        console.log("✅ Registration successful - redirecting to email verification");
+        
+        // Redirect to email verification page with user info
+        navigate("/verify-email", { 
+          state: { 
+            userId: userId,
+            email: email 
+          } 
+        });
+        
       } else {
         setError(response.data.message || "Registration failed");
       }
     } catch (err) {
       console.error("❌ Registration error:", err);
-      setError(err.response?.data?.message || "Registration failed");
+      console.error("Error details:", err.response?.data);
+      
+      // More specific error messages
+      if (err.response?.status === 400) {
+        setError(err.response.data?.message || "Invalid registration data");
+      } else if (err.response?.status === 409) {
+        setError("User already exists with this email");
+      } else {
+        setError(err.response?.data?.message || "Registration failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -131,7 +150,11 @@ export default function Register() {
             />
           </div>
 
-          {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600 text-center">{error}</p>
+            </div>
+          )}
 
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Creating Account..." : "Sign Up"}
