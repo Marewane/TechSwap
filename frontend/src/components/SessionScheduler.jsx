@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,24 +8,37 @@ import {
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 
+const dayMap = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+};
+
 export default function SessionScheduler({
   postOwnerName,
   skillsOffered,
   skillsWanted,
-  timeSlotsAvailable, // ← New prop!
+  timeSlotsAvailable,
+  availableDays = [],
   onSchedule,
   onClose,
 }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
 
-  // Parse time slots to extract start/end times for validation
+  const allowedDayIndexes = availableDays
+    .map(day => dayMap[day])
+    .filter(n => n !== undefined);
+
   const parseTimeSlot = (slot) => {
     const [start, end] = slot.split(" - ");
     return { start, end };
   };
 
-  // Validate and confirm scheduling
   const handleConfirm = () => {
     if (!selectedTimeSlot) {
       alert("Please select a time slot.");
@@ -39,7 +52,6 @@ export default function SessionScheduler({
 
     scheduledTime.setHours(startH, startM, 0, 0);
 
-    // Prevent past scheduling
     if (scheduledTime < new Date()) {
       alert("Cannot schedule in the past!");
       return;
@@ -57,10 +69,6 @@ export default function SessionScheduler({
     });
   };
 
-  // Optional: Only enable time slots if date matches availability day (e.g., Sunday)
-  // For now, we assume all timeSlotsAvailable are valid for any selected date.
-  // If you want day-based filtering, you’d need to pass `availability.days` too.
-
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl bg-gradient-to-br from-white via-blue-50 to-indigo-50 border border-blue-100 rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]">
@@ -73,7 +81,6 @@ export default function SessionScheduler({
           </p>
         </DialogHeader>
 
-        {/* Post Info Card */}
         <div className="bg-gradient-to-r from-blue-100/70 to-indigo-100/70 rounded-xl p-4 border border-blue-200 shadow-sm mt-4">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
@@ -126,13 +133,12 @@ export default function SessionScheduler({
           </div>
         </div>
 
-        {/* Calendar Section */}
         <div className="mt-8">
           <h3 className="text-center text-lg font-bold text-gray-800 mb-2">
-            📆 Select a Date
+             Select a Date
           </h3>
           <p className="text-center text-sm text-gray-600 mb-6">
-            Click a date to schedule your session
+            Only available days are enabled for this user
           </p>
 
           <div className="flex justify-center">
@@ -140,8 +146,25 @@ export default function SessionScheduler({
               mode="single"
               selected={selectedDate}
               onSelect={setSelectedDate}
-              disabled={(date) => date < new Date().setHours(0, 0, 0, 0)} // Disable past dates (start of day)
+              disabled={(date) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const isPast = date < today;
+
+                if (allowedDayIndexes.length === 0) {
+                  return isPast;
+                }
+
+                const isAllowedDay = allowedDayIndexes.includes(date.getDay());
+                return isPast || !isAllowedDay;
+              }}
               className="max-w-md mx-auto"
+              //  Add this to customize day classes
+              classNames={{
+                today: "bg-orange-500 text-white hover:bg-orange-600",
+                selected: "bg-blue-600 text-white hover:bg-blue-700",
+                disabled: "text-gray-400 opacity-50 cursor-not-allowed",
+              }}
             />
           </div>
 
@@ -153,15 +176,14 @@ export default function SessionScheduler({
               <span className="font-semibold text-orange-600">Orange</span> = Today
             </p>
             <p>
-              <span className="font-semibold text-gray-400">Gray</span> = Past dates
+              <span className="font-semibold text-gray-400">Gray</span> = Disabled dates
             </p>
           </div>
         </div>
 
-        {/* Time Slot Tags */}
         <div className="mt-8">
           <label className="block text-sm font-semibold text-gray-700 mb-3 text-center">
-            ⏰ Choose a Time Slot
+             Choose a Time Slot
           </label>
           {timeSlotsAvailable && timeSlotsAvailable.length > 0 ? (
             <div className="flex flex-wrap justify-center gap-2">
@@ -187,15 +209,14 @@ export default function SessionScheduler({
           )}
         </div>
 
-        {/* Summary */}
         {selectedDate && selectedTimeSlot && (
           <div className="mt-8 bg-gradient-to-r from-green-50 to-emerald-100 rounded-xl p-4 border border-green-200">
             <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <span className="text-lg">📋</span> Session Summary
+               Session Summary
             </h4>
             <div className="space-y-2 text-sm">
               <p>
-                <span className="font-medium text-gray-700">📅 Date: </span>
+                <span className="font-medium text-gray-700"> Date: </span>
                 {selectedDate.toLocaleDateString("en-US", {
                   weekday: "long",
                   year: "numeric",
@@ -204,11 +225,11 @@ export default function SessionScheduler({
                 })}
               </p>
               <p>
-                <span className="font-medium text-gray-700">🕒 Time Slot: </span>
+                <span className="font-medium text-gray-700"> Time Slot: </span>
                 {selectedTimeSlot}
               </p>
               <p>
-                <span className="font-medium text-gray-700">⏱ Duration: </span>
+                <span className="font-medium text-gray-700"> Duration: </span>
                 {(() => {
                   const { start, end } = parseTimeSlot(selectedTimeSlot);
                   const [sH, sM] = start.split(":").map(Number);
@@ -221,7 +242,6 @@ export default function SessionScheduler({
           </div>
         )}
 
-        {/* Buttons */}
         <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 mt-6">
           <Button
             variant="outline"
@@ -235,7 +255,7 @@ export default function SessionScheduler({
             disabled={!selectedTimeSlot}
             className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            🚀 Send Request
+             Send Request
           </Button>
         </div>
       </DialogContent>

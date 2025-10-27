@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Star, ChevronLeft, ChevronRight, Loader2, Clock, Calendar } from "lucide-react";
 import CreatePostModal from "./components/CreatePostModal";
-import SessionScheduler from "@/components/SessionScheduler"; // ✅ Import scheduler
+import SessionScheduler from "@/components/SessionScheduler";
 
 const PostsPage = () => {
     const dispatch = useDispatch();
@@ -24,14 +24,12 @@ const PostsPage = () => {
         swapSuccess
     } = useSelector((state) => state.posts);
 
-    // 🔥 NEW: State to manage scheduler popup
     const [schedulerPost, setSchedulerPost] = useState(null);
 
     useEffect(() => {
         dispatch(fetchPosts({ page: currentPage, limit }));
     }, [dispatch, currentPage, limit]);
 
-    // Auto-clear success message after 3 seconds
     useEffect(() => {
         if (swapSuccess) {
             const timer = setTimeout(() => {
@@ -53,18 +51,16 @@ const PostsPage = () => {
         }
     };
 
-    // 🔥 NEW: Open scheduler for a post
     const openScheduler = (post) => {
         setSchedulerPost(post);
     };
 
-    // 🔥 NEW: Handle actual swap request with user-selected time
     const handleSchedule = (data) => {
         dispatch(requestSwap({
             postId: schedulerPost._id,
             ...data
         }));
-        setSchedulerPost(null); // Close popup
+        setSchedulerPost(null);
     };
 
     const getInitials = (name) => {
@@ -78,13 +74,11 @@ const PostsPage = () => {
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="mx-auto">
-                {/* Header */}
                 <div className="mb-8 text-center">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Skill Swap Community</h1>
                     <p className="text-gray-600">Connect with others to exchange skills and knowledge</p>
                 </div>
 
-                {/* Error Alert */}
                 {error && (
                     <Alert variant="destructive" className="mb-6">
                         <AlertDescription className="flex items-center justify-between">
@@ -100,7 +94,6 @@ const PostsPage = () => {
                     </Alert>
                 )}
 
-                {/* Swap Error Alert */}
                 {swapError && (
                     <Alert variant="destructive" className="mb-6">
                         <AlertDescription className="flex items-center justify-between">
@@ -116,7 +109,6 @@ const PostsPage = () => {
                     </Alert>
                 )}
 
-                {/* Success Alert */}
                 {swapSuccess && (
                     <Alert className="mb-6 border-green-500 bg-green-50">
                         <AlertDescription className="text-green-700">
@@ -146,7 +138,6 @@ const PostsPage = () => {
                                 className="overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-200 flex flex-col h-full"
                             >
                                 <CardContent className="p-5 flex flex-col flex-1">
-                                    {/* User Info Header */}
                                     <div className="flex items-start gap-3 mb-4">
                                         <Avatar className="w-12 h-12 border-2 border-gray-100">
                                             <AvatarImage src={post?.userId?.avatar || "/default-avatar.png"} alt={post?.userId?.name || "Unknown User"} />
@@ -167,17 +158,14 @@ const PostsPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* Title */}
                                     <h4 className="text-base font-semibold text-gray-900 mb-3 line-clamp-2 leading-tight">
                                         {post?.title || "Untitled Post"}
                                     </h4>
 
-                                    {/* Description */}
                                     <p className="text-gray-700 mb-4 leading-relaxed text-sm line-clamp-3 flex-1">
                                         {post?.content || "No description provided"}
                                     </p>
 
-                                    {/* Skills Offered */}
                                     <div className="mb-3">
                                         <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Offering</p>
                                         <div className="flex flex-wrap gap-1.5">
@@ -201,7 +189,6 @@ const PostsPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* Skills Wanted */}
                                     <div className="mb-4">
                                         <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Wanting</p>
                                         <div className="flex flex-wrap gap-1.5">
@@ -225,7 +212,6 @@ const PostsPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* Availability */}
                                     {post?.availability?.days && post.availability.days.length > 0 && (
                                         <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                                             <div className="flex items-center gap-2 mb-2">
@@ -249,11 +235,10 @@ const PostsPage = () => {
                                         </div>
                                     )}
 
-                                    {/* Request Button */}
                                     <div className="mt-auto pt-3">
                                         <Button
                                             className="w-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-medium py-2.5 transition-all duration-200"
-                                            onClick={() => openScheduler(post)} // ✅ Open scheduler
+                                            onClick={() => openScheduler(post)}
                                             disabled={requestingSwap === post?._id}
                                         >
                                             {requestingSwap === post?._id ? (
@@ -272,7 +257,6 @@ const PostsPage = () => {
                     </div>
                 )}
 
-                {/* Pagination */}
                 {!loading && posts?.length > 0 && (
                     <div className="flex items-center justify-between mt-12 px-4 w-1/2 mx-auto">
                         <Button
@@ -306,13 +290,14 @@ const PostsPage = () => {
                 )}
             </div>
 
-            {/* 🔥 CALENDAR POPUP */}
+            {/* ✅ Pass availableDays from post.availability.days */}
             {schedulerPost && (
                 <SessionScheduler
                     postOwnerName={schedulerPost.userId.name}
                     skillsOffered={schedulerPost.skillsOffered}
                     skillsWanted={schedulerPost.skillsWanted}
                     timeSlotsAvailable={schedulerPost.timeSlotsAvailable}
+                    availableDays={schedulerPost.availability?.days || []}
                     onSchedule={handleSchedule}
                     onClose={() => setSchedulerPost(null)}
                 />
