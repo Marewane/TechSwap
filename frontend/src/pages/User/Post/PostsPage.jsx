@@ -312,6 +312,7 @@ const PostsPage = () => {
                     postOwnerName={schedulerPost.userId.name}
                     skillsOffered={schedulerPost.skillsOffered}
                     skillsWanted={schedulerPost.skillsWanted}
+                    timeSlotsAvailable={schedulerPost.timeSlotsAvailable}
                     onSchedule={handleSchedule}
                     onClose={() => setSchedulerPost(null)}
                 />
