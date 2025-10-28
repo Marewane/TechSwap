@@ -17,6 +17,7 @@ import {
     Shield,
     X,
 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const Users = () => {
     const [users, setUsers] = useState([]);
@@ -171,7 +172,7 @@ const Users = () => {
     };
 
   return (
-        <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+        <div className="p-6 space-y-6 bg-white min-h-screen">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -241,40 +242,33 @@ const Users = () => {
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b bg-gray-50">
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">NAME</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">EMAIL</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">ROLE</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">STATUS</th>
-                                            <th className="text-right py-3 px-4 font-medium text-gray-600">ACTIONS</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Name</TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead>Role</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {users.length > 0 ? (
                                             users.map((user) => (
-                                                <tr key={user._id} className="border-b hover:bg-gray-50 transition-colors">
-                                                    <td className="py-3 px-4 text-sm">
+                                                <TableRow key={user._id}>
+                                                    <TableCell>
                                                         <div className="flex items-center gap-3">
                                                             {getUserAvatar(user.name || user.firstName + ' ' + user.lastName)}
-    <div>
+                                                            <div>
                                                                 <p className="font-medium">{user.name || `${user.firstName} ${user.lastName}`}</p>
                                                             </div>
                                                         </div>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-sm text-gray-600">
-                                                        {user.email}
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        {getRoleBadge(user.role || 'user')}
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        {getStatusBadge(user.status || 'active')}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-right">
+                                                    </TableCell>
+                                                    <TableCell>{user.email}</TableCell>
+                                                    <TableCell>{getRoleBadge(user.role || 'user')}</TableCell>
+                                                    <TableCell>{getStatusBadge(user.status || 'active')}</TableCell>
+                                                    <TableCell className="text-right">
                                                         <div className="flex items-center justify-end gap-2">
-                                                            {/* Status Toggle */}
                                                             {user.status === "active" ? (
                                                                 <Button
                                                                     size="sm"
@@ -296,8 +290,6 @@ const Users = () => {
                                                                     <UserCheck className="h-4 w-4" />
                                                                 </Button>
                                                             )}
-                                                            
-                                                            {/* View Details */}
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
@@ -307,21 +299,20 @@ const Users = () => {
                                                                 <Eye className="h-4 w-4" />
                                                             </Button>
                                                         </div>
-                                                    </td>
-                                                </tr>
+                                                    </TableCell>
+                                                </TableRow>
                                             ))
                                         ) : (
-                                            <tr>
-                                                <td colSpan="6" className="py-8 text-center text-gray-500">
+                                            <TableRow>
+                                                <TableCell colSpan="5" className="py-8 text-center text-gray-500">
                                                     No users found
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         )}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
 
-                            {/* Pagination */}
                             {users.length > 0 && (
                                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
                                     <div className="text-sm text-gray-600">

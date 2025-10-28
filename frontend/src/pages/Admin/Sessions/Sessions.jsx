@@ -20,6 +20,7 @@ import {
     DollarSign,
     X,
 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const Sessions = () => {
     const [sessions, setSessions] = useState([]);
@@ -163,7 +164,7 @@ const Sessions = () => {
     };
 
     return (
-        <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+        <div className="p-6 space-y-6 bg-white min-h-screen">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -256,21 +257,21 @@ const Sessions = () => {
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b bg-gray-50">
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Participants</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">Created At</th>
-                                            <th className="text-left py-3 px-4 font-medium text-gray-600">End Date</th>
-                                            <th className="text-right py-3 px-4 font-medium text-gray-600">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Participants</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Created At</TableHead>
+                                            <TableHead>End Date</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {sessions.length > 0 ? (
                                             sessions.map((session) => (
-                                                <tr key={session._id} className="border-b hover:bg-gray-50 transition-colors">
-                                                    <td className="py-3 px-4 text-sm">
+                                                <TableRow key={session._id}>
+                                                    <TableCell>
                                                         <div className="flex items-center">
                                                             <TooltipProvider>
                                                                 <Tooltip>
@@ -297,19 +298,12 @@ const Sessions = () => {
                                                                 </Tooltip>
                                                             </TooltipProvider>
                                                         </div>
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        {getStatusBadge(session.status || 'scheduled')}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-sm text-gray-600">
-                                                        {formatDate(session.createdAt)}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-sm text-gray-600">
-                                                        {session.endedAt ? formatDate(session.endedAt) : "N/A"}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-right">
+                                                    </TableCell>
+                                                    <TableCell>{getStatusBadge(session.status || 'scheduled')}</TableCell>
+                                                    <TableCell>{formatDate(session.createdAt)}</TableCell>
+                                                    <TableCell>{session.endedAt ? formatDate(session.endedAt) : "N/A"}</TableCell>
+                                                    <TableCell className="text-right">
                                                         <div className="flex items-center justify-end gap-2">
-                                                            {/* Force End Button for Active Sessions */}
                                                             {session.status === "in-progress" && (
                                                                 <Button
                                                                     size="sm"
@@ -320,8 +314,6 @@ const Sessions = () => {
                                                                     Force End
                                                                 </Button>
                                                             )}
-                                                            
-                                                            {/* View Details */}
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
@@ -331,21 +323,20 @@ const Sessions = () => {
                                                                 <Eye className="h-4 w-4" />
                                                             </Button>
                                                         </div>
-                                                    </td>
-                                                </tr>
+                                                    </TableCell>
+                                                </TableRow>
                                             ))
                                         ) : (
-                                            <tr>
-                                                <td colSpan="5" className="py-8 text-center text-gray-500">
+                                            <TableRow>
+                                                <TableCell colSpan="5" className="py-8 text-center text-gray-500">
                                                     No sessions found
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         )}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
 
-                            {/* Pagination */}
                             {sessions.length > 0 && (
                                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
                                     <div className="text-sm text-gray-600">
