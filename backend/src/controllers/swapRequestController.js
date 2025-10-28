@@ -64,6 +64,7 @@ const createSwapRequest = async (req, res) => {
     //  Notify post owner
     await Notification.create({
       userId: post.userId,
+      senderId: req.user._id,
       type: 'system',
       title: 'New Swap Request',
       content: `You have a new swap request from ${req.user.name}.`,
@@ -118,6 +119,7 @@ const acceptSwapRequest = async (req, res) => {
     // Notify requester
     await Notification.create({
       userId: swapRequest.requesterId,
+      senderId: req.user._id,
       type: 'swap_accepted',
       title: 'Swap Request Accepted',
       content: 'Your swap request has been accepted!',
@@ -155,6 +157,7 @@ const rejectSwapRequest = async (req, res) => {
     // Notify requester
     await Notification.create({
       userId: swapRequest.requesterId,
+      senderId: req.user._id,
       type: 'swap_rejected',
       title: 'Swap Request Rejected',
       content: 'Your swap request has been rejected.',

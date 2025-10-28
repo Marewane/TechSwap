@@ -5,7 +5,7 @@ import profileReducer from "@/features/profile/profileSlice";
 
 const store = configureStore({
   reducer: {
-    user: userReducer, // ✅ this must point to your user slice
+    user: userReducer, //  this must point to your user slice
     posts: postsReducer,
     profile: profileReducer,
   },

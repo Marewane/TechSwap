@@ -4,12 +4,12 @@ const GitHubStrategy = require('passport-github2').Strategy;
 const { google, github } = require('./oauthConfig');
 const User = require('../models/UserModel');
 
-// 🧠 Serialize user: store user ID in session
+//  Serialize user: store user ID in session
 passport.serializeUser((user, done) => {
   done(null, user._id);
 });
 
-// 🧠 Deserialize user: retrieve user from DB using stored ID
+//  Deserialize user: retrieve user from DB using stored ID
 passport.deserializeUser(async (id, done) => {
   try {
     const user = await User.findById(id);
@@ -20,7 +20,7 @@ passport.deserializeUser(async (id, done) => {
 });
 
 //
-// 🔵 GOOGLE OAUTH STRATEGY
+//  GOOGLE OAUTH STRATEGY
 //
 if (google.clientID) {
   passport.use(

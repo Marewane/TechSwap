@@ -6,6 +6,11 @@ const notificationSchema = new mongoose.Schema({
         ref: 'User',
         required: [true, 'User ID is required']
     },
+    senderId: { // 👈 NEW FIELD
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
     type: {
         type: String,
         enum: ['session', 'message', 'review', 'payment', 'system', 'swap_accepted', 'swap_rejected'],

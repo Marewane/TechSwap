@@ -52,10 +52,17 @@ const PostsPage = () => {
     };
 
     const openScheduler = (post) => {
+        console.log("Post Object in openScheduler:", post);
+        console.log("_id:", post._id, "Length:", post._id?.length);
         setSchedulerPost(post);
     };
 
     const handleSchedule = (data) => {
+        console.log("Sending swap request:", {
+            postId: schedulerPost._id,
+            ...data
+        });
+
         dispatch(requestSwap({
             postId: schedulerPost._id,
             ...data

@@ -23,6 +23,7 @@ import StepProfileInfo from "./pages/profile-setup/StepProfileInfo";
 
 // Other Pages
 import Home from "./pages/Home";
+import NotificationsPage from "./pages/User/Notifications/NotificationsPage";
 
 function App() {
   return (
@@ -43,7 +44,8 @@ function App() {
       <Route path="/" element={<UserLayout />}>
         <Route path="/home" element={<PostsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/profile/:userId" element={<ProfilePage />} />
+        <Route path="/profile/:userId" element={<ProfilePage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
       </Route>
       {/* Profile Setup Routes */}
       <Route path="/onboarding/learn-skills" element={<StepLearnSkills />} />
