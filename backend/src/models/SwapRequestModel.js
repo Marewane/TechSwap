@@ -4,6 +4,11 @@ const swapRequestSchema = new mongoose.Schema({
   postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
   requesterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+  
+  // Scheduling
+  scheduledTime: { type: Date },
+  duration: { type: Number },
+
   createdAt: { type: Date, default: Date.now }
 });
 
