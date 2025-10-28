@@ -1,33 +1,33 @@
-import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-    Wallet, 
-    Calendar, 
-    Star, 
+import {
+    Wallet,
+    Calendar,
+    Star,
     CreditCard,
-    LogOut
 } from "lucide-react";
 
 const ProfileLayout = ({ children, activeTab, onTabChange, profile, isOwner }) => {
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Wallet },
         { id: 'posts', label: 'Posts', icon: Calendar },
-        { id: 'sessions', label: 'Sessions', icon: Calendar },
         { id: 'reviews', label: 'Reviews', icon: Star },
+        { id: 'wallet', label: 'Transactions', icon: CreditCard },
     ];
+
+    const walletBalance = profile?.wallet?.balance;
 
     return (
         <div className="min-h-screen">
             <div className="max-w-8xl mx-auto px-4">
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    
+
                     {/* Sidebar Navigation */}
                     <div className="lg:col-span-1">
                         <Card className="sticky top-8">
                             <CardContent className="p-6">
                                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Profile</h2>
-                                
+
                                 {/* Navigation Tabs */}
                                 <nav className="space-y-2 mb-8">
                                     {tabs.map((tab) => {
@@ -50,18 +50,14 @@ const ProfileLayout = ({ children, activeTab, onTabChange, profile, isOwner }) =
                                 <div className="border-t pt-6">
                                     <h3 className="font-semibold text-gray-900 mb-3">Wallet Balance</h3>
                                     <div className="text-2xl font-bold text-green-600 mb-4">
-                                        1,250.75 Coins
+                                        {walletBalance !== undefined ? `${walletBalance} Coins` : '0'}
                                     </div>
-                                    <div className="space-y-2">
+                                    {isOwner && (
                                         <Button variant="outline" className="w-full justify-start" size="sm">
                                             <CreditCard className="h-4 w-4 mr-2" />
                                             Add Funds (Stripe)
                                         </Button>
-                                        <Button variant="outline" className="w-full justify-start" size="sm">
-                                            <LogOut className="h-4 w-4 mr-2" />
-                                            Withdraw
-                                        </Button>
-                                    </div>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>

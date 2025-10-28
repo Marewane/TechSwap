@@ -13,6 +13,10 @@ import {
 import ProfileLayout from './components/ProfileLayout';
 import ProfileHeader from './components/ProfileHeader';
 import ProfileSkills from './components/ProfileSkils';
+import ProfilePosts from './components/ProfilePosts';
+import ProfileReviews from './components/ProfileReviews';
+import ProfileReviewsPreview from './components/ProfileReviewsPreview';
+import ProfileTransactions from './components/ProfileTransactions';
 
 const ProfilePage = () => {
     const dispatch = useDispatch();
@@ -127,116 +131,34 @@ const ProfilePage = () => {
                         skillsToTeach={profileData.user?.skillsToTeach}
                         skillsToLearn={profileData.user?.skillsToLearn}
                         isOwner={isOwner}
+                        onUpdateSkills={(data) => handleProfileUpdate(data)}
                     />
 
                     {/* Reviews Preview */}
-                    <div className="bg-white rounded-lg border p-6">
-                        <h3 className="text-xl font-semibold mb-4">Recent Reviews</h3>
-                        {profileData.reviews && profileData.reviews.length > 0 ? (
-                            <div className="space-y-4">
-                                {profileData.reviews.slice(0, 2).map((review) => (
-                                    <div key={review.id} className="border-b pb-4 last:border-b-0 last:pb-0">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <img
-                                                src={review.reviewerAvatar}
-                                                alt={review.reviewerName}
-                                                className="w-8 h-8 rounded-full"
-                                            />
-                                            <div>
-                                                <p className="font-medium text-gray-900">{review.reviewerName}</p>
-                                                <p className="text-sm text-gray-500">{new Date(review.date).toLocaleDateString()}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-1 mb-2">
-                                            {[...Array(5)].map((_, i) => (
-                                                <span
-                                                    key={i}
-                                                    className={`text-lg ${i < review.rating
-                                                            ? "text-yellow-400"
-                                                            : "text-gray-300"
-                                                        }`}
-                                                >
-                                                    ★
-                                                </span>
-                                            ))}
-                                        </div>
-                                        <p className="text-gray-700">{review.comment}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-gray-500">No reviews yet.</p>
-                        )}
-                    </div>
+                    <ProfileReviewsPreview
+                        reviews={profileData.reviews || []}
+                        onViewAll={() => setActiveTab('reviews')}
+                    />
                 </div>
             )}
 
-            {/* Sessions Tab */}
-            {activeTab === 'sessions' && (
-                <div className="bg-white rounded-lg border p-6">
-                    <h2 className="text-2xl font-bold mb-4">Sessions</h2>
-                    <p className="text-gray-500">Your session history will appear here.</p>
-                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                        <p className="text-blue-700">
-                            Total Sessions Completed: {profileData.stats?.sessionsCompleted || 0}
-                        </p>
-                    </div>
-                </div>
+            {activeTab === 'posts' && (
+                <ProfilePosts
+                    posts={profileData.posts}
+                    isOwner={isOwner}
+                    currentUser={profileData.user} // Pass the current user data
+                />
             )}
-
             {/* Reviews Tab */}
             {activeTab === 'reviews' && (
-                <div className="bg-white rounded-lg border p-6">
-                    <h2 className="text-2xl font-bold mb-4">Reviews</h2>
-                    {profileData.reviews && profileData.reviews.length > 0 ? (
-                        <div className="space-y-6">
-                            {profileData.reviews.map((review) => (
-                                <div key={review.id} className="border-b pb-6 last:border-b-0 last:pb-0">
-                                    <div className="flex items-start gap-4">
-                                        <img
-                                            src={review.reviewerAvatar}
-                                            alt={review.reviewerName}
-                                            className="w-12 h-12 rounded-full"
-                                        />
-                                        <div className="flex-1">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div>
-                                                    <p className="font-semibold text-gray-900">{review.reviewerName}</p>
-                                                    <p className="text-sm text-gray-500">
-                                                        {new Date(review.date).toLocaleDateString('en-US', {
-                                                            year: 'numeric',
-                                                            month: 'long',
-                                                            day: 'numeric'
-                                                        })}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    {[...Array(5)].map((_, i) => (
-                                                        <span
-                                                            key={i}
-                                                            className={`text-xl ${i < review.rating
-                                                                    ? "text-yellow-400"
-                                                                    : "text-gray-300"
-                                                                }`}
-                                                        >
-                                                            ★
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <p className="text-gray-700 leading-relaxed">{review.comment}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-8">
-                            <p className="text-gray-500 text-lg">No reviews yet.</p>
-                            <p className="text-gray-400 mt-2">Reviews from your sessions will appear here.</p>
-                        </div>
-                    )}
-                </div>
+                <ProfileReviews reviews={profileData.reviews || []} />
+            )}
+            {/* Wallet / Transactions Tab */}
+            {activeTab === 'wallet' && (
+                <ProfileTransactions
+                    balance={profileData.wallet?.balance}
+                    transactions={profileData.transactions || []}
+                />
             )}
         </ProfileLayout>
     );

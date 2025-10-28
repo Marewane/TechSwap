@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { X, Plus, Edit, Upload, Camera } from "lucide-react";
+import { Edit, Upload } from "lucide-react";
 import { updateProfile } from "@/features/profile/profileSlice";
 import api from "@/services/api";
 
@@ -19,11 +18,7 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
         name: "",
         bio: "",
         avatar: "",
-        skillsToTeach: [],
-        skillsToLearn: []
     });
-    const [newTeachingSkill, setNewTeachingSkill] = useState("");
-    const [newLearningSkill, setNewLearningSkill] = useState("");
     const [avatarPreview, setAvatarPreview] = useState("");
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
@@ -35,8 +30,6 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
                 name: profile.user.name || "",
                 bio: profile.user.bio || "",
                 avatar: profile.user.avatar || "",
-                skillsToTeach: profile.user.skillsToTeach || [],
-                skillsToLearn: profile.user.skillsToLearn || []
             });
             setAvatarPreview(profile.user.avatar || "");
         }
@@ -114,40 +107,6 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
         fileInputRef.current?.click();
     };
 
-    const addTeachingSkill = () => {
-        if (newTeachingSkill.trim() && !formData.skillsToTeach.includes(newTeachingSkill.trim())) {
-            setFormData(prev => ({
-                ...prev,
-                skillsToTeach: [...prev.skillsToTeach, newTeachingSkill.trim()]
-            }));
-            setNewTeachingSkill("");
-        }
-    };
-
-    const removeTeachingSkill = (skillToRemove) => {
-        setFormData(prev => ({
-            ...prev,
-            skillsToTeach: prev.skillsToTeach.filter(skill => skill !== skillToRemove)
-        }));
-    };
-
-    const addLearningSkill = () => {
-        if (newLearningSkill.trim() && !formData.skillsToLearn.includes(newLearningSkill.trim())) {
-            setFormData(prev => ({
-                ...prev,
-                skillsToLearn: [...prev.skillsToLearn, newLearningSkill.trim()]
-            }));
-            setNewLearningSkill("");
-        }
-    };
-
-    const removeLearningSkill = (skillToRemove) => {
-        setFormData(prev => ({
-            ...prev,
-            skillsToLearn: prev.skillsToLearn.filter(skill => skill !== skillToRemove)
-        }));
-    };
-
     // Handle save using Redux
     const handleSave = async () => {
         try {
@@ -156,8 +115,6 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
                 name: formData.name,
                 bio: formData.bio,
                 avatar: formData.avatar,
-                skillsToTeach: formData.skillsToTeach,
-                skillsToLearn: formData.skillsToLearn
             };
 
             console.log("💾 Saving profile data:", updateData);
@@ -176,17 +133,6 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
         } catch (error) {
             console.error("❌ Error saving profile:", error);
             // Error is already handled by the slice and will be in Redux state
-        }
-    };
-
-    const handleKeyPress = (e, type) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (type === 'teaching') {
-                addTeachingSkill();
-            } else {
-                addLearningSkill();
-            }
         }
     };
 
@@ -268,72 +214,6 @@ const EditProfileModal = ({ profile, isOpen, onClose, onSave }) => {
                             placeholder="Tell us about yourself, your experience, and what you're passionate about..."
                             rows={4}
                         />
-                    </div>
-
-                    {/* Skills to Teach */}
-                    <div className="space-y-3">
-                        <Label>Skills I Can Teach</Label>
-                        <div className="flex gap-2">
-                            <Input
-                                value={newTeachingSkill}
-                                onChange={(e) => setNewTeachingSkill(e.target.value)}
-                                onKeyPress={(e) => handleKeyPress(e, 'teaching')}
-                                placeholder="Add a skill you can teach"
-                            />
-                            <Button type="button" onClick={addTeachingSkill} size="sm">
-                                <Plus className="h-4 w-4" />
-                            </Button>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {formData.skillsToTeach.map((skill, index) => (
-                                <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                                    {skill}
-                                    <button
-                                        type="button"
-                                        onClick={() => removeTeachingSkill(skill)}
-                                        className="hover:text-red-500"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                </Badge>
-                            ))}
-                            {formData.skillsToTeach.length === 0 && (
-                                <p className="text-sm text-gray-500">No skills added yet</p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Skills to Learn */}
-                    <div className="space-y-3">
-                        <Label>Skills I Want to Learn</Label>
-                        <div className="flex gap-2">
-                            <Input
-                                value={newLearningSkill}
-                                onChange={(e) => setNewLearningSkill(e.target.value)}
-                                onKeyPress={(e) => handleKeyPress(e, 'learning')}
-                                placeholder="Add a skill you want to learn"
-                            />
-                            <Button type="button" onClick={addLearningSkill} size="sm">
-                                <Plus className="h-4 w-4" />
-                            </Button>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {formData.skillsToLearn.map((skill, index) => (
-                                <Badge key={index} variant="outline" className="flex items-center gap-1">
-                                    {skill}
-                                    <button
-                                        type="button"
-                                        onClick={() => removeLearningSkill(skill)}
-                                        className="hover:text-red-500"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                </Badge>
-                            ))}
-                            {formData.skillsToLearn.length === 0 && (
-                                <p className="text-sm text-gray-500">No skills added yet</p>
-                            )}
-                        </div>
                     </div>
 
                     {/* Error Display */}

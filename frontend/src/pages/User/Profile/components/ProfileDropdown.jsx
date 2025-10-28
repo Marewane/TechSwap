@@ -1,4 +1,4 @@
-import { User, LogOut } from "lucide-react";
+import { User, LogOut ,LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -50,6 +50,14 @@ const ProfileDropdown = () => {
                         <span>Profile</span>
                     </Link>
                 </DropdownMenuItem>
+                {user?.role === 'admin' && (
+                <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link to="/admin/dashboard" className="flex w-full items-center">
+                        <span className="mr-2 h-4 w-4"><LayoutDashboard /></span>
+                        <span>Dashboard</span>
+                    </Link>
+                </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
                     <LogOut className="mr-2 h-4 w-4" />

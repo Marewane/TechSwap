@@ -1,243 +1,254 @@
+const mongoose = require('mongoose');
 const User = require('../models/UserModel');
 const Review = require('../models/ReviewModel');
+const Post = require('../models/PostModel');
+// Sessions feature removed from profile response
+const Transaction = require('../models/TransactionModel');
 
-// @desc    Get own profile (authenticated user)
-// @route   GET /api/profile/me
-// @access  Protected
+// =====================================================
+// @desc   Get OWN profile
+// @route  GET /api/profile/me
+// @access Private
+// =====================================================
 const getMyProfile = async (req, res) => {
-    try {
-        const userId = req.user._id;
+  try {
+    const userId = req.user._id;
 
-        const user = await User.findById(userId).select('name email role avatar bio skillsToLearn skillsToTeach rating totalSession lastLogin isEmailVerified createdAt');
-        
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
+    const user = await User.findById(userId).select(
+      'name email role avatar bio skillsToLearn skillsToTeach rating totalSession lastLogin isEmailVerified createdAt'
+    );
 
-        res.status(200).json({
-            success: true,
-            data: {
-                user: user,
-                isOwner: true
-            }
-        });
-    } catch (error) {
-        console.error('Get my profile error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error while fetching profile'
-        });
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
     }
+
+    // Get related data (sessions removed)
+    const [posts, transactions] = await Promise.all([
+      Post.find({ userId })
+        .select('title content skillsOffered skillsWanted availability createdAt')
+        .populate({ path: 'userId', select: 'name avatar rating' }),
+      Transaction.find({ userId }).select('amount status type createdAt')
+    ]);
+
+    // Compute wallet balance from transactions (completed only)
+    const balance = transactions
+      .filter(tx => tx.status === 'completed')
+      .reduce((sum, tx) => {
+        const amt = Number(tx.amount) || 0;
+        return sum + (tx.type === 'credit' ? amt : -amt);
+      }, 0);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user,
+        posts,
+        wallet: { balance },
+        transactions,
+        isOwner: true
+      }
+    });
+  } catch (error) {
+    console.error('Get my profile error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error while fetching profile' 
+    });
+  }
 };
 
-// @desc    Get user profile by ID (for guests viewing other profiles)
-// @route   GET /api/profile/user/:userId
-// @access  Protected (but can view other users' profiles)
+// =====================================================
+// @desc   Get ANOTHER user's profile
+// @route  GET /api/profile/:userId
+// @access Public (or Private)
+// =====================================================
 const getUserProfile = async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const currentUserId = req.user._id;
+  try {
+    const { userId } = req.params;
 
-        // Check if user is viewing their own profile
-        const isOwner = userId === currentUserId.toString();
-
-        if (isOwner) {
-            return getMyProfile(req, res);
-        }
-
-        // Exclude sensitive information for guest view
-        const user = await User.findById(userId).select('name avatar bio skillsToTeach rating totalSession createdAt');
-        
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        // Get user's reviews
-        const reviews = await Review.find({ reviewedUserId: userId })
-            .populate('reviewerId', 'name avatar')
-            .sort({ createdAt: -1 })
-            .limit(10);
-
-        // Format reviews for frontend
-        const formattedReviews = reviews.map(review => ({
-            id: review._id,
-            reviewerName: review.reviewerId.name,
-            reviewerAvatar: review.reviewerId.avatar,
-            date: review.createdAt,
-            rating: review.rating,
-            comment: review.comment
-        }));
-
-        res.status(200).json({
-            success: true,
-            data: {
-                user: {
-                    name: user.name,
-                    avatar: user.avatar,
-                    bio: user.bio,
-                    skillsToTeach: user.skillsToTeach,
-                    rating: user.rating,
-                    totalSession: user.totalSession,
-                    createdAt: user.createdAt
-                },
-                isOwner: false,
-                reviews: formattedReviews
-            }
-        });
-    } catch (error) {
-        console.error('Get user profile error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error while fetching user profile'
-        });
+    // Validate userId format
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid user ID format' 
+      });
     }
+
+    const user = await User.findById(userId).select(
+      'name avatar bio skillsToLearn skillsToTeach rating totalSession createdAt'
+    );
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // For public profiles, only show published posts (sessions removed)
+    const [posts] = await Promise.all([
+      Post.find({ userId })
+        .select('title content skillsOffered skillsWanted availability createdAt')
+        .populate({ path: 'userId', select: 'name avatar rating' })
+    ]);
+
+    // Check if the viewer is the owner
+    const isOwner = req.user && req.user._id.toString() === userId;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user,
+        posts,
+        isOwner
+      }
+    });
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching user profile' 
+    });
+  }
 };
 
-// @desc    Update user profile - ONLY OWNER CAN UPDATE
-// @route   PUT /api/profile/update
-// @access  Protected
+// =====================================================
+// @desc   Update OWN profile
+// @route  PUT /api/profile/me
+// @access Private
+// =====================================================
 const updateProfile = async (req, res) => {
-    try {
-        const userId = req.user._id;
-        
-        if (!req.body || Object.keys(req.body).length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Request body is required with at least one field to update'
-            });
-        }
+  try {
+    const userId = req.user._id;
+    const {
+      name,
+      bio,
+      avatar,
+      skillsToTeach,
+      skillsToLearn,
+      addTeachingSkill,
+      addLearningSkill,
+      removeTeachingSkill,
+      removeLearningSkill
+    } = req.body;
 
-        const { 
-            name, 
-            bio, 
-            avatar, 
-            skillsToTeach,
-            skillsToLearn,
-            addTeachingSkill,
-            addLearningSkill,
-            removeTeachingSkill,
-            removeLearningSkill
-        } = req.body;
-
-        const currentUser = await User.findById(userId);
-        if (!currentUser) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        let updatedSkillsToTeach = [...currentUser.skillsToTeach];
-        let updatedSkillsToLearn = [...currentUser.skillsToLearn];
-
-        // Handle complete array replacement
-        if (skillsToTeach !== undefined) {
-            if (!Array.isArray(skillsToTeach)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'skillsToTeach must be an array'
-                });
-            }
-            updatedSkillsToTeach = [...new Set(skillsToTeach.map(skill => skill.trim()).filter(skill => skill.length > 0))];
-        }
-
-        if (skillsToLearn !== undefined) {
-            if (!Array.isArray(skillsToLearn)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'skillsToLearn must be an array'
-                });
-            }
-            updatedSkillsToLearn = [...new Set(skillsToLearn.map(skill => skill.trim()).filter(skill => skill.length > 0))];
-        }
-
-        // Handle single skill operations
-        if (addTeachingSkill && typeof addTeachingSkill === 'string') {
-            const skill = addTeachingSkill.trim();
-            if (skill && !updatedSkillsToTeach.includes(skill)) {
-                updatedSkillsToTeach.push(skill);
-            }
-        }
-
-        if (addLearningSkill && typeof addLearningSkill === 'string') {
-            const skill = addLearningSkill.trim();
-            if (skill && !updatedSkillsToLearn.includes(skill)) {
-                updatedSkillsToLearn.push(skill);
-            }
-        }
-
-        if (removeTeachingSkill && typeof removeTeachingSkill === 'string') {
-            const skill = removeTeachingSkill.trim();
-            updatedSkillsToTeach = updatedSkillsToTeach.filter(s => s !== skill);
-        }
-
-        if (removeLearningSkill && typeof removeLearningSkill === 'string') {
-            const skill = removeLearningSkill.trim();
-            updatedSkillsToLearn = updatedSkillsToLearn.filter(s => s !== skill);
-        }
-
-        const updateFields = {};
-        if (name !== undefined) updateFields.name = name;
-        if (bio !== undefined) updateFields.bio = bio;
-        if (avatar !== undefined) updateFields.avatar = avatar;
-        
-        updateFields.skillsToTeach = updatedSkillsToTeach;
-        updateFields.skillsToLearn = updatedSkillsToLearn;
-
-        if (Object.keys(updateFields).length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'No valid fields to update provided'
-            });
-        }
-
-        const updatedUser = await User.findByIdAndUpdate(
-            userId,
-            updateFields,
-            { 
-                new: true,
-                runValidators: true
-            }
-        ).select('name email avatar bio skillsToTeach skillsToLearn rating totalSession lastLogin isEmailVerified createdAt');
-
-        if (!updatedUser) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found after update'
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: 'Profile updated successfully',
-            data: updatedUser
-        });
-    } catch (error) {
-        console.error('Update profile error:', error);
-        
-        if (error.name === 'ValidationError') {
-            return res.status(400).json({
-                success: false,
-                message: 'Validation error',
-                errors: Object.values(error.errors).map(err => err.message)
-            });
-        }
-
-        res.status(500).json({
-            success: false,
-            message: 'Server error while updating profile'
-        });
+    // Validate request body
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No data provided for update'
+      });
     }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Clone current skills
+    let updatedTeach = [...user.skillsToTeach];
+    let updatedLearn = [...user.skillsToLearn];
+
+    // Handle complete array replacement with validation
+    if (skillsToTeach !== undefined) {
+      if (!Array.isArray(skillsToTeach)) {
+        return res.status(400).json({
+          success: false,
+          message: 'skillsToTeach must be an array'
+        });
+      }
+      updatedTeach = [...new Set(skillsToTeach.map(skill => skill.trim()).filter(skill => skill))];
+    }
+
+    if (skillsToLearn !== undefined) {
+      if (!Array.isArray(skillsToLearn)) {
+        return res.status(400).json({
+          success: false,
+          message: 'skillsToLearn must be an array'
+        });
+      }
+      updatedLearn = [...new Set(skillsToLearn.map(skill => skill.trim()).filter(skill => skill))];
+    }
+
+    // Handle individual skill operations with validation
+    if (addTeachingSkill) {
+      const skill = addTeachingSkill.trim();
+      if (skill && !updatedTeach.includes(skill)) {
+        updatedTeach.push(skill);
+      }
+    }
+
+    if (addLearningSkill) {
+      const skill = addLearningSkill.trim();
+      if (skill && !updatedLearn.includes(skill)) {
+        updatedLearn.push(skill);
+      }
+    }
+
+    if (removeTeachingSkill) {
+      const skill = removeTeachingSkill.trim();
+      updatedTeach = updatedTeach.filter(s => s !== skill);
+    }
+
+    if (removeLearningSkill) {
+      const skill = removeLearningSkill.trim();
+      updatedLearn = updatedLearn.filter(s => s !== skill);
+    }
+
+    // Remove duplicates and empty values
+    updatedTeach = [...new Set(updatedTeach.filter(skill => skill))];
+    updatedLearn = [...new Set(updatedLearn.filter(skill => skill))];
+
+    // Build update object only with provided fields
+    const updateData = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (bio !== undefined) updateData.bio = bio.trim();
+    if (avatar !== undefined) updateData.avatar = avatar.trim();
+    
+    updateData.skillsToTeach = updatedTeach;
+    updateData.skillsToLearn = updatedLearn;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { 
+        new: true, 
+        runValidators: true 
+      }
+    ).select('name email avatar bio skillsToTeach skillsToLearn rating totalSession createdAt');
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: updatedUser
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: Object.values(error.errors).map(err => err.message)
+      });
+    }
+
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error while updating profile' 
+    });
+  }
 };
 
 module.exports = {
-    getMyProfile,
-    getUserProfile,
-    updateProfile
+  getMyProfile,
+  getUserProfile,
+  updateProfile
 };

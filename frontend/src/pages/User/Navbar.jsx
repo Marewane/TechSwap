@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Menu, User, LogOut } from "lucide-react";
+import { Menu, User, LogOut,CircleDollarSign  } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,6 +10,15 @@ const Navbar = () => {
     const location = useLocation();
     const { myProfile } = useSelector((state) => state.profile);
     const user = myProfile?.user;
+    const walletBalance = myProfile?.wallet?.balance;
+
+    const formatAmount = (amount) => {
+        try {
+            return Number(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        } catch {
+            return amount;
+        }
+    };
 
     const navItems = [
         { path: "/home", label: "Home" },
@@ -65,6 +74,11 @@ const Navbar = () => {
                             </Link>
                         ))}
                     </div>
+                    {/* Wallet Balance */}
+                    <div className="flex items-center px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-sm font-semibold">
+                        <span className="mr-1"><CircleDollarSign></CircleDollarSign></span>
+                        {walletBalance !== undefined ? `${formatAmount(walletBalance)} Coins` : '0 Coins'}
+                    </div>
                     <ProfileDropdown />
                 </div>
 
@@ -106,6 +120,9 @@ const Navbar = () => {
                                         </p>
                                         <p className="text-xs text-gray-500 truncate">
                                             {user?.email || "user@example.com"}
+                                        </p>
+                                        <p className="text-xs text-green-700 mt-1">
+                                            {walletBalance !== undefined ? `${formatAmount(walletBalance)} Coins` : '0 Coins'}
                                         </p>
                                     </div>
                                 </div>
