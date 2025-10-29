@@ -12,7 +12,8 @@ import {
   Calendar,
   MapPin,
   Users,
-  Info 
+  Info,
+  AlertCircle // Import AlertCircle icon for warnings
 } from 'lucide-react';
 
 const SessionCard = ({ 
@@ -36,62 +37,98 @@ const SessionCard = ({
   const timeUntil = scheduledDate - new Date();
   const hoursUntil = Math.floor(timeUntil / (1000 * 60 * 60));
   const isSoon = timeUntil > 0 && timeUntil <= 1000 * 60 * 60 * 2; // Within 2 hours
+  const isTooLate = hoursUntil < -1; // More than 1 hour past scheduled time
 
   // Get button props based on session status and user role
   const getButtonProps = () => {
     switch (session.status) {
       case 'scheduled':
         if (isHost) {
+          const isDisabled = isTooLate;
           return {
             text: 'Start Session',
             onClick: () => onStartSession(session),
             variant: 'default',
-            disabled: hoursUntil < -1 // Can't start if more than 1 hour past scheduled time
+            disabled: isDisabled,
+            tooltip: isDisabled ? 'Session time has passed.' : null
+          };
+        } else if (isLearner) {
+          return {
+            text: 'Join Session (Not Started)',
+            onClick: () => onJoinSession(session),
+            variant: 'outline',
+            disabled: true, // Always disabled for scheduled sessions for learner
+            tooltip: 'Session has not started yet. Please wait for the host to start the session.'
+          };
+        }
+        break;
+      case 'ready':
+        if (isHost) {
+          return {
+            text: 'Start Session',
+            onClick: () => onStartSession(session),
+            variant: 'default',
+            disabled: false,
+            tooltip: null
           };
         } else if (isLearner) {
           return {
             text: 'Join Session',
             onClick: () => onJoinSession(session),
             variant: 'outline',
-            disabled: hoursUntil < -1
+            disabled: false,
+            tooltip: null
           };
         }
         break;
-      case 'ready':
-        return {
-          text: isHost ? 'Start Session' : 'Join Session',
-          onClick: isHost ? () => onStartSession(session) : () => onJoinSession(session),
-          variant: isHost ? 'default' : 'outline'
-        };
       case 'in-progress':
+        // Both host and learner can join when in progress
         return {
           text: 'Join Live Session',
           onClick: () => onJoinSession(session),
-          variant: 'default'
+          variant: 'default',
+          disabled: false,
+          tooltip: null
         };
       case 'completed':
         return {
           text: 'View Details',
           onClick: () => onViewDetails(session),
-          variant: 'secondary'
+          variant: 'secondary',
+          disabled: false,
+          tooltip: null
         };
       case 'cancelled':
         return {
           text: 'Cancelled',
           onClick: null,
           variant: 'destructive',
-          disabled: true
+          disabled: true,
+          tooltip: 'This session has been cancelled.'
         };
       default:
         return {
           text: 'View Details',
           onClick: () => onViewDetails(session),
-          variant: 'ghost'
+          variant: 'ghost',
+          disabled: false,
+          tooltip: null
         };
     }
   };
 
   const buttonProps = getButtonProps();
+
+  // Function to render tooltip/warning message
+  const renderTooltip = (tooltipText) => {
+    if (!tooltipText) return null;
+    return (
+      <div className="flex items-center text-xs text-yellow-600 mt-1">
+        <AlertCircle className="w-3 h-3 mr-1" />
+        <span>{tooltipText}</span>
+      </div>
+    );
+  };
 
   return (
     <Card className={`hover:shadow-md transition-shadow ${
@@ -116,6 +153,9 @@ const SessionCard = ({
                 {isSoon && session.status === 'scheduled' && (
                   <span className="text-yellow-600 font-medium">(Soon!)</span>
                 )}
+                {isTooLate && session.status === 'scheduled' && (
+                  <span className="text-red-600 font-medium">(Time Passed)</span>
+                )}
               </div>
               
               <div className="flex items-center gap-2">
@@ -133,19 +173,26 @@ const SessionCard = ({
           </div>
           
           <div className="flex flex-col items-end gap-2 ml-4">
-            <Button
-              onClick={buttonProps.onClick}
-              variant={buttonProps.variant}
-              size="sm"
-              disabled={buttonProps.disabled}
-            >
-              {buttonProps.text}
-            </Button>
+            {/* Main Action Button */}
+            <div className="flex flex-col items-end">
+              <Button
+                onClick={buttonProps.onClick}
+                variant={buttonProps.variant}
+                size="sm"
+                disabled={buttonProps.disabled}
+              >
+                {buttonProps.text}
+              </Button>
+              {/* Tooltip/Warning Message */}
+              {buttonProps.tooltip && renderTooltip(buttonProps.tooltip)}
+              {session.status === 'scheduled' && isTooLate && renderTooltip('Session time has passed.')}
+            </div>
             
+            {/* Details Button */}
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowPopup(true)} // Open modal instead of hover
+              onClick={() => setShowPopup(true)}
               className="text-blue-600 hover:text-blue-700"
             >
               <Info className="w-4 h-4 mr-1" />

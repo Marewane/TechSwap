@@ -1,97 +1,94 @@
-// src/pages/LiveSession/LiveSession.jsx (fixed debug version)
+// src/pages/LiveSession/LiveSession.jsx (Updated with Improved Design)
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useSocket } from '../../hooks/useSocket';
 import { useWebRTC } from '../../hooks/useWebRTC';
-import { useSelector } from 'react-redux';
+import ControlsBar from '../../components/Session/ControlsBar';
 import { 
-  Video, 
-  VideoOff, 
-  Mic, 
-  MicOff, 
-  ScreenShare, 
-  Square,
-  Phone,
+  Phone, 
+  Clock, 
+  User, 
+  AlertCircle,
+  Loader2,
   Users,
-  Clock,
-  User
+  Video as VideoIcon,
+  MicOff,
+  Mic,
+  VideoOff,
+  Video,
+  ScreenShare,
+  Square,
 } from 'lucide-react';
 
 const LiveSession = () => {
-  const { id } = useParams();
+  const { id: sessionId } = useParams();
   const navigate = useNavigate();
+  
+  // --- Get user data and token from Redux store ---
+  const { user, tokens } = useSelector((state) => state.user);
+  const token = tokens?.accessToken;
+
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [participants, setParticipants] = useState([]);
 
-  // Get user and token from Redux
-  const { user } = useSelector(state => state.user) || {};
-  const token = useSelector(state => state.user?.tokens?.accessToken);
-
-  // Initialize socket
+  // --- Initialize Socket.IO connection ---
   const {
+    socket,
     isConnected,
     connectionError,
     connect,
     disconnect,
     joinSession,
     leaveSession,
-    onOffer,
-    onAnswer,
-    onIceCandidate,
-    onUserJoined,
-    onUserLeft,
-    onSessionEnded,
-    sendAnswer,
-    sendOffer,
-    sendIceCandidate
+    sendOffer: socketSendOffer,
+    sendAnswer: socketSendAnswer,
+    sendIceCandidate: socketSendIceCandidate,
   } = useSocket(token);
 
-  // Initialize WebRTC
+  // --- Initialize WebRTC Hook ---
   const {
     localStream,
+    screenStream,
     remoteStream,
     isSharingScreen,
     isAudioEnabled,
     isVideoEnabled,
-    connectionStatus,
     getUserMedia,
-    createOffer,
-    createAnswer,
-    handleIceCandidate,
     toggleAudio,
     toggleVideo,
     startScreenShare,
-    stopScreenShare
-  } = useWebRTC(id, {
-    sendOffer,
-    sendAnswer,
-    sendIceCandidate
+    stopScreenShare,
+  } = useWebRTC(sessionId, {
+    sendOffer: socketSendOffer,
+    sendAnswer: socketSendAnswer,
+    sendIceCandidate: socketSendIceCandidate,
   });
 
-  // Refs for video elements
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+  // --- Refs for video elements ---
+  const mainVideoRef = useRef(null);
+  const cameraPreviewRef = useRef(null);
 
-  // Mock session data for now (we'll fetch real data later)
+  // --- Simulate fetching session data ---
   useEffect(() => {
-    // Simulate API call
     const fetchSession = async () => {
+      console.log(`Fetching session data for ID: ${sessionId}`);
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        // In real implementation: const response = await api.get(`/sessions/${id}`);
-        
-        // Mock data
+        await new Promise(resolve => setTimeout(resolve, 800));
+
         const mockSession = {
-          _id: id,
+          _id: sessionId,
           title: "React Fundamentals - Live Coding Session",
           description: "Learning React hooks and components with live code examples",
-          status: "in-progress",
-          scheduledTime: "2025-10-24T15:00:00.000Z",
+          status: "scheduled",
+          scheduledTime: new Date(Date.now() + 30 * 60000).toISOString(),
           sessionType: "skillTeaching",
           hostId: {
             _id: "68ed1a63453769b1a7cae5d9",
@@ -99,234 +96,108 @@ const LiveSession = () => {
             email: "youssef.fakhi.dev@gmail.com"
           },
           learnerId: {
-            _id: "68f101e53e8926ff52306ac6", 
+            _id: "68f101e53e8926ff52306ac6",
             name: "Marouane",
             email: "mrxbrowkn@gmail.com"
           },
-          startedAt: new Date().toISOString(),
-          duration: 120
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
-        
+
         setSession(mockSession);
-        
-        // Set initial participants
-        setParticipants([
-          mockSession.hostId,
-          mockSession.learnerId
-        ]);
+        setParticipants([mockSession.hostId, mockSession.learnerId]);
+
       } catch (err) {
-        setError(err.message);
+        console.error("Failed to fetch session:", err);
+        setError(err.message || "Failed to load session details.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSession();
-  }, [id]);
+    if (sessionId) {
+      fetchSession();
+    } else {
+      setError("Invalid session ID.");
+      setLoading(false);
+    }
+  }, [sessionId]);
 
-  // Connect to socket and join session room
+  // --- Connect to Socket.IO when component mounts and token is available ---
   useEffect(() => {
-    if (token && id) {
+    if (token) {
+      console.log("Attempting to connect Socket.IO with token...");
       connect();
+    } else {
+      console.warn("No token available for Socket.IO connection.");
+      setError("Authentication required. Please log in.");
     }
 
     return () => {
-      if (id) {
-        leaveSession(id);
-      }
+      console.log("LiveSession unmounting, disconnecting Socket.IO...");
       disconnect();
     };
-  }, [token, id, connect, disconnect, leaveSession]);
+  }, [token, connect, disconnect]);
 
-  // Join session room when connected
+  // --- Join the session room once connected ---
   useEffect(() => {
-    if (isConnected && id) {
-      joinSession(id);
+    if (isConnected && sessionId) {
+      console.log(`Socket.IO connected. Joining session room: ${sessionId}`);
+      joinSession(sessionId);
     }
-  }, [isConnected, id, joinSession]);
+  }, [isConnected, sessionId, joinSession]);
 
-  // Set up socket event listeners
+  // --- MAIN VIDEO DISPLAY LOGIC ---
   useEffect(() => {
-    // Handle WebRTC offer
-    const handleOffer = async (data) => {
-      console.log('Received offer:', data);
-      // Create answer in response to offer
-      try {
-        await createAnswer(data.offer);
-      } catch (error) {
-        console.error('Error handling offer:', error);
+    if (mainVideoRef.current) {
+      if (isSharingScreen && screenStream) {
+        mainVideoRef.current.srcObject = screenStream;
+      } else if (remoteStream) {
+        mainVideoRef.current.srcObject = remoteStream;
+      } else {
+        mainVideoRef.current.srcObject = null;
       }
-    };
-
-    // Handle WebRTC answer
-    const handleAnswer = (data) => {
-      console.log('Received answer:', data);
-      // Set remote description for answer
-      if (peerConnectionRef.current) {
-        peerConnectionRef.current.setRemoteDescription(data.answer)
-          .catch(err => console.error('Error setting remote description:', err));
-      }
-    };
-
-    // Handle ICE candidate
-    const handleIceCandidate = (data) => {
-      console.log('Received ICE candidate:', data);
-      if (peerConnectionRef.current) {
-        peerConnectionRef.current.addIceCandidate(data.candidate)
-          .catch(err => console.error('Error adding ICE candidate:', err));
-      }
-    };
-
-    // Handle user joined
-    const handleUserJoined = (data) => {
-      console.log('User joined:', data);
-      // Start WebRTC connection - only host creates offer
-      if (user && session && session.hostId._id === user._id) {
-        // Host creates offer
-        createOffer().catch(err => console.error('Error creating offer:', err));
-      }
-    };
-
-    // Handle user left
-    const handleUserLeft = (data) => {
-      console.log('User left:', data);
-      // Handle user leaving
-    };
-
-    // Handle session ended
-    const handleSessionEnded = (data) => {
-      console.log('Session ended:', data);
-      navigate('/events');
-    };
-
-    // Add listeners
-    onOffer(handleOffer);
-    onAnswer(handleAnswer);
-    onIceCandidate(handleIceCandidate);
-    onUserJoined(handleUserJoined);
-    onUserLeft(handleUserLeft);
-    onSessionEnded(handleSessionEnded);
-
-    // Cleanup listeners
-    return () => {
-      // In a real implementation, you'd need to remove listeners properly
-    };
-  }, [onOffer, onAnswer, onIceCandidate, onUserJoined, onUserLeft, onSessionEnded, navigate, user, session, createOffer, createAnswer]);
-
-  // Get user media on component mount
-  useEffect(() => {
-    if (isConnected) {
-      getUserMedia(true, true).catch(err => {
-        console.error('Could not get user media:', err);
-        // Continue without media if permission denied
-      });
     }
-  }, [isConnected, getUserMedia]);
+  }, [screenStream, remoteStream, isSharingScreen]);
 
-  // Set up video streams
+  // --- CAMERA PREVIEW LOGIC ---
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-      console.log('=== VIDEO SRC UPDATED ===');
-      console.log('New local stream assigned to video element');
-      console.log('Video tracks in stream:', localStream.getVideoTracks().length);
-      console.log('Audio tracks in stream:', localStream.getAudioTracks().length);
-      if (localStream.getVideoTracks().length > 0) {
-        console.log('Video track enabled:', localStream.getVideoTracks()[0].enabled);
+    if (cameraPreviewRef.current) {
+      if (localStream && isVideoEnabled) {
+        cameraPreviewRef.current.srcObject = localStream;
+      } else {
+        cameraPreviewRef.current.srcObject = null;
       }
-      if (localStream.getAudioTracks().length > 0) {
-        console.log('Audio track enabled:', localStream.getAudioTracks()[0].enabled);
-      }
-      console.log('========================');
     }
-  }, [localStream]);
-
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
-
-  // Enhanced debug logging
-  useEffect(() => {
-    if (localStream) {
-      const videoTracks = localStream.getVideoTracks();
-      const audioTracks = localStream.getAudioTracks();
-      
-      console.log('=== STREAM STATE CHANGE ===');
-      console.log('Video tracks count:', videoTracks.length);
-      console.log('Audio tracks count:', audioTracks.length);
-      if (videoTracks.length > 0) {
-        console.log('Video track enabled:', videoTracks[0].enabled);
-      }
-      if (audioTracks.length > 0) {
-        console.log('Audio track enabled:', audioTracks[0].enabled);
-      }
-      console.log('isVideoEnabled state:', isVideoEnabled);
-      console.log('isAudioEnabled state:', isAudioEnabled);
-      console.log('========================');
-    }
-  }, [localStream, isVideoEnabled, isAudioEnabled]);
+  }, [localStream, isVideoEnabled]);
 
   const handleEndCall = () => {
     if (window.confirm('Are you sure you want to end this session?')) {
-      // In real implementation: call end session API
+      console.log("Ending session...");
       navigate('/events');
     }
   };
 
-  const handleToggleAudio = () => {
-    console.log('=== TOGGLING AUDIO ===');
-    console.log('Before toggle - Audio enabled:', isAudioEnabled);
-    console.log('Before toggle - Video enabled:', isVideoEnabled);
-    if (localStream) {
-      const audioTracks = localStream.getAudioTracks();
-      const videoTracks = localStream.getVideoTracks();
-      if (audioTracks.length > 0) {
-        console.log('Before toggle - Audio track enabled:', audioTracks[0].enabled);
-      }
-      if (videoTracks.length > 0) {
-        console.log('Before toggle - Video track enabled:', videoTracks[0].enabled);
-      }
-    }
-    console.log('========================');
-    
-    toggleAudio();
-  };
+  // --- Determine user role ---
+  const loggedInUserId = user?._id;
+  const isHost = session?.hostId?._id === loggedInUserId;
+  const otherUser = isHost ? session?.learnerId : session?.hostId;
 
-  const handleToggleVideo = () => {
-    console.log('=== TOGGLING VIDEO ===');
-    console.log('Before toggle - Video enabled:', isVideoEnabled);
-    console.log('Before toggle - Audio enabled:', isAudioEnabled);
-    if (localStream) {
-      const videoTracks = localStream.getVideoTracks();
-      const audioTracks = localStream.getAudioTracks();
-      if (videoTracks.length > 0) {
-        console.log('Before toggle - Video track enabled:', videoTracks[0].enabled);
-      }
-      if (audioTracks.length > 0) {
-        console.log('Before toggle - Audio track enabled:', audioTracks[0].enabled);
-      }
-    }
-    console.log('========================');
-    
-    toggleVideo();
-  };
-
-  const handleScreenShare = async () => {
-    if (isSharingScreen) {
-      await stopScreenShare();
-    } else {
-      await startScreenShare();
-    }
-  };
+  // --- Format scheduled time ---
+  const scheduledDate = session?.scheduledTime ? new Date(session.scheduledTime) : new Date();
+  const formattedScheduledTime = scheduledDate.toLocaleString();
+  const timeUntil = scheduledDate - new Date();
+  const isPastScheduledTime = timeUntil < 0;
+  const minutesUntil = Math.abs(Math.floor(timeUntil / 1000 / 60));
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-          <p className="mt-4 text-white">Joining session...</p>
+          <Loader2 className="w-12 h-12 animate-spin text-blue-500 mx-auto" />
+          <p className="mt-4 text-white">Loading session...</p>
+          {isConnected && <p className="text-green-400 text-sm mt-2">Connected to server</p>}
+          {!isConnected && <p className="text-yellow-400 text-sm mt-2">Connecting to server...</p>}
         </div>
       </div>
     );
@@ -335,11 +206,14 @@ const LiveSession = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-400 text-lg">Error: {error}</p>
+        <div className="text-center p-6 max-w-md w-full">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto" />
+          <h2 className="text-2xl font-bold text-white mt-4">Error</h2>
+          <p className="text-gray-300 mt-2">{error}</p>
           <Button 
-            onClick={() => navigate('/events')}
-            className="mt-4"
+            onClick={() => navigate('/events')} 
+            className="mt-6"
+            variant="default"
           >
             Go Back to Events
           </Button>
@@ -352,10 +226,13 @@ const LiveSession = () => {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-white">Session not found</p>
+          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto" />
+          <h2 className="text-2xl font-bold text-white mt-4">Session Not Found</h2>
+          <p className="text-gray-300 mt-2">The session you are looking for does not exist.</p>
           <Button 
-            onClick={() => navigate('/events')}
-            className="mt-4"
+            onClick={() => navigate('/events')} 
+            className="mt-6"
+            variant="default"
           >
             Go Back to Events
           </Button>
@@ -364,40 +241,63 @@ const LiveSession = () => {
     );
   }
 
-  const isHost = user && session.hostId._id === user._id;
-  const otherUser = user && session.hostId._id === user._id ? session.learnerId : session.hostId;
-
-  // Check if video track is enabled (separate from localStream existence)
-  const isVideoTrackEnabled = localStream && localStream.getVideoTracks().length > 0 && localStream.getVideoTracks()[0].enabled;
-
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 p-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+      {/* Top Header */}
+      <header className="bg-gray-800 border-b border-gray-700 px-6 py-3 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold">{session.title}</h1>
-            <Badge variant="secondary" className={`${
-              isConnected ? 'bg-green-600' : 'bg-red-600'
-            } text-white`}>
-              {isConnected ? 'Connected' : 'Connecting...'}
+            <h1 className="text-xl md:text-2xl font-bold truncate max-w-md">{session.title}</h1>
+            <Badge variant="outline" className="text-xs text-white">
+              Scheduled: {formattedScheduledTime}
             </Badge>
-            <Badge variant="outline" className="text-xs">
-              {connectionStatus}
-            </Badge>
-            {connectionError && (
-              <span className="text-red-400 text-sm">Error: {connectionError}</span>
+            {isPastScheduledTime ? (
+              <Badge variant="destructive" className="text-xs">
+                Late by {minutesUntil} min
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="text-xs ">
+                In {minutesUntil} min
+              </Badge>
             )}
           </div>
+
           <div className="flex items-center space-x-4">
-            <div className="text-sm text-gray-300">
-              <Clock className="w-4 h-4 inline mr-1" />
-              {new Date(session.startedAt).toLocaleTimeString()}
+            {/* Status Badges */}
+            <Badge
+              variant={
+                session.status === 'in-progress' ? 'default' :
+                session.status === 'completed' ? 'secondary' :
+                session.status === 'no-show' || session.status === 'cancelled' ? 'destructive' :
+                'outline'
+              }
+              className="capitalize text-xs text-white"
+            >
+              {session.status.replace('-', ' ')}
+            </Badge>
+
+            <Badge
+              variant={isConnected ? 'default' : 'destructive'}
+              className="text-xs flex items-center"
+            >
+              <div className={`w-2 h-2 rounded-full mr-1 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </Badge>
+
+            {/* Participant Info */}
+            <div className="flex items-center text-sm text-gray-300 ">
+              <User className="w-4 h-4 mr-1" />
+              <span>{otherUser?.name || 'Participant'}</span>
+              <span className="mx-2">•</span>
+              <span>You are: {isHost ? 'Host' : 'Learner'}</span>
             </div>
-            <Button 
+
+            {/* End Call Button */}
+            <Button
               onClick={handleEndCall}
               variant="destructive"
-              className="flex items-center"
+              size="sm"
+              className="flex items-center whitespace-nowrap"
             >
               <Phone className="w-4 h-4 mr-2" />
               End Call
@@ -406,156 +306,131 @@ const LiveSession = () => {
         </div>
       </header>
 
-      {/* Debug Info  for debuging
-      <div className="bg-yellow-900 text-yellow-100 p-2 text-sm">
-        <div>Debug Info:</div>
-        <div>Local Stream: {localStream ? 'Available' : 'Not Available'}</div>
-        <div>Video Tracks: {localStream ? localStream.getVideoTracks().length : 0}</div>
-        <div>Audio Tracks: {localStream ? localStream.getAudioTracks().length : 0}</div>
-        {localStream && localStream.getVideoTracks().length > 0 && (
-          <div>Video Track Enabled: {localStream.getVideoTracks()[0].enabled.toString()}</div>
-        )}
-        {localStream && localStream.getAudioTracks().length > 0 && (
-          <div>Audio Track Enabled: {localStream.getAudioTracks()[0].enabled.toString()}</div>
-        )}
-        <div>isVideoEnabled: {isVideoEnabled?.toString() || 'N/A'}</div>
-        <div>isAudioEnabled: {isAudioEnabled?.toString() || 'N/A'}</div>
-        <div>isVideoTrackEnabled (display logic): {isVideoTrackEnabled?.toString() || 'N/A'}</div>
-      </div> */}
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col h-[calc(100vh-80px)]">
-        <div className="flex-1 flex">
-          {/* Video Grid */}
-          <div className="flex-1 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
-              {/* Local Video */}
-              <Card className="bg-gray-800 border-gray-700 h-full">
-                <CardContent className="p-4 h-full flex flex-col items-center justify-center">
-                  <div className="w-full h-full bg-gray-700 rounded-lg flex items-center justify-center relative">
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                    {!isVideoTrackEnabled && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="w-24 h-24 bg-gray-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                            <User className="w-12 h-12 text-gray-400" />
-                          </div>
-                          <p className="text-gray-400">Camera Off</p>
-                        </div>
-                      </div>
-                    )}
-                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-sm">
-                      You
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col md:flex-row p-4 gap-4 overflow-hidden">
+        
+        {/* Video Area (Main Content) */}
+        <div className="flex-1 bg-gray-800 rounded-lg p-4 flex flex-col bg-black-800">
+          <Card className="flex-1 flex flex-col h-full bg-black-800">
+            <CardHeader>
+              <CardTitle className="text-lg text-white">Video Call</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 flex items-center justify-center p-0 relative overflow-hidden">
+              {/* Main Video Element */}
+              <video
+                ref={mainVideoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-contain bg-black rounded"
+              />
+              {/* Placeholder for Main Video */}
+              {!remoteStream && !isSharingScreen && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-700/50">
+                  <div className="text-center">
+                    <div className="bg-gray-600 border-2 border-dashed rounded-xl w-20 h-20 mx-auto flex items-center justify-center mb-2">
+                      <VideoIcon className="w-8 h-8 text-gray-400" />
                     </div>
+                    <p className="text-gray-400 text-sm">
+                      Waiting for participant or screen share...
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Remote Video */}
-              <Card className="bg-gray-800 border-gray-700 h-full">
-                <CardContent className="p-4 h-full flex flex-col items-center justify-center">
-                  <div className="w-full h-full bg-gray-700 rounded-lg flex items-center justify-center relative">
-                    <video
-                      ref={remoteVideoRef}
-                      autoPlay
-                      playsInline
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                    {!remoteStream && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="w-24 h-24 bg-gray-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                            <User className="w-12 h-12 text-gray-400" />
-                          </div>
-                          <p className="text-gray-400">{otherUser?.name || 'Participant'} Not Connected</p>
-                        </div>
-                      </div>
-                    )}
-                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 px-2 py-1 rounded text-sm">
-                      {otherUser?.name || 'Participant'}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="w-80 bg-gray-800 border-l border-gray-700 p-4">
-            <Card className="bg-gray-700 border-gray-600">
-              <CardHeader>
-                <CardTitle className="text-sm">Participants ({participants.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {participants.map((participant) => (
-                    <div 
-                      key={participant._id} 
-                      className={`flex items-center space-x-2 p-2 bg-gray-600 rounded ${
-                        user && participant._id === user._id ? 'ring-2 ring-blue-500' : ''
-                      }`}
-                    >
-                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                        <User className="w-4 h-4 text-white" />
-                      </div>
-                      <span className="text-sm">{participant.name}</span>
-                      {user && participant._id === user._id && (
-                        <span className="text-xs bg-blue-500 px-2 py-1 rounded">You</span>
-                      )}
-                    </div>
-                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              )}
+              {isSharingScreen && !screenStream && (
+                 <div className="absolute inset-0 flex items-center justify-center bg-gray-700/50">
+                  <p className="text-gray-400 text-sm">Preparing screen share...</p>
+                </div>
+              )}
+
+              {/* Camera Preview (Small, in corner) */}
+              <div className="absolute bottom-4 right-4 w-32 h-24 md:w-48 md:h-36 bg-gray-700 rounded-lg overflow-hidden border-2 border-white border-opacity-30">
+                <video
+                  ref={cameraPreviewRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                {/* "Camera Off" Placeholder */}
+                {!isVideoEnabled && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-700/80">
+                    <div className="text-center">
+                      <div className="w-8 h-8 md:w-12 md:h-12 bg-gray-600 rounded-full mx-auto mb-1 md:mb-2 flex items-center justify-center">
+                        <span className="text-lg md:text-xl">👤</span>
+                      </div>
+                      <p className="text-[8px] md:text-xs text-gray-400">Camera Off</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Controls */}
-        <div className="bg-gray-800 border-t border-gray-700 p-4">
-          <div className="max-w-7xl mx-auto flex justify-center space-x-4">
-            <Button 
-              variant={isAudioEnabled ? "outline" : "destructive"} 
-              size="lg" 
-              onClick={handleToggleAudio}
-              className="flex items-center"
-            >
-              {isAudioEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-            </Button>
-            <Button 
-              variant={isVideoEnabled ? "outline" : "destructive"} 
-              size="lg" 
-              onClick={handleToggleVideo}
-              className="flex items-center"
-            >
-              {isVideoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-            </Button>
-            <Button 
-              variant={isSharingScreen ? "default" : "outline"} 
-              size="lg" 
-              onClick={handleScreenShare}
-              className="flex items-center"
-            >
-              {isSharingScreen ? <Square className="w-5 h-5 mr-2" /> : <ScreenShare className="w-5 h-5 mr-2" />}
-              {isSharingScreen ? 'Stop Share' : 'Share Screen'}
-            </Button>
-            <Button 
-              variant="destructive" 
-              size="lg" 
-              onClick={handleEndCall}
-              className="flex items-center"
-            >
-              <Phone className="w-5 h-5 mr-2" />
-              End Call
-            </Button>
-          </div>
+        {/* Sidebar */}
+        <div className="md:w-80 w-full flex-shrink-0 bg-gray-800 rounded-lg p-4 flex flex-col">
+          <Card className="flex-1 flex flex-col bg-black-950 h-full">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center text-white">
+                <Users className="w-5 h-5 mr-2" />
+                Participants ({participants.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-y-auto p-0">
+              <div className="space-y-3 p-4">
+                {participants.map((participant) => (
+                  <div
+                    key={participant._id}
+                    className={`flex items-center space-x-3 p-3 rounded-lg ${
+                      participant._id === loggedInUserId
+                        ? 'bg-blue-900/30 border border-blue-700'
+                        : 'bg-gray-700/50'
+                    }`}
+                  >
+                    <div className="relative">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
+                        {participant.name.charAt(0)}
+                      </div>
+                      {/* Online status indicator */}
+                      <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800 ${
+                        isConnected ? 'bg-green-500' : 'bg-gray-500'
+                      }`}></div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">
+                        {participant.name}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {participant.email}
+                      </p>
+                    </div>
+                    {participant._id === loggedInUserId && (
+                      <Badge variant="default" className="text-xs">
+                        You
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
+
+      {/* Controls Bar */}
+      <div className="bg-gray-800 border-t border-gray-700 p-3 flex-shrink-0">
+        <div className="max-w-7xl mx-auto">
+          <ControlsBar
+            isAudioEnabled={isAudioEnabled}
+            isVideoEnabled={isVideoEnabled}
+            isSharingScreen={isSharingScreen}
+            onToggleAudio={toggleAudio}
+            onToggleVideo={toggleVideo}
+            onScreenShare={isSharingScreen ? stopScreenShare : startScreenShare}
+            onEndCall={handleEndCall}
+          />
+        </div>
+      </div>
     </div>
   );
 };

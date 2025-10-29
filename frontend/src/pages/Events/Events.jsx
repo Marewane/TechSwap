@@ -1,18 +1,21 @@
 // src/pages/Events/Events.jsx
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { useSessions } from '../../hooks/useSessions';
 import { useSelector } from 'react-redux';
 import SessionCard from '../../components/Session/SessionCard';
+import api from '../../services/api';
 
 const Events = () => {
+  const navigate = useNavigate();
+
   const {
     filteredSessions,
     loading,
     error,
-    stats,
     refreshSessions,
     statusFilter,
     setStatusFilter,
@@ -24,28 +27,34 @@ const Events = () => {
 
   const { user } = useSelector(state => state.user) || {};
 
-  // Mock handlers for now (we'll implement these later)
   const handleJoinSession = (session) => {
     console.log('Join session:', session._id);
-    // Navigate to live session page
+    navigate(`/live-session/${session._id}`);
   };
 
-  const handleStartSession = (session) => {
+  const handleStartSession = async (session) => {
     console.log('Start session:', session._id);
-    // Start the session via API
+    try {
+      const response = await api.post(`/sessions/${session._id}/start-live`);
+      console.log('Session started successfully:', response.data);
+      refreshSessions();
+      navigate(`/live-session/${session._id}`);
+    } catch (err) {
+      console.error('Error starting session:', err);
+      alert('Failed to start session. Please try again.');
+    }
   };
 
   const handleViewDetails = (session) => {
     console.log('View details:', session._id);
-    // Show session details modal
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 py-4 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading sessions...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600 text-sm">Loading sessions...</p>
         </div>
       </div>
     );
@@ -53,12 +62,12 @@ const Events = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 py-4 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-600 text-lg">Error: {error}</div>
-          <button 
+          <div className="text-red-600 text-base">Error: {error}</div>
+          <button
             onClick={refreshSessions}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="mt-2 px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
           >
             Retry
           </button>
@@ -68,53 +77,26 @@ const Events = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Sessions</h1>
-          <p className="mt-2 text-gray-600">
+    <div className="min-h-screen bg-gray-50 py-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+        {/* Page Header - Minimal spacing */}
+        <div className="mb-3">
+          <h1 className="text-xl font-bold text-gray-900 leading-tight">My Sessions</h1>
+          <p className="mt-0.5 text-gray-600 text-xs leading-tight">
             Manage your scheduled and upcoming sessions
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="p-4">
-              <CardTitle className="text-2xl">{stats.scheduled}</CardTitle>
-              <CardDescription>Scheduled</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="p-4">
-              <CardTitle className="text-2xl">{stats.completed}</CardTitle>
-              <CardDescription>Completed</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="p-4">
-              <CardTitle className="text-2xl">{stats.inProgress}</CardTitle>
-              <CardDescription>In Progress</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader className="p-4">
-              <CardTitle className="text-2xl">{stats.upcoming}</CardTitle>
-              <CardDescription>Upcoming</CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardHeader className="p-4">
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="flex flex-wrap gap-4 items-center">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Status:</label>
+        {/* Combined Filter & Sessions List Card - Tight padding */}
+        <Card className="shadow-sm">
+          {/* Filter Section - Very tight padding */}
+          <CardHeader className="p-3 pb-2">
+            <div className="flex flex-col md:flex-row gap-2 items-center justify-between">
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex items-center gap-1">
+                  <label className="text-xs font-medium text-gray-700">Status:</label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[120px]">
+                    <SelectTrigger className="w-[90px] h-7 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -130,10 +112,10 @@ const Events = () => {
                   </Select>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Date:</label>
+                <div className="flex items-center gap-1">
+                  <label className="text-xs font-medium text-gray-700">Date:</label>
                   <Select value={dateFilter} onValueChange={setDateFilter}>
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-[100px] h-7 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -146,63 +128,61 @@ const Events = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="flex items-center gap-1.5 w-full md:w-auto">
                 <Input
-                  placeholder="Search sessions..."
+                  placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full md:w-64"
+                  className="w-full md:w-48 h-7 text-xs"
                 />
-                <button 
+                <button
                   onClick={refreshSessions}
-                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+                  className="px-2.5 py-1.5 bg-gray-200 rounded hover:bg-gray-300 text-xs"
                 >
                   Refresh
                 </button>
               </div>
             </div>
           </CardHeader>
-        </Card>
 
-        {/* Sessions List */}
-        <Card>
-          <CardHeader className="p-6">
-            <div className="flex justify-between items-center">
-              <CardTitle>
-                Sessions ({filteredSessions.length}) 
+          {/* Sessions List Section - Minimal padding */}
+          <div className="p-3 pt-1">
+            <div className="flex justify-between items-center mb-2">
+              <CardTitle className="text-sm">
+                Sessions ({filteredSessions.length})
                 {searchQuery && ` - Search: "${searchQuery}"`}
               </CardTitle>
             </div>
-          </CardHeader>
-          <div className="p-6 space-y-4">
-            {filteredSessions.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 mb-4">
-                  {searchQuery ? 'No sessions match your search.' : 
-                   statusFilter !== 'all' ? 'No sessions with this status.' :
-                   'No sessions found. Create your first session!'}
-                </p>
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Clear search
-                  </button>
-                )}
-              </div>
-            ) : (
-              filteredSessions.map(session => (
-                <SessionCard
-                  key={session._id}
-                  session={session}
-                  currentUser={user}
-                  onJoinSession={handleJoinSession}
-                  onStartSession={handleStartSession}
-                  onViewDetails={handleViewDetails}
-                />
-              ))
-            )}
+            <div className="space-y-2.5">
+              {filteredSessions.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-gray-500 text-sm">
+                    {searchQuery ? 'No sessions match your search.' :
+                      statusFilter !== 'all' ? 'No sessions with this status.' :
+                        'No sessions found. Create your first session!'}
+                  </p>
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="mt-1 text-blue-600 hover:underline text-xs"
+                    >
+                      Clear search
+                    </button>
+                  )}
+                </div>
+              ) : (
+                filteredSessions.map(session => (
+                  <SessionCard
+                    key={session._id}
+                    session={session}
+                    currentUser={user}
+                    onJoinSession={handleJoinSession}
+                    onStartSession={handleStartSession}
+                    onViewDetails={handleViewDetails}
+                  />
+                ))
+              )}
+            </div>
           </div>
         </Card>
       </div>
