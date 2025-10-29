@@ -436,6 +436,79 @@ const markSessionReady = async (req, res) => {
 //   Auto      Host clicks   Host starts
 //   (time)    "Ready" btn   "Start" btn
 
+//old
+// const startLiveSession = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userId = req.user._id;
+
+//     const session = await Session.findById(id);
+//     if (!session) return res.status(404).json({ error: 'Session not found' });
+
+//     // Only HOST can start the session
+//     if (session.hostId.toString() !== userId.toString()) {
+//       return res.status(403).json({ error: 'Only host can start this session' });
+//     }
+
+//     // Session must be in "ready" status to start
+//     if (session.status !== 'ready') {
+//       return res.status(400).json({ 
+//         error: 'Session is not ready to start', 
+//         currentStatus: session.status 
+//       });
+//     }
+//     // NEW: Ensure we can start (timezone-aware)
+//     if (isTimeInFuture(session.scheduledTime)) {
+//       return res.status(400).json({ 
+//         error: 'Cannot start session before scheduled time',
+//         scheduledTime: session.scheduledTime,
+//         currentTime: new Date().toISOString()
+//       });
+//     }
+
+//     // // Update session status and start time
+//     // session.status = 'in-progress';
+//     // session.startedAt = new Date();
+//     // await session.save();
+
+//     //§§§§§§§§§§§§§§§§§§§§§§§ time conflicte 
+//     // Update session status and start time
+//     session.status = 'in-progress';
+//     session.startedAt = new Date();
+//     await session.save();
+//     //§§§§§§§§§§§§§§§§§§§§§§§§§
+
+//     //v1
+//     // // Emit socket event to notify other participant
+//     // const io = require('../server').io; // Reference to socket.io instance
+//     // io.to(`session-${id}`).emit('session-started', {
+//     //   sessionId: id,
+//     //   startedBy: userId,
+//     //   startedAt: session.startedAt
+//     // });
+
+//     // Emit socket event to notify other participant
+//     const { io } = require('./server'); // Get the io instance
+//     if (io) {
+//       io.to(`session-${id}`).emit('session-started', {
+//         sessionId: id,
+//         startedBy: userId,
+//         startedAt: session.startedAt
+//       });
+//     }
+
+//     const populated = await Session.findById(session._id)
+//       .populate('hostId', 'name email')
+//       .populate('learnerId', 'name email');
+
+//     return res.json({ 
+//       message: 'Session started successfully', 
+//        populated 
+//     });
+//   } catch (error) {
+//     return res.status(500).json({ error: error.message });
+//   }
+// };
 
 const startLiveSession = async (req, res) => {
   try {
@@ -443,70 +516,90 @@ const startLiveSession = async (req, res) => {
     const userId = req.user._id;
 
     const session = await Session.findById(id);
-    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (!session) {
+      console.error(`StartLiveSession: Session ${id} not found.`);
+      return res.status(404).json({ error: 'Session not found' });
+    }
 
-    // Only HOST can start the session
+    // Authorization: Only HOST can start the session
     if (session.hostId.toString() !== userId.toString()) {
+      console.warn(`StartLiveSession: User ${userId} is not the host (${session.hostId}) for session ${id}.`);
       return res.status(403).json({ error: 'Only host can start this session' });
     }
 
-    // Session must be in "ready" status to start
-    if (session.status !== 'ready') {
+    // Authorization & Status Check: Must be 'scheduled' or 'ready'
+    // Allow starting if:
+    // 1. Status is 'ready' (old way)
+    // 2. Status is 'scheduled' AND current time is >= scheduledTime (new/improved way)
+    const now = new Date();
+    const scheduledTime = new Date(session.scheduledTime);
+
+    const isReady = session.status === 'ready';
+    const isScheduledAndTimeReached = session.status === 'scheduled' && now >= scheduledTime;
+
+    if (!(isReady || isScheduledAndTimeReached)) {
+      console.warn(`StartLiveSession: Session ${id} cannot start. Status: ${session.status}, Now: ${now.toISOString()}, Scheduled: ${scheduledTime.toISOString()}`);
       return res.status(400).json({ 
         error: 'Session is not ready to start', 
-        currentStatus: session.status 
+        currentStatus: session.status,
+        currentTime: now.toISOString(),
+        scheduledTime: scheduledTime.toISOString(),
+        message: "Session must be 'ready' or 'scheduled' and the scheduled time must have passed."
       });
     }
-    // NEW: Ensure we can start (timezone-aware)
-    if (isTimeInFuture(session.scheduledTime)) {
+
+    // Time Check: Ensure we are not trying to start significantly before the scheduled time
+    // Allow a small buffer (e.g., 5 minutes) to account for slight clock differences.
+    const fiveMinutesInMillis = 5 * 60 * 1000;
+    if (scheduledTime.getTime() - now.getTime() > fiveMinutesInMillis) {
+      console.warn(`StartLiveSession: Attempting to start session ${id} too early. Scheduled: ${scheduledTime.toISOString()}, Now: ${now.toISOString()}`);
       return res.status(400).json({ 
-        error: 'Cannot start session before scheduled time',
+        error: 'Cannot start session significantly before scheduled time',
         scheduledTime: session.scheduledTime,
-        currentTime: new Date().toISOString()
+        currentTime: now.toISOString(),
+        timeDifferenceMinutes: Math.round((scheduledTime.getTime() - now.getTime()) / (1000 * 60))
       });
     }
 
-    // // Update session status and start time
-    // session.status = 'in-progress';
-    // session.startedAt = new Date();
-    // await session.save();
-
-    //§§§§§§§§§§§§§§§§§§§§§§§ time conflicte 
+    // If it was 'scheduled', transition it to 'in-progress' directly
+    // If it was 'ready', it also transitions to 'in-progress'
     // Update session status and start time
     session.status = 'in-progress';
-    session.startedAt = new Date();
+    session.startedAt = now; // Use current time for consistency
     await session.save();
-    //§§§§§§§§§§§§§§§§§§§§§§§§§
 
-    //v1
-    // // Emit socket event to notify other participant
-    // const io = require('../server').io; // Reference to socket.io instance
-    // io.to(`session-${id}`).emit('session-started', {
-    //   sessionId: id,
-    //   startedBy: userId,
-    //   startedAt: session.startedAt
-    // });
+    console.log(`StartLiveSession: Session ${id} started successfully by host ${userId}.`);
 
     // Emit socket event to notify other participant
-    const { io } = require('./server'); // Get the io instance
+    // Use the shared `io` instance correctly
+    const { io } = require('../server'); // Adjust path if needed, e.g., '../../server'
     if (io) {
       io.to(`session-${id}`).emit('session-started', {
         sessionId: id,
         startedBy: userId,
         startedAt: session.startedAt
       });
+      console.log(`StartLiveSession: Emitted 'session-started' event for session ${id}.`);
+    } else {
+      console.warn(`StartLiveSession: Socket.IO instance not found. Could not emit event for session ${id}.`);
     }
 
+    // Populate and return
     const populated = await Session.findById(session._id)
       .populate('hostId', 'name email')
       .populate('learnerId', 'name email');
 
     return res.json({ 
       message: 'Session started successfully', 
-       populated 
+      data: populated // Fixed typo: was ` populated` 
     });
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    console.error('StartLiveSession: Internal server error:', error);
+    // Include stack trace in development, not in production
+    return res.status(500).json({ 
+      error: 'Internal server error while starting session', 
+      // message: error.message // Uncomment for more detail in dev 
+    });
   }
 };
 
