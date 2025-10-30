@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, X, Loader2, Calendar } from "lucide-react";
+import { Plus, X, Loader2, Calendar, Check } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { createPost } from "@/features/posts/postsSlice";
 
 const CreatePostModal = () => {
     const dispatch = useDispatch();
     const { loading, error } = useSelector((state) => state.posts);
+    const { user } = useSelector((state) => state.user); // Get user data from Redux
     
     const [open, setOpen] = useState(false);
     const [formData, setFormData] = useState({
@@ -20,9 +21,12 @@ const CreatePostModal = () => {
         }
     });
 
-    const [skillInput, setSkillInput] = useState({ offered: "", wanted: "" });
     const [timeError, setTimeError] = useState("");
     const modalRef = useRef(null);
+
+    // Get user's actual skills from profile
+    const userTeachingSkills = user?.skillsToTeach || [];
+    const userLearningSkills = user?.skillsToLearn || [];
 
     const daysOfWeek = [
         { value: "Monday", label: "Monday", short: "Mon" },
@@ -59,42 +63,41 @@ const CreatePostModal = () => {
     }, [open]);
 
     // Generate time slots function
-const generateTimeSlots = (start, end, days) => {
-    if (!start || !end || !days || days.length === 0) return [];
-    
-    const slots = [];
-    const [startHour, startMin] = start.split(":").map(Number);
-    const [endHour, endMin] = end.split(":").map(Number);
+    const generateTimeSlots = (start, end, days) => {
+        if (!start || !end || !days || days.length === 0) return [];
+        
+        const slots = [];
+        const [startHour, startMin] = start.split(":").map(Number);
+        const [endHour, endMin] = end.split(":").map(Number);
 
-    let currentMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
-    const intervalMinutes = 30;
+        let currentMinutes = startHour * 60 + startMin;
+        const endMinutes = endHour * 60 + endMin;
+        const intervalMinutes = 30;
 
-    while (currentMinutes + 120 <= endMinutes) {
-        const slotStartMinutes = currentMinutes;
-        const slotEndMinutes = currentMinutes + 120;
-        
-        const startHours = Math.floor(slotStartMinutes / 60);
-        const startMins = slotStartMinutes % 60;
-        const endHours = Math.floor(slotEndMinutes / 60);
-        const endMins = slotEndMinutes % 60;
-        
-        const startTimeFormatted = `${String(startHours).padStart(2, '0')}:${String(startMins).padStart(2, '0')}`;
-        const endTimeFormatted = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
-        
-        // Create time slot without day: "12:00 - 14:00"
-        const timeSlot = `${startTimeFormatted} - ${endTimeFormatted}`;
-        
-        // Only add unique time slots (avoid duplicates)
-        if (!slots.includes(timeSlot)) {
-            slots.push(timeSlot);
+        while (currentMinutes + 120 <= endMinutes) {
+            const slotStartMinutes = currentMinutes;
+            const slotEndMinutes = currentMinutes + 120;
+            
+            const startHours = Math.floor(slotStartMinutes / 60);
+            const startMins = slotStartMinutes % 60;
+            const endHours = Math.floor(slotEndMinutes / 60);
+            const endMins = slotEndMinutes % 60;
+            
+            const startTimeFormatted = `${String(startHours).padStart(2, '0')}:${String(startMins).padStart(2, '0')}`;
+            const endTimeFormatted = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
+            
+            const timeSlot = `${startTimeFormatted} - ${endTimeFormatted}`;
+            
+            if (!slots.includes(timeSlot)) {
+                slots.push(timeSlot);
+            }
+            
+            currentMinutes += intervalMinutes;
         }
-        
-        currentMinutes += intervalMinutes;
-    }
 
-    return slots;
-};
+        return slots;
+    };
+
     // Validate time difference when both times are set
     useEffect(() => {
         if (formData.availability.startTime && formData.availability.endTime) {
@@ -120,24 +123,33 @@ const generateTimeSlots = (start, end, days) => {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const addSkill = (type) => {
-        const skill = skillInput[type].trim();
-        if (skill && !formData[type === "offered" ? "skillsOffered" : "skillsWanted"].includes(skill)) {
-            setFormData((prev) => ({
-                ...prev,
-                [type === "offered" ? "skillsOffered" : "skillsWanted"]: [
-                    ...prev[type === "offered" ? "skillsOffered" : "skillsWanted"],
-                    skill
-                ]
-            }));
-            setSkillInput((prev) => ({ ...prev, [type]: "" }));
-        }
+    // Toggle skill selection
+    const toggleSkill = (skill, type) => {
+        setFormData((prev) => {
+            const currentSkills = prev[type === "offered" ? "skillsOffered" : "skillsWanted"];
+            const isSelected = currentSkills.includes(skill);
+            
+            if (isSelected) {
+                return {
+                    ...prev,
+                    [type === "offered" ? "skillsOffered" : "skillsWanted"]: 
+                        currentSkills.filter(s => s !== skill)
+                };
+            } else {
+                return {
+                    ...prev,
+                    [type === "offered" ? "skillsOffered" : "skillsWanted"]: 
+                        [...currentSkills, skill]
+                };
+            }
+        });
     };
 
-    const removeSkill = (type, skillToRemove) => {
+    // Clear all selected skills for a type
+    const clearSkills = (type) => {
         setFormData((prev) => ({
             ...prev,
-            [type]: prev[type].filter((skill) => skill !== skillToRemove)
+            [type === "offered" ? "skillsOffered" : "skillsWanted"]: []
         }));
     };
 
@@ -209,6 +221,16 @@ const generateTimeSlots = (start, end, days) => {
             return;
         }
 
+        if (formData.skillsOffered.length === 0) {
+            alert("Please select at least one skill you can offer");
+            return;
+        }
+
+        if (formData.skillsWanted.length === 0) {
+            alert("Please select at least one skill you want to learn");
+            return;
+        }
+
         if (formData.availability.days.length > 0) {
             if (!formData.availability.startTime || !formData.availability.endTime) {
                 alert("Please set start and end time for selected days");
@@ -277,6 +299,163 @@ const generateTimeSlots = (start, end, days) => {
 
     const isEndTimeDisabled = !formData.availability.startTime;
 
+    // Skills Selection Component - Stacked layout
+    const SkillsSelection = () => (
+        <div className="space-y-6">
+            {/* Skills Offered Section */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700">
+                        Skills I Can Teach *
+                    </label>
+                    {formData.skillsOffered.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => clearSkills("offered")}
+                            className="text-xs text-red-600 hover:text-red-700"
+                        >
+                            Clear all
+                        </button>
+                    )}
+                </div>
+                
+                {/* Selected Skills Preview - Offered */}
+                <div className="flex flex-wrap gap-2 min-h-8">
+                    {formData.skillsOffered.map((skill, index) => (
+                        <span
+                            key={`offered-${index}`}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-600 text-white rounded-full text-xs"
+                        >
+                            📤 {skill}
+                            <X
+                                className="h-3 w-3 cursor-pointer hover:text-gray-300 ml-1"
+                                onClick={() => toggleSkill(skill, "offered")}
+                            />
+                        </span>
+                    ))}
+                    {formData.skillsOffered.length === 0 && (
+                        <span className="text-xs text-gray-500 italic">
+                            No skills selected yet
+                        </span>
+                    )}
+                </div>
+
+                {/* Skills Grid - Offered */}
+                {userTeachingSkills.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500 border border-gray-200 rounded-lg">
+                        <p className="text-sm">No teaching skills found in your profile.</p>
+                        <p className="text-xs mt-1">
+                            Update your profile to add skills you can teach.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+                        {userTeachingSkills.map((skill, index) => (
+                            <button
+                                key={index}
+                                type="button"
+                                onClick={() => toggleSkill(skill, "offered")}
+                                className={`p-2 rounded text-left transition-all text-xs ${
+                                    formData.skillsOffered.includes(skill)
+                                        ? "bg-gray-600 text-white"
+                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                }`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="font-medium truncate">{skill}</span>
+                                    {formData.skillsOffered.includes(skill) && (
+                                        <Check className="h-3 w-3 ml-1 flex-shrink-0" />
+                                    )}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Skills Wanted Section */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700">
+                        Skills I Want to Learn *
+                    </label>
+                    {formData.skillsWanted.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => clearSkills("wanted")}
+                            className="text-xs text-red-600 hover:text-red-700"
+                        >
+                            Clear all
+                        </button>
+                    )}
+                </div>
+                
+                {/* Selected Skills Preview - Wanted */}
+                <div className="flex flex-wrap gap-2 min-h-8">
+                    {formData.skillsWanted.map((skill, index) => (
+                        <span
+                            key={`wanted-${index}`}
+                            className="inline-flex items-center gap-1 px-2 py-1 border border-blue-400 bg-blue-50 text-blue-700 rounded-full text-xs"
+                        >
+                            📥 {skill}
+                            <X
+                                className="h-3 w-3 cursor-pointer hover:text-blue-500 ml-1"
+                                onClick={() => toggleSkill(skill, "wanted")}
+                            />
+                        </span>
+                    ))}
+                    {formData.skillsWanted.length === 0 && (
+                        <span className="text-xs text-gray-500 italic">
+                            No skills selected yet
+                        </span>
+                    )}
+                </div>
+
+                {/* Skills Grid - Wanted */}
+                {userLearningSkills.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500 border border-gray-200 rounded-lg">
+                        <p className="text-sm">No learning skills found in your profile.</p>
+                        <p className="text-xs mt-1">
+                            Update your profile to add skills you want to learn.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+                        {userLearningSkills.map((skill, index) => (
+                            <button
+                                key={index}
+                                type="button"
+                                onClick={() => toggleSkill(skill, "wanted")}
+                                className={`p-2 rounded text-left transition-all text-xs ${
+                                    formData.skillsWanted.includes(skill)
+                                        ? "bg-blue-500 text-white"
+                                        : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                }`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="font-medium truncate">{skill}</span>
+                                    {formData.skillsWanted.includes(skill) && (
+                                        <Check className="h-3 w-3 ml-1 flex-shrink-0" />
+                                    )}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Validation Messages */}
+            <div className="space-y-1">
+                {formData.skillsOffered.length === 0 && (
+                    <p className="text-xs text-red-600">Please select at least one skill to teach</p>
+                )}
+                {formData.skillsWanted.length === 0 && (
+                    <p className="text-xs text-red-600">Please select at least one skill to learn</p>
+                )}
+            </div>
+        </div>
+    );
+
     return (
         <>
             <button
@@ -341,86 +520,12 @@ const generateTimeSlots = (start, end, days) => {
                                     />
                                 </div>
 
-                                {/* Skills Offered */}
+                                {/* Skills Selection - Stacked Layout */}
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">Skills Offered</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={skillInput.offered}
-                                            onChange={(e) => setSkillInput({ ...skillInput, offered: e.target.value })}
-                                            placeholder="e.g., Python"
-                                            onKeyPress={(e) => {
-                                                if (e.key === "Enter") {
-                                                    e.preventDefault();
-                                                    addSkill("offered");
-                                                }
-                                            }}
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => addSkill("offered")}
-                                            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                        {formData.skillsOffered.map((skill, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="inline-flex items-center gap-1 px-3 py-1 bg-gray-600 text-white rounded-full text-sm"
-                                            >
-                                                {skill}
-                                                <X
-                                                    className="h-3 w-3 cursor-pointer hover:text-gray-300"
-                                                    onClick={() => removeSkill("skillsOffered", skill)}
-                                                />
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Skills Wanted */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">Skills Wanted</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={skillInput.wanted}
-                                            onChange={(e) => setSkillInput({ ...skillInput, wanted: e.target.value })}
-                                            placeholder="e.g., React"
-                                            onKeyPress={(e) => {
-                                                if (e.key === "Enter") {
-                                                    e.preventDefault();
-                                                    addSkill("wanted");
-                                                }
-                                            }}
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => addSkill("wanted")}
-                                            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                        {formData.skillsWanted.map((skill, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="inline-flex items-center gap-1 px-3 py-1 border border-gray-400 rounded-full text-sm"
-                                            >
-                                                {skill}
-                                                <X
-                                                    className="h-3 w-3 cursor-pointer hover:text-gray-500"
-                                                    onClick={() => removeSkill("skillsWanted", skill)}
-                                                />
-                                            </span>
-                                        ))}
-                                    </div>
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        Skills Selection *
+                                    </label>
+                                    <SkillsSelection />
                                 </div>
 
                                 {/* Availability Section */}
@@ -467,7 +572,7 @@ const generateTimeSlots = (start, end, days) => {
                                                     key={day.value}
                                                     type="button"
                                                     onClick={() => toggleDay(day.value)}
-                                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                                    className={`px-3 py-2 rounded-md text-xs font-medium transition-colors ${
                                                         formData.availability.days.includes(day.value)
                                                             ? "bg-gray-600 text-white hover:bg-gray-700"
                                                             : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -572,7 +677,10 @@ const generateTimeSlots = (start, end, days) => {
                                     <button
                                         type="button"
                                         onClick={handleSubmit}
-                                        disabled={loading || (formData.availability.days.length > 0 && timeError)}
+                                        disabled={loading || 
+                                                 (formData.availability.days.length > 0 && timeError) ||
+                                                 formData.skillsOffered.length === 0 ||
+                                                 formData.skillsWanted.length === 0}
                                         className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                     >
                                         {loading ? (
