@@ -4,56 +4,61 @@ const Post = require('../models/PostModel');
 const ChatRoom = require('../models/ChatRoomModel');
 const Notification = require('../models/NotificationModel');
 const mongoose = require('mongoose');
+const stripe = require('../services/stripeService');
+const User = require('../models/UserModel');
+const Wallet = require('../models/WalletModel');
+const Transaction = require('../models/TransactionModel');
+const Session = require('../models/SessionModel');
 
 const createSwapRequest = async (req, res) => {
   try {
     const { postId, scheduledTime, duration } = req.body;
     const requesterId = req.user._id;
 
-    //  DEBUG LOG
+    // DEBUG LOG
     console.log(" Swap request received:", { postId, scheduledTime, duration, requesterId });
 
-    //  Validate required fields
+    // Validate required fields
     if (!postId || !scheduledTime || !duration) {
       return res.status(400).json({ message: 'Missing required fields: postId, scheduledTime, duration' });
     }
 
-    //  Validate ObjectId
+    // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(postId)) {
       return res.status(400).json({ message: 'Invalid post ID format' });
     }
 
-    //  Validate date
+    // Validate date
     const scheduledDate = new Date(scheduledTime);
     if (isNaN(scheduledDate.getTime())) {
       return res.status(400).json({ message: 'Invalid scheduledTime. Use ISO string (e.g., "2025-10-25T12:00:00.000Z")' });
     }
 
-    //  Validate duration
+    // Validate duration
     if (typeof duration !== 'number' || duration <= 0 || duration > 480) {
       return res.status(400).json({ message: 'Duration must be a number between 1 and 480 minutes' });
     }
 
-    //  Fetch post
+    // Fetch post
     const post = await Post.findById(postId);
     if (!post) {
       console.log(" Post not found:", postId);
       return res.status(404).json({ message: 'Post not found.' });
     }
 
-    //  Prevent self-request
+    // Prevent self-request
     if (post.userId.toString() === requesterId.toString()) {
       console.log(" User tried to request own post:", { userId: requesterId, postId });
       return res.status(400).json({ message: 'You cannot request a swap on your own post.' });
     }
 
-    //  Prevent duplicate
+    // Prevent duplicate
     const exists = await SwapRequest.findOne({ postId, requesterId });
     if (exists) {
       return res.status(400).json({ message: 'You already sent a swap request for this post.' });
     }
 
-    //  Create swap request
+    // Create swap request
     const swapRequest = await SwapRequest.create({
       postId,
       requesterId,
@@ -61,11 +66,11 @@ const createSwapRequest = async (req, res) => {
       duration
     });
 
-    //  Notify post owner
+    // Notify post owner
     await Notification.create({
       userId: post.userId,
       senderId: req.user._id,
-      type: 'system',
+      type: 'swap_request',
       title: 'New Swap Request',
       content: `You have a new swap request from ${req.user.name}.`,
       relatedId: swapRequest._id,
@@ -99,8 +104,8 @@ const getSwapRequestsForPost = async (req, res) => {
 // Accept a swap request
 const acceptSwapRequest = async (req, res) => {
   try {
-    const { requestId } = req.params;
-    const swapRequest = await SwapRequest.findById(requestId);
+    const { id } = req.params;
+    const swapRequest = await SwapRequest.findById(id).populate('postId');
     
     if (!swapRequest) {
       return res.status(404).json({ message: 'Swap request not found' });
@@ -116,15 +121,15 @@ const acceptSwapRequest = async (req, res) => {
     swapRequest.status = 'accepted';
     await swapRequest.save();
 
-    // Notify requester
+    // ENRICHED NOTIFICATION: Include post title, skills, and owner name
     await Notification.create({
       userId: swapRequest.requesterId,
-      senderId: req.user._id,
+      senderId: req.user._id, // post owner
       type: 'swap_accepted',
-      title: 'Swap Request Accepted',
-      content: 'Your swap request has been accepted!',
+      title: `Swap Accepted: "${post.title}"`,
+      content: `Your request to swap "${post.skillsWanted?.join(', ') || 'skills'}" for "${post.skillsOffered?.join(', ') || 'skills'}" has been accepted by ${req.user.name}.`,
       relatedId: swapRequest._id,
-      relatedModel: 'Post'
+      relatedModel: 'SwapRequest'
     });
 
     res.json({ message: 'Swap request accepted', swapRequest });
@@ -172,9 +177,381 @@ const rejectSwapRequest = async (req, res) => {
   }
 };
 
+// Original payment validation (for backward compatibility)
+const validatePayment = async (req, res) => {
+  try {
+    const { id } = req.params; // swap request ID
+    const userId = req.user._id;
+
+    const swapRequest = await SwapRequest.findById(id).populate('postId');
+    if (!swapRequest) {
+      return res.status(404).json({ message: 'Swap request not found' });
+    }
+
+    // determine who is paying
+    const isRequester = userId.equals(swapRequest.requesterId);
+    const isOwner = userId.equals(swapRequest.postId.userId);
+
+    if (!isRequester && !isOwner) {
+      return res.status(403).json({ message: 'Not authorized to pay for this request' });
+    }
+
+    // Check user's wallet balance
+    const wallet = await Wallet.findOne({ userId });
+    const hasEnoughCoins = wallet && wallet.balance >= 50;
+
+    if (hasEnoughCoins) {
+      // ✅ User has enough coins - deduct from wallet
+      wallet.balance -= 50;
+      await wallet.save();
+
+      // Update swapRequest payment status
+      if (isRequester) swapRequest.requesterPaid = true;
+      if (isOwner) swapRequest.ownerPaid = true;
+      await swapRequest.save();
+
+      // Create transaction record
+      await Transaction.create({
+        walletId: wallet._id,
+        type: 'debit',
+        amount: 50,
+        balanceAfter: wallet.balance,
+        description: `Skill swap session payment - ${isRequester ? 'Requester' : 'Owner'}`,
+        fromUserId: userId,
+        sessionId: null // Will be updated when session is created
+      });
+
+      // Create notification for the other party
+      if (isRequester) {
+        await Notification.create({
+          userId: swapRequest.postId.userId,
+          senderId: userId,
+          type: 'payment',
+          title: 'Requester validated payment',
+          content: 'Requester has validated the payment using wallet coins. Please validate yours to confirm the swap.',
+          relatedId: swapRequest._id,
+          relatedModel: 'SwapRequest',
+        });
+      } else if (isOwner) {
+        await Notification.create({
+          userId: swapRequest.requesterId,
+          senderId: userId,
+          type: 'payment',
+          title: 'Owner validated payment',
+          content: 'The post owner has validated the payment using wallet coins. Please validate yours to complete the swap.',
+          relatedId: swapRequest._id,
+          relatedModel: 'SwapRequest',
+        });
+      }
+
+      // Check if both parties have paid and create session
+      let session = null;
+      if (swapRequest.requesterPaid && swapRequest.ownerPaid) {
+        session = await createSessionFromSwapRequest(swapRequest);
+        
+        // Update transactions with session ID
+        await Transaction.updateMany(
+          { 
+            $or: [
+              { fromUserId: swapRequest.requesterId },
+              { fromUserId: swapRequest.postId.userId }
+            ],
+            description: /skill swap session payment/
+          },
+          { sessionId: session._id }
+        );
+      }
+
+      return res.json({ 
+        success: true,
+        paymentMethod: 'wallet',
+        message: 'Payment validated successfully using wallet coins',
+        newBalance: wallet.balance,
+        sessionCreated: !!session,
+        session: session ? { _id: session._id } : null
+      });
+
+    } else {
+      // ❌ User doesn't have enough coins - redirect to Stripe for coin purchase
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'payment',
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: { 
+                name: 'TechSwap Coins Purchase',
+                description: `Purchase coins to validate your swap session (Need 50 coins, you have ${wallet?.balance || 0})`
+              },
+              unit_amount: 1000, // $10 for 100 coins
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          userId: userId.toString(),
+          coinsNumber: 100, // Give 100 coins for $10
+          purpose: 'swap_validation',
+          swapRequestId: swapRequest._id.toString(),
+          payerType: isRequester ? 'requester' : 'owner'
+        },
+        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-cancel`,
+      });
+
+      return res.json({ 
+        success: false,
+        paymentMethod: 'stripe',
+        message: 'Insufficient coins. Redirecting to purchase coins.',
+        url: session.url,
+        currentBalance: wallet?.balance || 0,
+        requiredBalance: 50
+      });
+    }
+
+  } catch (error) {
+    console.error('Payment validation error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to process payment', 
+      error: error.message 
+    });
+  }
+};
+
+// Check wallet balance before payment
+const checkWalletBalance = async (req, res) => {
+  try {
+    const { id } = req.params; // swap request ID
+    const userId = req.user._id;
+
+    const swapRequest = await SwapRequest.findById(id).populate('postId');
+    if (!swapRequest) {
+      return res.status(404).json({ message: 'Swap request not found' });
+    }
+
+    // Check user's wallet balance
+    const wallet = await Wallet.findOne({ userId });
+    const requiredCoins = 50;
+    const hasSufficientCoins = wallet && wallet.balance >= requiredCoins;
+
+    // Get swap details for the modal
+    const swapDetails = {
+      title: swapRequest.postId.title,
+      duration: swapRequest.duration,
+      scheduledTime: swapRequest.scheduledTime
+    };
+
+    res.json({
+      hasSufficientCoins,
+      currentBalance: wallet ? wallet.balance : 0,
+      requiredCoins,
+      swapDetails
+    });
+
+  } catch (error) {
+    console.error('Wallet balance check error:', error);
+    res.status(500).json({ message: 'Failed to check wallet balance', error: error.message });
+  }
+};
+
+// Process payment using coins
+const validateCoinPayment = async (req, res) => {
+  try {
+    const { id } = req.params; // swap request ID
+    const userId = req.user._id;
+
+    const swapRequest = await SwapRequest.findById(id).populate('postId');
+    if (!swapRequest) {
+      return res.status(404).json({ message: 'Swap request not found' });
+    }
+
+    // Check wallet balance again (in case it changed)
+    const wallet = await Wallet.findOne({ userId });
+    const requiredCoins = 50;
+    
+    if (!wallet || wallet.balance < requiredCoins) {
+      return res.status(400).json({ 
+        message: `Insufficient coins. Required: ${requiredCoins}, Available: ${wallet?.balance || 0}` 
+      });
+    }
+
+    // Deduct coins from wallet
+    wallet.balance -= requiredCoins;
+    await wallet.save();
+
+    // Create transaction record
+    await Transaction.create({
+      walletId: wallet._id,
+      type: 'debit',
+      amount: requiredCoins,
+      balanceAfter: wallet.balance,
+      description: 'Swap session validation payment',
+      fromUserId: userId,
+      swapRequestId: id
+    });
+
+    // Update swap request payment status
+    const isRequester = userId.equals(swapRequest.requesterId);
+    if (isRequester) {
+      swapRequest.requesterPaid = true;
+    } else {
+      swapRequest.ownerPaid = true;
+    }
+    await swapRequest.save();
+
+    // Create notification
+    await Notification.create({
+      userId: isRequester ? swapRequest.postId.userId : swapRequest.requesterId,
+      senderId: userId,
+      type: 'payment',
+      title: isRequester ? 'Requester validated payment' : 'Owner validated payment',
+      content: isRequester 
+        ? 'Requester has validated the payment using coins. Please validate yours to confirm the swap.'
+        : 'The post owner has validated the payment using coins. Please validate yours to complete the swap.',
+      relatedId: swapRequest._id,
+      relatedModel: 'SwapRequest',
+    });
+
+    // Check if both parties have paid and create session
+    let session = null;
+    if (swapRequest.requesterPaid && swapRequest.ownerPaid) {
+      session = await createSessionFromSwapRequest(swapRequest);
+    }
+
+    res.json({ 
+      message: 'Payment validated successfully', 
+      coinsDeducted: requiredCoins,
+      newBalance: wallet.balance,
+      sessionCreated: !!session
+    });
+
+  } catch (error) {
+    console.error('Coin payment validation error:', error);
+    res.status(500).json({ message: 'Failed to validate payment', error: error.message });
+  }
+};
+
+// Stripe payment for coin purchase
+const createStripePaymentForCoins = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { requiredCoins } = req.body;
+    const userId = req.user._id;
+
+    const swapRequest = await SwapRequest.findById(id);
+    if (!swapRequest) {
+      return res.status(404).json({ message: 'Swap request not found' });
+    }
+
+    // Calculate amount based on required coins (1 coin = $0.10)
+    const amountInCents = Math.ceil(requiredCoins * 0.1 * 100); // Convert to cents
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: { 
+              name: 'TechSwap Coins Purchase',
+              description: `Purchase ${requiredCoins} coins for swap session validation`
+            },
+            unit_amount: amountInCents,
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        userId: userId.toString(),
+        coinsNumber: requiredCoins,
+        swapRequestId: id.toString(),
+        purpose: 'swap_validation'
+      },
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?session_id={CHECKOUT_SESSION_ID}&swapRequestId=${id}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-cancel?swapRequestId=${id}`,
+    });
+
+    res.json({ 
+      id: session.id,
+      url: session.url
+    });
+
+  } catch (error) {
+    console.error('Stripe payment session error:', error);
+    res.status(500).json({ message: 'Failed to create payment session', error: error.message });
+  }
+};
+
+// Helper function to create swap session when both parties have paid
+const createSessionFromSwapRequest = async (swapRequest) => {
+  try {
+    const post = await Post.findById(swapRequest.postId);
+    
+    const session = await Session.create({
+      hostId: post.userId, // Post owner is the host
+      learnerId: swapRequest.requesterId,
+      createdBy: swapRequest.requesterId,
+      scheduledTime: swapRequest.scheduledTime,
+      duration: swapRequest.duration,
+      title: `Skill Swap: ${post.title}`,
+      cost: 50, // 50 coins total (25 from each party)
+      sessionType: 'skillExchange',
+      status: 'scheduled',
+      swapRequestId: swapRequest._id
+    });
+
+    // Create chat room for the session
+    const chatRoom = await ChatRoom.create({
+      participants: [post.userId, swapRequest.requesterId],
+      hostId: post.userId,
+      learnerId: swapRequest.requesterId,
+      postId: post._id,
+      swapRequestId: swapRequest._id,
+      sessionId: session._id,
+      scheduledTime: swapRequest.scheduledTime,
+      duration: swapRequest.duration,
+      hostPaid: true,
+      learnerPaid: true
+    });
+
+    // Notify both parties that session is confirmed
+    await Notification.create([
+      {
+        userId: post.userId,
+        type: 'session',
+        title: 'Session Confirmed!',
+        content: `Your swap session for "${post.title}" is now confirmed and scheduled for ${swapRequest.scheduledTime.toLocaleString()}.`,
+        relatedId: session._id,
+        relatedModel: 'Session'
+      },
+      {
+        userId: swapRequest.requesterId,
+        type: 'session',
+        title: 'Session Confirmed!',
+        content: `Your swap session for "${post.title}" is now confirmed and scheduled for ${swapRequest.scheduledTime.toLocaleString()}.`,
+        relatedId: session._id,
+        relatedModel: 'Session'
+      }
+    ]);
+
+    console.log(`Swap session created: ${session._id}`);
+    return session;
+  } catch (error) {
+    console.error('Error creating swap session:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   createSwapRequest,
   acceptSwapRequest,
   rejectSwapRequest,
   getSwapRequestsForPost,
+  validatePayment,
+  checkWalletBalance,
+  validateCoinPayment,
+  createStripePaymentForCoins
 };

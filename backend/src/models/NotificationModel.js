@@ -13,7 +13,7 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['session', 'message', 'review', 'payment', 'system', 'swap_accepted', 'swap_rejected'],
+        enum: ['session', 'message', 'review', 'payment', 'system', 'swap_request','swap_accepted', 'swap_rejected'],
         required: [true, 'Notification type is required']
     },
     title: {
@@ -29,7 +29,7 @@ const notificationSchema = new mongoose.Schema({
     relatedId: { type: mongoose.Schema.Types.ObjectId, default: null }, // can be swapRequestId, postId, sessionId, etc.
     relatedModel: {
         type: String,
-        enum: ['Session', 'Message', 'Review', 'Transaction', 'Post'],
+        enum: ['Session', 'Message', 'Review', 'Transaction', 'Post','SwapRequest'],
         default: null
     },
     isRead: {
