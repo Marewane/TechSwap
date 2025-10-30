@@ -26,12 +26,15 @@ const { notFoundHandler, errorHandler } = require("./middleware/errorMiddleware"
 const sessionPaymentRoutes = require('./routes/sessionPaymentRoutes');
 const app = express();
 
+
+// Stripe webhook route — must be before express.json
+app.use("/api/stripe", webHookRouters);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
-// Stripe webhook route — must be before express.json
-app.use("/api/stripe", webHookRouters);
+
 
 // Middleware
 app.use(passport.initialize());

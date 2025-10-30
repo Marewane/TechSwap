@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Bell, Check, X, Clock, Mail, CheckCircle, CreditCard, Coins, AlertCircle } from "lucide-react";
 
-// ✅ Payment Confirmation Modal Component
+//  Payment Confirmation Modal Component
 const PaymentConfirmationModal = ({ 
   isOpen, 
   onClose, 
@@ -56,7 +56,7 @@ const PaymentConfirmationModal = ({
   );
 };
 
-// ✅ ADDED: Insufficient Coins Modal Component
+// Insufficient Coins Modal Component
 const InsufficientCoinsModal = ({ 
   isOpen, 
   onClose, 
@@ -155,7 +155,7 @@ const NotificationsPage = () => {
     fetchNotifications();
   }, []);
 
-  // ✅ MODIFIED: New payment validation flow with better UX
+  // payment validation flow with better UX
   const handleValidatePayment = async (swapRequestId) => {
     setSelectedSwapRequest(swapRequestId);
     setProcessingPayment(swapRequestId);
@@ -189,7 +189,7 @@ const NotificationsPage = () => {
     }
   };
 
-  // ✅ ADDED: Handle coin payment confirmation
+  // Handle coin payment confirmation
   const handleCoinPaymentConfirm = async () => {
     if (!selectedSwapRequest) return;
     
@@ -219,7 +219,7 @@ const NotificationsPage = () => {
     }
   };
 
-  // ✅ ADDED: Handle buy coins redirect
+  // Handle buy coins redirect
   const handleBuyCoins = async () => {
     if (!selectedSwapRequest) return;
     

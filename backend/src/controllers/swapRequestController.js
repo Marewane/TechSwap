@@ -331,10 +331,23 @@ const checkWalletBalance = async (req, res) => {
       return res.status(404).json({ message: 'Swap request not found' });
     }
 
-    // Check user's wallet balance
-    const wallet = await Wallet.findOne({ userId });
+    //  Find or create wallet for user (using same logic as webhook)
+    const wallet = await Wallet.findOneAndUpdate(
+      { userId },
+      {
+        $setOnInsert: { 
+          balance: 0, 
+          totalEarned: 0, 
+          totalSpent: 0, 
+          currency: 'USD', 
+          isPlatform: false 
+        }
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
     const requiredCoins = 50;
-    const hasSufficientCoins = wallet && wallet.balance >= requiredCoins;
+    const hasSufficientCoins = wallet.balance >= requiredCoins;
 
     // Get swap details for the modal
     const swapDetails = {
@@ -345,7 +358,7 @@ const checkWalletBalance = async (req, res) => {
 
     res.json({
       hasSufficientCoins,
-      currentBalance: wallet ? wallet.balance : 0,
+      currentBalance: wallet.balance,
       requiredCoins,
       swapDetails
     });
@@ -434,6 +447,7 @@ const validateCoinPayment = async (req, res) => {
 };
 
 // Stripe payment for coin purchase
+// Stripe payment for coin purchase
 const createStripePaymentForCoins = async (req, res) => {
   try {
     const { id } = req.params;
@@ -445,8 +459,26 @@ const createStripePaymentForCoins = async (req, res) => {
       return res.status(404).json({ message: 'Swap request not found' });
     }
 
-    // Calculate amount based on required coins (1 coin = $0.10)
-    const amountInCents = Math.ceil(requiredCoins * 0.1 * 100); // Convert to cents
+    // ✅ FIX: Ensure user has a wallet (same logic as checkWalletBalance)
+    const wallet = await Wallet.findOneAndUpdate(
+      { userId },
+      {
+        $setOnInsert: { 
+          balance: 0, 
+          totalEarned: 0, 
+          totalSpent: 0, 
+          currency: 'USD', 
+          isPlatform: false 
+        }
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    // ✅ FIX: Use the requiredCoins from frontend, not hardcoded 100 coins
+    const coinsToPurchase = requiredCoins; // This comes from frontend calculation
+    const amountInCents = Math.ceil(coinsToPurchase * 0.1 * 100); // $0.10 per coin
+
+    console.log(`Creating Stripe session for ${coinsToPurchase} coins ($${(amountInCents / 100).toFixed(2)})`);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -457,22 +489,24 @@ const createStripePaymentForCoins = async (req, res) => {
             currency: 'usd',
             product_data: { 
               name: 'TechSwap Coins Purchase',
-              description: `Purchase ${requiredCoins} coins for swap session validation`
+              description: `Purchase ${coinsToPurchase} coins for swap session validation`
             },
-            unit_amount: amountInCents,
+            unit_amount: amountInCents, // This should be dynamic based on coinsToPurchase
           },
           quantity: 1,
         },
       ],
       metadata: {
         userId: userId.toString(),
-        coinsNumber: requiredCoins,
+        coinsNumber: coinsToPurchase.toString(), // ✅ Use the calculated amount
         swapRequestId: id.toString(),
         purpose: 'swap_validation'
       },
       success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?session_id={CHECKOUT_SESSION_ID}&swapRequestId=${id}`,
       cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-cancel?swapRequestId=${id}`,
     });
+
+    console.log(`Stripe session created: ${session.id} for ${coinsToPurchase} coins`);
 
     res.json({ 
       id: session.id,
