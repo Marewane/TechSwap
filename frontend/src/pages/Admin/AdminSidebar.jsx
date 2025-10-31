@@ -37,9 +37,9 @@ const AdminSidebar = () => {
             <SidebarHeader>
                 <div className="px-2 py-4 flex items-center gap-2">
                     {open ? (
-                        <h1 className="text-2xl font-bold tracking-wide text-primary">
+                        <Link to={"/home"} className="text-2xl font-bold tracking-wide text-primary">
                             TechSwap
-                        </h1>
+                        </Link>
                     ) : (
                         <ArrowLeftRight className="w-6 h-6 text-primary" />
                     )}

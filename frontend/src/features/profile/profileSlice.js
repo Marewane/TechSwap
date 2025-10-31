@@ -183,7 +183,9 @@ const profileSlice = createSlice({
             })
             .addCase(uploadAvatar.fulfilled, (state, action) => {
                 state.uploading = false;
-                // Avatar URL is now available for use in profile update
+                if (state.activeProfileType === 'myProfile' && state.myProfile) {
+                    state.myProfile.user.avatar = action.payload.url;
+                }
                 state.successMessage = "Avatar uploaded successfully!";
             })
             .addCase(uploadAvatar.rejected, (state, action) => {

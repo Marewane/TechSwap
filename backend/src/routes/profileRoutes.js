@@ -10,13 +10,11 @@ const { authMiddleware } = require('../middleware/authMiddleware');
 // Protect all profile routes
 router.use(authMiddleware);
 
-// @route   GET /api/profile/me
-router.get('/me', getMyProfile);
+router.get('/me', authMiddleware, getMyProfile);
+router.put('/update', authMiddleware, updateProfile);
 
-// @route   GET /api/profile/user/:userId
+// public route (no authMiddleware)
 router.get('/user/:userId', getUserProfile);
 
-// @route   PUT /api/profile/update
-router.put('/update', updateProfile);
 
 module.exports = router;
