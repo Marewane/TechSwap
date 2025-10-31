@@ -1,13 +1,13 @@
-// NotificationPage.jsx - UPDATED VERSION
+// NotificationPage.jsx - UPDATED VERSION WITH IMPROVED UX
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/services/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Bell, Check, X, Clock, Mail, CheckCircle, CreditCard, Coins, AlertCircle } from "lucide-react";
+import { Bell, Check, X, Clock, Mail, CheckCircle, CreditCard, Coins, AlertCircle, UserCheck, UserX, Loader2 } from "lucide-react";
 
-//  Payment Confirmation Modal Component
+// Payment Confirmation Modal Component
 const PaymentConfirmationModal = ({ 
   isOpen, 
   onClose, 
@@ -130,15 +130,89 @@ const InsufficientCoinsModal = ({
   );
 };
 
+// Payment Success Modal Component
+const PaymentSuccessModal = ({ 
+  isOpen, 
+  onClose, 
+  message 
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <Card className="max-w-md w-full p-6">
+        <div className="text-center">
+          <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-800 mb-2">
+            Payment Successful!
+          </h3>
+          <p className="text-gray-600 mb-4">
+            {message}
+          </p>
+          <Button
+            onClick={onClose}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            Continue
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// Action Feedback Component
+const ActionFeedback = ({ type, userName, message }) => {
+  if (type === "accepted") {
+    return (
+      <div className="flex items-center gap-2 mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <UserCheck className="h-5 w-5 text-green-600" />
+        <span className="text-green-700 font-medium">
+          {message || `You accepted ${userName}'s swap request`}
+        </span>
+      </div>
+    );
+  }
+  
+  if (type === "rejected") {
+    return (
+      <div className="flex items-center gap-2 mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <UserX className="h-5 w-5 text-red-600" />
+        <span className="text-red-700 font-medium">
+          {message || `You rejected ${userName}'s swap request`}
+        </span>
+      </div>
+    );
+  }
+
+  if (type === "payment_success") {
+    return (
+      <div className="flex items-center gap-2 mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <CheckCircle className="h-5 w-5 text-green-600" />
+        <span className="text-green-700 font-medium">
+          {message || "Payment validated successfully!"}
+        </span>
+      </div>
+    );
+  }
+  
+  return null;
+};
+
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingPayment, setProcessingPayment] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showInsufficientCoinsModal, setShowInsufficientCoinsModal] = useState(false);
+  const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
+  const [paymentSuccessMessage, setPaymentSuccessMessage] = useState("");
   const [selectedSwapRequest, setSelectedSwapRequest] = useState(null);
+  const [selectedNotificationId, setSelectedNotificationId] = useState(null);
   const [swapDetails, setSwapDetails] = useState(null);
   const [walletInfo, setWalletInfo] = useState({ currentBalance: 0, requiredCoins: 50 });
+  const [actionFeedback, setActionFeedback] = useState({});
+  const [processingActions, setProcessingActions] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -155,10 +229,32 @@ const NotificationsPage = () => {
     fetchNotifications();
   }, []);
 
+  // Check if notification should show payment validation button
+  const shouldShowPaymentButton = (notification) => {
+    // Show payment button for:
+    // 1. swap_accepted notifications (when your request was accepted)
+    // 2. payment notifications (when the other party has paid and you need to pay)
+    const isPaymentEligible = notification.type === 'swap_accepted' || notification.type === 'payment';
+    
+    return isPaymentEligible && 
+           !notification.isRead && 
+           !actionFeedback[notification._id] && 
+           !processingActions[notification._id];
+  };
+
   // payment validation flow with better UX
-  const handleValidatePayment = async (swapRequestId) => {
+  const handleValidatePayment = async (swapRequestId, notificationId) => {
     setSelectedSwapRequest(swapRequestId);
+    setSelectedNotificationId(notificationId);
     setProcessingPayment(swapRequestId);
+    
+    // Set processing state for this notification
+    if (notificationId) {
+      setProcessingActions(prev => ({
+        ...prev,
+        [notificationId]: 'payment'
+      }));
+    }
     
     try {
       console.log("Checking wallet balance for swap:", swapRequestId);
@@ -184,6 +280,15 @@ const NotificationsPage = () => {
     } catch (error) {
       console.error('Payment validation check failed:', error);
       alert('Payment check failed: ' + (error.response?.data?.message || error.message));
+      
+      // Remove processing state on error
+      if (notificationId) {
+        setProcessingActions(prev => {
+          const newProcessing = { ...prev };
+          delete newProcessing[notificationId];
+          return newProcessing;
+        });
+      }
     } finally {
       setProcessingPayment(null);
     }
@@ -191,7 +296,7 @@ const NotificationsPage = () => {
 
   // Handle coin payment confirmation
   const handleCoinPaymentConfirm = async () => {
-    if (!selectedSwapRequest) return;
+    if (!selectedSwapRequest || !selectedNotificationId) return;
     
     setProcessingPayment(selectedSwapRequest);
     try {
@@ -200,28 +305,40 @@ const NotificationsPage = () => {
       const { data } = await api.post(`/swap-requests/${selectedSwapRequest}/validate-coin-payment`);
       console.log("Coin payment response:", data);
 
-      // Success - close modal and refresh notifications
+      // Success - close modal and show success feedback
       setShowPaymentModal(false);
-      setSelectedSwapRequest(null);
-      setSwapDetails(null);
+      
+      // Show payment success feedback
+      setActionFeedback(prev => ({
+        ...prev,
+        [selectedNotificationId]: 'payment_success'
+      }));
+
+      // Mark notification as read
+      await markAsRead(selectedNotificationId);
       
       // Refresh notifications to show updated status
       const res = await api.get("/notifications");
       setNotifications(res.data || []);
       
-      alert('Payment validated successfully! 50 coins deducted from your wallet.');
+      // Show success message
+      setPaymentSuccessMessage('Payment validated successfully! 50 coins deducted from your wallet.');
+      setShowPaymentSuccessModal(true);
       
     } catch (error) {
       console.error('Coin payment failed:', error);
       alert('Payment failed: ' + (error.response?.data?.message || error.message));
     } finally {
       setProcessingPayment(null);
+      setSelectedSwapRequest(null);
+      setSelectedNotificationId(null);
+      setSwapDetails(null);
     }
   };
 
-  // Handle buy coins redirect
+  // Handle buy coins redirect - UPDATED to check for coins and auto-validate
   const handleBuyCoins = async () => {
-    if (!selectedSwapRequest) return;
+    if (!selectedSwapRequest || !selectedNotificationId) return;
     
     setProcessingPayment(selectedSwapRequest);
     try {
@@ -237,15 +354,21 @@ const NotificationsPage = () => {
       
       console.log("Stripe session created:", data);
 
-      // Redirect to Stripe checkout
+      // Open Stripe in a new tab instead of redirecting
       if (data.url) {
-        window.location.href = data.url;
+        window.open(data.url, '_blank');
       } else if (data.id) {
         const checkoutUrl = `https://checkout.stripe.com/c/pay/${data.id}`;
-        window.location.href = checkoutUrl;
+        window.open(checkoutUrl, '_blank');
       } else {
         throw new Error('No Stripe session URL received');
       }
+
+      // Close the insufficient coins modal
+      setShowInsufficientCoinsModal(false);
+      
+      // Show message to user
+      alert('Coin purchase opened in new tab. After purchase, please refresh this page to validate payment.');
       
     } catch (error) {
       console.error('Stripe session creation failed:', error);
@@ -267,31 +390,90 @@ const NotificationsPage = () => {
     }
   };
 
-  const handleAction = async (notificationId, action) => {
+  const handleAction = async (notificationId, action, userName, notificationDbId) => {
     try {
+      // Set processing state for this specific action
+      setProcessingActions(prev => ({
+        ...prev,
+        [notificationDbId]: action
+      }));
+
+      let response;
       if (action === "accept") {
-        await api.put(`/swap-requests/${notificationId}/accept`);
+        response = await api.put(`/swap-requests/${notificationId}/accept`);
       } else if (action === "reject") {
-        await api.put(`/swap-requests/${notificationId}/reject`);
+        response = await api.put(`/swap-requests/${notificationId}/reject`);
       }
-      await markAsRead(notificationId);
+      
+      console.log(`${action} response:`, response);
+
+      // Show feedback immediately with custom message
+      const feedbackMessage = action === "accept" 
+        ? `You accepted ${userName}'s swap request. They have been notified.`
+        : `You rejected ${userName}'s swap request.`;
+
+      setActionFeedback(prev => ({
+        ...prev,
+        [notificationDbId]: {
+          type: action,
+          message: feedbackMessage
+        }
+      }));
+
+      // Mark the original notification as read
+      await markAsRead(notificationDbId);
+      
+      // Refresh notifications to get any new notifications
       const res = await api.get("/notifications");
       setNotifications(res.data || []);
+      
     } catch (err) {
       console.error(`Failed to ${action} swap request`, err);
+      // Remove processing state on error
+      setProcessingActions(prev => {
+        const newProcessing = { ...prev };
+        delete newProcessing[notificationDbId];
+        return newProcessing;
+      });
+      
+      const errorMessage = err.response?.data?.message || err.message;
+      alert(`Failed to ${action} swap request: ${errorMessage}`);
+    } finally {
+      // Remove processing state after a short delay
+      setTimeout(() => {
+        setProcessingActions(prev => {
+          const newProcessing = { ...prev };
+          delete newProcessing[notificationDbId];
+          return newProcessing;
+        });
+      }, 1000);
     }
+  };
+
+  // Check if a notification should show swap actions
+  const shouldShowSwapActions = (notification) => {
+    // Only show actions for unread swap_request notifications
+    if (notification.type !== 'swap_request' || notification.isRead) {
+      return false;
+    }
+    
+    // Don't show actions if we're processing or have feedback
+    if (processingActions[notification._id] || actionFeedback[notification._id]) {
+      return false;
+    }
+    
+    return true;
   };
 
   const getIcon = (type) => {
     switch (type) {
       case "swap_accepted":
+      case "payment": // Use same icon for payment notifications
         return <CheckCircle className="text-green-500" />;
       case "swap_rejected":
         return <Clock className="text-red-500" />;
       case "message":
         return <Mail className="text-blue-500" />;
-      case "payment":
-        return <CreditCard className="text-blue-500" />;
       case "swap_request":
         return <Bell className="text-orange-500" />;
       default:
@@ -321,9 +503,14 @@ const NotificationsPage = () => {
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-800">Notifications</h1>
-          <Button variant="outline" onClick={() => navigate("/home")}>
-            Back to Home
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Refresh
+            </Button>
+            <Button variant="outline" onClick={() => navigate("/home")}>
+              Back to Home
+            </Button>
+          </div>
         </div>
 
         {notifications.length === 0 ? (
@@ -333,102 +520,132 @@ const NotificationsPage = () => {
           </Card>
         ) : (
           <div className="space-y-4">
-            {notifications.map((n) => (
-              <Card
-                key={n._id}
-                className={`p-5 rounded-2xl shadow-sm border transition-all hover:shadow-md ${
-                  n.isRead ? "bg-white" : "bg-indigo-50 border-indigo-200"
-                }`}
-              >
-                <div className="flex items-start gap-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={n.sender?.avatar} alt={n.sender?.name} />
-                    <AvatarFallback className="bg-indigo-100 text-indigo-700">
-                      {getInitials(n.sender?.name)}
-                    </AvatarFallback>
-                  </Avatar>
+            {notifications.map((n) => {
+              const isProcessing = processingActions[n._id];
+              const hasFeedback = actionFeedback[n._id];
+              const showSwapActions = shouldShowSwapActions(n);
+              const showPaymentButton = shouldShowPaymentButton(n);
+              
+              return (
+                <Card
+                  key={n._id}
+                  className={`p-5 rounded-2xl shadow-sm border transition-all hover:shadow-md ${
+                    n.isRead ? "bg-white" : "bg-indigo-50 border-indigo-200"
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={n.sender?.avatar} alt={n.sender?.name} />
+                      <AvatarFallback className="bg-indigo-100 text-indigo-700">
+                        {getInitials(n.sender?.name)}
+                      </AvatarFallback>
+                    </Avatar>
 
-                  <div className="flex-1">
-                    <div className="flex justify-between items-center mb-1">
-                      <div className="flex items-center gap-2">
-                        {getIcon(n.type)}
-                        <p className="font-semibold text-gray-800">
-                          {n.title || "New Notification"}
-                        </p>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <div className="flex items-center gap-2">
+                          {getIcon(n.type)}
+                          <p className="font-semibold text-gray-800">
+                            {n.title || "New Notification"}
+                          </p>
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {new Date(n.createdAt).toLocaleString()}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-500">
-                        {new Date(n.createdAt).toLocaleString()}
-                      </span>
-                    </div>
 
-                    <p className="text-gray-600 text-sm mb-3">{n.content}</p>
+                      <p className="text-gray-600 text-sm mb-3">{n.content}</p>
 
-                    {/* Swap Request Actions */}
-                    {n.type === "swap_request" && !n.isRead && (
-                      <div className="flex gap-2">
+                      {/* Show processing state */}
+                      {isProcessing && (
+                        <div className="flex items-center gap-2 mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                          <span className="text-blue-700 font-medium">
+                            {isProcessing === "accept" ? "Accepting..." : 
+                             isProcessing === "reject" ? "Rejecting..." : "Processing..."}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Show action feedback if available */}
+                      {hasFeedback && !isProcessing && (
+                        <ActionFeedback 
+                          type={hasFeedback.type || hasFeedback} 
+                          userName={n.sender?.name || "the user"}
+                          message={hasFeedback.message}
+                        />
+                      )}
+
+                      {/* Swap Request Actions */}
+                      {showSwapActions && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-green-600 text-white hover:bg-green-700"
+                            onClick={() => {
+                              console.log("Notification DB ID:", n._id);
+                              console.log("Related ID (swap request):", n.relatedId);
+                              handleAction(n.relatedId, "accept", n.sender?.name, n._id);
+                            }}
+                            disabled={isProcessing}
+                          >
+                            {isProcessing === "accept" ? (
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            ) : (
+                              <Check className="h-4 w-4 mr-1" />
+                            )}
+                            {isProcessing === "accept" ? "Accepting..." : "Accept"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-500 text-red-600 hover:bg-red-50"
+                            onClick={() => handleAction(n.relatedId, "reject", n.sender?.name, n._id)}
+                            disabled={isProcessing}
+                          >
+                            {isProcessing === "reject" ? (
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            ) : (
+                              <X className="h-4 w-4 mr-1" />
+                            )}
+                            {isProcessing === "reject" ? "Rejecting..." : "Reject"}
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Payment Action - For both swap_accepted AND payment type notifications */}
+                      {showPaymentButton && (
                         <Button
+                          onClick={() => handleValidatePayment(n.relatedId, n._id)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
                           size="sm"
-                          className="bg-green-600 text-white hover:bg-green-700"
-                          onClick={() => {
-                            console.log("n.relatedId:", n.relatedId);
-                            handleAction(n.relatedId, "accept");
-                          }}
+                          disabled={processingPayment === n.relatedId || isProcessing}
                         >
-                          <Check className="h-4 w-4 mr-1" /> Accept
+                          {processingPayment === n.relatedId || isProcessing ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <CreditCard className="h-4 w-4 mr-1" />
+                          )}
+                          {processingPayment === n.relatedId || isProcessing ? "Checking..." : "Validate Payment"}
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-red-500 text-red-600 hover:bg-red-50"
-                          onClick={() => handleAction(n.relatedId, "reject")}
-                        >
-                          <X className="h-4 w-4 mr-1" /> Reject
-                        </Button>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Payment Action */}
-                    {n.type === "swap_accepted" && !n.isRead && (
-                      <Button
-                        onClick={() => handleValidatePayment(n.relatedId)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        size="sm"
-                        disabled={processingPayment === n.relatedId}
-                      >
-                        <CreditCard className="h-4 w-4 mr-1" />
-                        {processingPayment === n.relatedId ? "Checking..." : "Validate Payment"}
-                      </Button>
-                    )}
-
-                    {/* Mark as Read Button */}
-                    {!n.isRead && n.type !== "swap_request" && n.type !== "payment" && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-xs mt-3 text-gray-500 hover:text-indigo-600"
-                        onClick={() => markAsRead(n._id)}
-                      >
-                        Mark as read
-                      </Button>
-                    )}
-
-                    {/* Mark as Read for swap requests and payments (shown after actions) */}
-                    {!n.isRead && (n.type === "swap_request" || n.type === "payment") && (
-                      <div className="mt-3">
+                      {/* Mark as Read Button - Only show if no active processing/feedback */}
+                      {!n.isRead && !showSwapActions && !showPaymentButton && !hasFeedback && !isProcessing && (
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-xs text-gray-500 hover:text-indigo-600"
+                          className="text-xs mt-3 text-gray-500 hover:text-indigo-600"
                           onClick={() => markAsRead(n._id)}
                         >
                           Mark as read
                         </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -439,6 +656,7 @@ const NotificationsPage = () => {
         onClose={() => {
           setShowPaymentModal(false);
           setSelectedSwapRequest(null);
+          setSelectedNotificationId(null);
           setSwapDetails(null);
         }}
         onConfirm={handleCoinPaymentConfirm}
@@ -452,6 +670,7 @@ const NotificationsPage = () => {
         onClose={() => {
           setShowInsufficientCoinsModal(false);
           setSelectedSwapRequest(null);
+          setSelectedNotificationId(null);
           setSwapDetails(null);
         }}
         onBuyCoins={handleBuyCoins}
@@ -459,6 +678,16 @@ const NotificationsPage = () => {
         currentBalance={walletInfo.currentBalance}
         requiredCoins={walletInfo.requiredCoins}
         swapDetails={swapDetails}
+      />
+
+      {/* Payment Success Modal */}
+      <PaymentSuccessModal
+        isOpen={showPaymentSuccessModal}
+        onClose={() => {
+          setShowPaymentSuccessModal(false);
+          setPaymentSuccessMessage("");
+        }}
+        message={paymentSuccessMessage}
       />
     </>
   );

@@ -448,6 +448,9 @@ const validateCoinPayment = async (req, res) => {
 
 // Stripe payment for coin purchase
 // Stripe payment for coin purchase
+// In your swapRequestController.js, update the createStripePaymentForCoins function:
+
+// Stripe payment for coin purchase - UPDATED to return to notifications
 const createStripePaymentForCoins = async (req, res) => {
   try {
     const { id } = req.params;
@@ -459,7 +462,7 @@ const createStripePaymentForCoins = async (req, res) => {
       return res.status(404).json({ message: 'Swap request not found' });
     }
 
-    // ✅ FIX: Ensure user has a wallet (same logic as checkWalletBalance)
+    // Ensure user has a wallet
     const wallet = await Wallet.findOneAndUpdate(
       { userId },
       {
@@ -474,8 +477,7 @@ const createStripePaymentForCoins = async (req, res) => {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
-    // ✅ FIX: Use the requiredCoins from frontend, not hardcoded 100 coins
-    const coinsToPurchase = requiredCoins; // This comes from frontend calculation
+    const coinsToPurchase = requiredCoins;
     const amountInCents = Math.ceil(coinsToPurchase * 0.1 * 100); // $0.10 per coin
 
     console.log(`Creating Stripe session for ${coinsToPurchase} coins ($${(amountInCents / 100).toFixed(2)})`);
@@ -491,19 +493,20 @@ const createStripePaymentForCoins = async (req, res) => {
               name: 'TechSwap Coins Purchase',
               description: `Purchase ${coinsToPurchase} coins for swap session validation`
             },
-            unit_amount: amountInCents, // This should be dynamic based on coinsToPurchase
+            unit_amount: amountInCents,
           },
           quantity: 1,
         },
       ],
       metadata: {
         userId: userId.toString(),
-        coinsNumber: coinsToPurchase.toString(), // ✅ Use the calculated amount
+        coinsNumber: coinsToPurchase.toString(),
         swapRequestId: id.toString(),
         purpose: 'swap_validation'
       },
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?session_id={CHECKOUT_SESSION_ID}&swapRequestId=${id}`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-cancel?swapRequestId=${id}`,
+      // UPDATED: Return to notifications page instead of payment success page
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/notifications?payment_success=true&coins=${coinsToPurchase}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/notifications?payment_cancelled=true`,
     });
 
     console.log(`Stripe session created: ${session.id} for ${coinsToPurchase} coins`);
@@ -519,65 +522,8 @@ const createStripePaymentForCoins = async (req, res) => {
   }
 };
 
-// Helper function to create swap session when both parties have paid
-const createSessionFromSwapRequest = async (swapRequest) => {
-  try {
-    const post = await Post.findById(swapRequest.postId);
-    
-    const session = await Session.create({
-      hostId: post.userId, // Post owner is the host
-      learnerId: swapRequest.requesterId,
-      createdBy: swapRequest.requesterId,
-      scheduledTime: swapRequest.scheduledTime,
-      duration: swapRequest.duration,
-      title: `Skill Swap: ${post.title}`,
-      cost: 50, // 50 coins total (25 from each party)
-      sessionType: 'skillExchange',
-      status: 'scheduled',
-      swapRequestId: swapRequest._id
-    });
 
-    // Create chat room for the session
-    const chatRoom = await ChatRoom.create({
-      participants: [post.userId, swapRequest.requesterId],
-      hostId: post.userId,
-      learnerId: swapRequest.requesterId,
-      postId: post._id,
-      swapRequestId: swapRequest._id,
-      sessionId: session._id,
-      scheduledTime: swapRequest.scheduledTime,
-      duration: swapRequest.duration,
-      hostPaid: true,
-      learnerPaid: true
-    });
 
-    // Notify both parties that session is confirmed
-    await Notification.create([
-      {
-        userId: post.userId,
-        type: 'session',
-        title: 'Session Confirmed!',
-        content: `Your swap session for "${post.title}" is now confirmed and scheduled for ${swapRequest.scheduledTime.toLocaleString()}.`,
-        relatedId: session._id,
-        relatedModel: 'Session'
-      },
-      {
-        userId: swapRequest.requesterId,
-        type: 'session',
-        title: 'Session Confirmed!',
-        content: `Your swap session for "${post.title}" is now confirmed and scheduled for ${swapRequest.scheduledTime.toLocaleString()}.`,
-        relatedId: session._id,
-        relatedModel: 'Session'
-      }
-    ]);
-
-    console.log(`Swap session created: ${session._id}`);
-    return session;
-  } catch (error) {
-    console.error('Error creating swap session:', error);
-    throw error;
-  }
-};
 
 module.exports = {
   createSwapRequest,
