@@ -49,6 +49,75 @@ const Events = () => {
     console.log('View details:', session._id);
   };
 
+  // --- NEW: Handle Cancel Session ---
+  // const handleCancelSession = async (session) => {
+  //   console.log('Cancel session:', session._id);
+  //   try {
+  //     // Confirm with user
+  //     if (!window.confirm(`Are you sure you want to cancel the session "${session.title}"?`)) {
+  //       return;
+  //     }
+
+  //     // Make API call to cancel session
+  //     const response = await api.delete(`/api/sessions/${session._id}`); // Using DELETE endpoint for cancellation
+  //     console.log('Session cancelled successfully:', response.data);
+
+  //     // Refresh the session list to reflect the change
+  //     refreshSessions();
+
+  //   } catch (err) {
+  //     console.error('Error cancelling session:', err);
+  //     alert('Failed to cancel session. Please try again.');
+  //   }
+  // };
+
+  const handleCancelSession = async (session) => {
+    console.log('Cancel session:', session._id);
+    try {
+      // Confirm with user
+      if (!window.confirm(`Are you sure you want to cancel the session "${session.title}"?`)) {
+        return;
+      }
+
+      // --- USE THE CORRECT ENDPOINT FOR CANCELLATION ---
+      // This should call your cancelSession controller function
+      // which sets status to 'cancelled'
+      const response = await api.delete(`/sessions/${session._id}`); // <-- CHANGED: Use DELETE method
+      console.log('Session cancelled successfully:', response.data);
+
+      // Refresh the session list to reflect the change
+      refreshSessions();
+
+      // Optional: Show success message to user
+      // alert('Session cancelled successfully!'); 
+
+    } catch (err) {
+      console.error('Error cancelling session:', err);
+      
+      // Handle specific error cases
+      if (err.response) {
+        // Server responded with error status
+        if (err.response.status === 403) {
+          alert('You are not authorized to cancel this session.');
+        } else if (err.response.status === 400) {
+          alert(`Cannot cancel session: ${err.response.data.message || 'Invalid request.'}`);
+        } else if (err.response.status === 404) {
+          alert('Session not found.');
+        } else {
+          alert(`Failed to cancel session (Error ${err.response.status}). Please try again.`);
+        }
+      } else if (err.request) {
+        // Request was made but no response received
+        alert('Network error. Please check your connection and try again.');
+      } else {
+        // Something else happened
+        alert('Failed to cancel session. Please try again.');
+      }
+    }
+  };
+
+
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-4 flex items-center justify-center">
@@ -179,6 +248,7 @@ const Events = () => {
                     onJoinSession={handleJoinSession}
                     onStartSession={handleStartSession}
                     onViewDetails={handleViewDetails}
+                    onCancelSession={handleCancelSession} // Pass the new handler
                   />
                 ))
               )}

@@ -1,0 +1,239 @@
+<!-- backend/src/tests/socket-test.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; height: 300px; overflow-y: auto; border: 1px solid #ccc; }
+        input, button { margin: 5px; padding: 8px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Socket.IO Server Test</h1>
+        
+        <div>
+            <input type="text" id="tokenInput" placeholder="Paste your JWT token here" size="50">
+            <input type="text" id="sessionIdInput" placeholder="Session ID (e.g., 68fc12b77405af45b64ad094)" size="40">
+            <button onclick="connectSocket()">Connect</button>
+            <button onclick="disconnectSocket()">Disconnect</button>
+        </div>
+
+        <div>
+            <button onclick="joinSession()">Join Session</button>
+            <button onclick="leaveSession()">Leave Session</button>
+            <button onclick="sendTestOffer()">Send Test Offer</button>
+            <button onclick="sendTestAnswer()">Send Test Answer</button>
+            <button onclick="sendTestIceCandidate()">Send Test ICE Candidate</button>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        let socket;
+        let currentSessionId;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function connectSocket() {
+            const token = document.getElementById('tokenInput').value.trim();
+            currentSessionId = document.getElementById('sessionIdInput').value.trim();
+            
+            if (!token) {
+                log('Please enter a JWT token', 'error');
+                return;
+            }
+
+            if (!currentSessionId) {
+                log('Please enter a Session ID', 'error');
+                return;
+            }
+
+            log('Connecting to Socket.IO server...');
+            
+            // Connect with JWT token in auth
+            socket = io('http://localhost:5000', {
+                auth: {
+                    token: token
+                },
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                log(`✅ Connected to server with ID: ${socket.id}`, 'success');
+            });
+
+            socket.on('disconnect', (reason) => {
+                log(`❌ Disconnected from server. Reason: ${reason}`, 'error');
+            });
+
+            socket.on('connect_error', (error) => {
+                log(`❌ Connection Error: ${error.message}`, 'error');
+            });
+
+            socket.on('error', (error) => {
+                log(`❌ Socket Error: ${error.message}`, 'error');
+            });
+
+            // --- Test Event Listeners ---
+            socket.on('session-joined', (data) => {
+                log(`✅ Session joined: ${JSON.stringify(data)}`, 'success');
+            });
+
+            socket.on('session-left', (data) => {
+                log(`✅ Session left: ${JSON.stringify(data)}`, 'success');
+            });
+
+            socket.on('user-joined', (data) => {
+                log(`👥 User joined session: ${JSON.stringify(data)}`, 'info');
+            });
+
+            socket.on('user-left', (data) => {
+                log(`👥 User left session: ${JSON.stringify(data)}`, 'info');
+            });
+
+            socket.on('webrtc-offer', (data) => {
+                log(`📡 Received WebRTC Offer from ${data.from}: ${data.offer?.type}`, 'info');
+            });
+
+            socket.on('webrtc-answer', (data) => {
+                log(`📡 Received WebRTC Answer from ${data.from}: ${data.answer?.type}`, 'info');
+            });
+
+            socket.on('webrtc-ice-candidate', (data) => {
+                log(`📡 Received WebRTC ICE Candidate from ${data.from}: ${data.candidate?.candidate?.substring(0, 50)}...`, 'info');
+            });
+
+            socket.on('session-started', (data) => {
+                log(`🎬 Session started by ${data.startedBy}: ${JSON.stringify(data)}`, 'success');
+            });
+
+            socket.on('session-ended', (data) => {
+                log(`🎬 Session ended by ${data.endedBy}: ${JSON.stringify(data)}`, 'info');
+            });
+        }
+
+        function disconnectSocket() {
+            if (socket) {
+                log('Disconnecting from Socket.IO server...');
+                socket.disconnect();
+            } else {
+                log('No socket connection to disconnect', 'error');
+            }
+        }
+
+        function joinSession() {
+            if (!socket || !socket.connected) {
+                log('Not connected to Socket.IO server', 'error');
+                return;
+            }
+
+            if (!currentSessionId) {
+                log('No session ID provided', 'error');
+                return;
+            }
+
+            log(`Joining session room: ${currentSessionId}`);
+            socket.emit('join-session', currentSessionId);
+        }
+
+        function leaveSession() {
+            if (!socket || !socket.connected) {
+                log('Not connected to Socket.IO server', 'error');
+                return;
+            }
+
+            if (!currentSessionId) {
+                log('No session ID provided', 'error');
+                return;
+            }
+
+            log(`Leaving session room: ${currentSessionId}`);
+            socket.emit('leave-session', currentSessionId);
+        }
+
+        function sendTestOffer() {
+            if (!socket || !socket.connected) {
+                log('Not connected to Socket.IO server', 'error');
+                return;
+            }
+
+            if (!currentSessionId) {
+                log('No session ID provided', 'error');
+                return;
+            }
+
+            const testData = {
+                offer: { type: 'offer', sdp: 'fake-test-offer-sdp-data' },
+                targetUserId: 'test-target-user-id',
+                sessionId: currentSessionId
+            };
+
+            log(`📤 Sending WebRTC Offer: ${JSON.stringify(testData)}`);
+            socket.emit('webrtc-offer', testData);
+        }
+
+        function sendTestAnswer() {
+            if (!socket || !socket.connected) {
+                log('Not connected to Socket.IO server', 'error');
+                return;
+            }
+
+            if (!currentSessionId) {
+                log('No session ID provided', 'error');
+                return;
+            }
+
+            const testData = {
+                answer: { type: 'answer', sdp: 'fake-test-answer-sdp-data' },
+                targetUserId: 'test-target-user-id',
+                sessionId: currentSessionId
+            };
+
+            log(`📤 Sending WebRTC Answer: ${JSON.stringify(testData)}`);
+            socket.emit('webrtc-answer', testData);
+        }
+
+        function sendTestIceCandidate() {
+            if (!socket || !socket.connected) {
+                log('Not connected to Socket.IO server', 'error');
+                return;
+            }
+
+            if (!currentSessionId) {
+                log('No session ID provided', 'error');
+                return;
+            }
+
+            const testData = {
+                candidate: { 
+                    candidate: 'fake-test-ice-candidate-data', 
+                    sdpMid: '0', 
+                    sdpMLineIndex: 0 
+                },
+                targetUserId: 'test-target-user-id',
+                sessionId: currentSessionId
+            };
+
+            log(`📤 Sending WebRTC ICE Candidate: ${JSON.stringify(testData)}`);
+            socket.emit('webrtc-ice-candidate', testData);
+        }
+    </script>
+</body>
+</html>

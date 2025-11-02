@@ -13,7 +13,8 @@ import {
   MapPin,
   Users,
   Info,
-  AlertCircle // Import AlertCircle icon for warnings
+  AlertCircle, // Import AlertCircle icon for warnings
+  X // Import X icon for Cancel button
 } from 'lucide-react';
 
 const SessionCard = ({ 
@@ -21,7 +22,8 @@ const SessionCard = ({
   currentUser, 
   onJoinSession,
   onStartSession,
-  onViewDetails
+  onViewDetails,
+  onCancelSession // New prop for cancel functionality
 }) => {
   const [showPopup, setShowPopup] = useState(false);
 
@@ -187,7 +189,20 @@ const SessionCard = ({
               {buttonProps.tooltip && renderTooltip(buttonProps.tooltip)}
               {session.status === 'scheduled' && isTooLate && renderTooltip('Session time has passed.')}
             </div>
-            
+
+            {/* Cancel Session Button - Only for scheduled sessions */}
+            {session.status === 'scheduled' && (
+              <Button
+                onClick={() => onCancelSession(session)} // Call the new handler
+                variant="destructive"
+                size="sm"
+                className="flex items-center"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Cancel Session
+              </Button>
+            )}
+
             {/* Details Button */}
             <Button
               variant="ghost"

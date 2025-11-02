@@ -20,7 +20,10 @@ api.interceptors.request.use((config) => {
         config.headers = config.headers || {};
         config.headers.Authorization = `Bearer ${auth.tokens.accessToken}`;
       }
-    } catch (e) {}
+    } catch (e) {
+            console.error("Error parsing auth from localStorage:", e);
+
+    }
   }
   return config;
 }, (err) => Promise.reject(err));

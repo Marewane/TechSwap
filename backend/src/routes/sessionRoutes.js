@@ -11,7 +11,7 @@ router.get('/completed', auth.authMiddleware, sessionController.getCompletedSess
 router.post('/', auth.authMiddleware, sessionController.createSession);
 router.get('/my', auth.authMiddleware, sessionController.getMySessions);
 router.get('/:id', auth.authMiddleware, sessionController.getSessionById);
-router.put('/:id', auth.authMiddleware, sessionController.updateSession);
+router.put('/:id', auth.authMiddleware, sessionController.updateSession); // he cant update session when it created he cannot modify on it 
 router.delete('/:id', auth.authMiddleware, sessionController.cancelSession);
 
 // Session status operations

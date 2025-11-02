@@ -155,7 +155,7 @@ const createSession = async (req, res) => {
       description: description || '',
       sessionType: sessionType || 'skillExchange',
       // Duration auto-set to 120 minutes by model
-      createdBy: req.user._id
+      //createdBy: req.user._id
     });
 
     // Return populated session
@@ -205,7 +205,7 @@ const getSessionById = async (req, res) => {
     const session = await Session.findById(req.params.id)
       .populate('hostId', 'name email')
       .populate('learnerId', 'name email')
-      .populate('createdBy', 'name email');
+      //.populate('createdBy', 'name email');
 
     if (!session) return res.status(404).json({ error: 'Session not found' });
     return res.json({ data: session });
@@ -218,61 +218,144 @@ const getSessionById = async (req, res) => {
  * Update a session
  */
 const updateSession = async (req, res) => {
-  try {
-    const sessionId = req.params.id;
-    const updates = req.body;
+   return res.status(400).json({ 
+    error: 'Bad Request', 
+    message: 'Session updates are not allowed. Use /start-live, /end-live, or /mark-no-show endpoints.' 
+  });
+  // try {
+  //   const sessionId = req.params.id;
+  //   const updates = req.body;
 
-    const session = await Session.findById(sessionId);
-    if (!session) return res.status(404).json({ error: 'Session not found' });
+  //   const session = await Session.findById(sessionId);
+  //   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-    // Determine candidate new start/end for availability check
-    const newStart = updates.scheduledTime ? new Date(updates.scheduledTime) : new Date(session.scheduledTime);
-    const newDuration = (updates.duration !== undefined) ? updates.duration : session.duration;
-    const newEnd = new Date(newStart.getTime() + newDuration * 60000);
+  //   // Determine candidate new start/end for availability check
+  //   const newStart = updates.scheduledTime ? new Date(updates.scheduledTime) : new Date(session.scheduledTime);
+  //   const newDuration = (updates.duration !== undefined) ? updates.duration : session.duration;
+  //   const newEnd = new Date(newStart.getTime() + newDuration * 60000);
 
-    const participantIds = [session.hostId.toString(), session.learnerId.toString()];
-    const conflicts = await findConflicts(participantIds, newStart, newEnd, sessionId);
-    if (conflicts.length > 0) {
-      return res.status(409).json({ error: 'Time slot conflict for one of the participants', conflicts });
-    }
+  //   const participantIds = [session.hostId.toString(), session.learnerId.toString()];
+  //   const conflicts = await findConflicts(participantIds, newStart, newEnd, sessionId);
+  //   if (conflicts.length > 0) {
+  //     return res.status(409).json({ error: 'Time slot conflict for one of the participants', conflicts });
+  //   }
 
-    Object.assign(session, updates);
-    await session.save();
+  //   Object.assign(session, updates);
+  //   await session.save();
 
-    // return populated session
-    const populated = await Session.findById(sessionId)
-      .populate('hostId', 'name email')
-      .populate('learnerId', 'name email')
-      .populate('createdBy', 'name email');
+  //   // return populated session
+  //   const populated = await Session.findById(sessionId)
+  //     .populate('hostId', 'name email')
+  //     .populate('learnerId', 'name email')
+  //     //.populate('createdBy', 'name email');
 
-    return res.json({ message: 'Session updated successfully', data: populated });
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
-  }
+  //   return res.json({ message: 'Session updated successfully', data: populated });
+  // } catch (error) {
+  //   return res.status(500).json({ error: error.message });
+  // }
 };
 
+
+//old version
+
+// /**
+//  * Cancel a session
+//  */
+// const cancelSession = async (req, res) => {
+//   try {
+//     const sessionId = req.params.id;
+//     const session = await Session.findById(sessionId);
+//     if (!session) return res.status(404).json({ error: 'Session not found' });
+
+//     session.status = 'cancelled';
+//     await session.save();
+
+//     const populated = await Session.findById(sessionId)
+//       .populate('hostId', 'name email')
+//       .populate('learnerId', 'name email')
+//       //.populate('createdBy', 'name email');
+
+//     return res.json({ message: 'Session cancelled', data: populated });
+//   } catch (err) {
+//     return res.status(500).json({ error: err.message });
+//   }
+// };
+
+
+// src/controllers/sessionController.js
+// ...
 /**
  * Cancel a session
+ * Allows either the host or the learner to cancel the session,
+ * but only if it's scheduled (before it goes live).
  */
 const cancelSession = async (req, res) => {
   try {
     const sessionId = req.params.id;
-    const session = await Session.findById(sessionId);
-    if (!session) return res.status(404).json({ error: 'Session not found' });
+    const userId = req.user._id; // Get the ID of the user making the request
 
+    // 1. Find the session
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      console.warn(`CancelSession: Session ${sessionId} not found.`);
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // 2. Authorization: Check if the user is either the host or the learner
+    const isHost = session.hostId.toString() === userId.toString();
+    const isLearner = session.learnerId.toString() === userId.toString();
+
+    if (!isHost && !isLearner) {
+      console.warn(`CancelSession: User ${userId} is not authorized to cancel session ${sessionId}.`);
+      return res.status(403).json({ error: 'Not authorized to cancel this session' });
+    }
+
+    // 3. Business Logic: Check if session is in a valid state to be cancelled
+    // Based on your current flow, only 'scheduled' sessions should be cancellable via this endpoint.
+    // If you later add a 'ready' state, you can include it here: ['scheduled', 'ready']
+    const isValidStatus = session.status === 'scheduled'; 
+    if (!isValidStatus) {
+      console.warn(`CancelSession: Cannot cancel session ${sessionId} with status '${session.status}'.`);
+      return res.status(400).json({ 
+        error: 'Cannot cancel session', 
+        message: `Session with status '${session.status}' cannot be cancelled.` 
+      });
+    }
+
+    // 4. Perform cancellation
     session.status = 'cancelled';
+    session.updatedAt = new Date(); // Explicitly update timestamp
+
     await session.save();
 
+    console.log(`CancelSession: Session ${sessionId} cancelled by user ${userId} (${isHost ? 'Host' : 'Learner'}).`);
+
+    // 5. Populate and return
     const populated = await Session.findById(sessionId)
       .populate('hostId', 'name email')
-      .populate('learnerId', 'name email')
-      .populate('createdBy', 'name email');
+      .populate('learnerId', 'name email');
 
-    return res.json({ message: 'Session cancelled', data: populated });
+    // 6. Emit Socket.IO event (Optional)
+    // const { io } = require('../server'); // Adjust path
+    // if (io) {
+    //   io.to(`session-${sessionId}`).emit('session-cancelled', {
+    //     sessionId: session._id,
+    //     cancelledBy: userId,
+    //     cancelledByName: isHost ? populated.hostId.name : populated.learnerId.name,
+    //     timestamp: session.updatedAt
+    //   });
+    // }
+
+    return res.json({ 
+      message: 'Session cancelled successfully', 
+       populated 
+    });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('CancelSession: Internal server error:', err);
+    return res.status(500).json({ error: 'Internal server error while cancelling session' });
   }
 };
+
 // 
 /** §§§ 1.2
  * Get upcoming sessions for current user
@@ -510,6 +593,7 @@ const markSessionReady = async (req, res) => {
 //   }
 // };
 
+// //worked perfectly
 const startLiveSession = async (req, res) => {
   try {
     const { id } = req.params;
@@ -602,6 +686,8 @@ const startLiveSession = async (req, res) => {
     });
   }
 };
+
+// new start live session 
 
 
 /**
