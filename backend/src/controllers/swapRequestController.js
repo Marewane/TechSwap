@@ -10,6 +10,58 @@ const Wallet = require('../models/WalletModel');
 const Transaction = require('../models/TransactionModel');
 const Session = require('../models/SessionModel');
 
+// Helper to create a session and chat room once both parties have paid
+const createSessionFromSwapRequest = async (swapRequest) => {
+  const post = await Post.findById(swapRequest.postId);
+
+  const session = await Session.create({
+    hostId: post.userId,
+    learnerId: swapRequest.requesterId,
+    createdBy: swapRequest.requesterId,
+    scheduledTime: swapRequest.scheduledTime,
+    duration: swapRequest.duration,
+    title: `Skill Swap: ${post.title}`,
+    cost: 50,
+    sessionType: 'skillExchange',
+    status: 'scheduled',
+    swapRequestId: swapRequest._id
+  });
+
+  await ChatRoom.create({
+    participants: [post.userId, swapRequest.requesterId],
+    hostId: post.userId,
+    learnerId: swapRequest.requesterId,
+    postId: post._id,
+    swapRequestId: swapRequest._id,
+    sessionId: session._id,
+    scheduledTime: swapRequest.scheduledTime,
+    duration: swapRequest.duration,
+    hostPaid: true,
+    learnerPaid: true
+  });
+
+  await Notification.create([
+    {
+      userId: post.userId,
+      type: 'session',
+      title: 'Session Confirmed!',
+      content: `Your swap session for "${post.title}" is now confirmed and scheduled for ${swapRequest.scheduledTime.toLocaleString()}.`,
+      relatedId: session._id,
+      relatedModel: 'Session'
+    },
+    {
+      userId: swapRequest.requesterId,
+      type: 'session',
+      title: 'Session Confirmed!',
+      content: `Your swap session for "${post.title}" is now confirmed and scheduled for ${swapRequest.scheduledTime.toLocaleString()}.`,
+      relatedId: session._id,
+      relatedModel: 'Session'
+    }
+  ]);
+
+  return session;
+};
+
 const createSwapRequest = async (req, res) => {
   try {
     const { postId, scheduledTime, duration } = req.body;

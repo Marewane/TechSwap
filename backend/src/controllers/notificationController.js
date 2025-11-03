@@ -2,8 +2,21 @@ const Notification = require('../models/NotificationModel');
 
 getMyNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ userId: req.user._id }).sort({ createdAt: -1 });
-    res.json(notifications);
+    // Fetch latest notifications and populate sender info
+    const notifications = await Notification.find({ userId: req.user._id })
+      .sort({ createdAt: -1 })
+      .populate('senderId', 'name avatar');
+
+    // Map senderId into a "sender" field to match frontend expectations
+    const shaped = notifications.map((n) => {
+      const json = n.toObject();
+      return {
+        ...json,
+        sender: json.senderId || null,
+      };
+    });
+
+    res.json(shaped);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -11,7 +24,7 @@ getMyNotifications = async (req, res) => {
 
 markAsRead = async (req, res) => {
   try {
-    await Notification.findByIdAndUpdate(req.params.id, { read: true });
+    await Notification.findByIdAndUpdate(req.params.id, { isRead: true });
     res.json({ message: 'Marked as read.' });
   } catch (err) {
     res.status(500).json({ message: err.message });

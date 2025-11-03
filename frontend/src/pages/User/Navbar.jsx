@@ -1,7 +1,6 @@
 // frontend/src/pages/User/Navbar.jsx
 import { Link, useLocation } from "react-router-dom";
-
-import { Menu, User, LogOut,CircleDollarSign  } from "lucide-react";
+import { Menu, User, LogOut, CircleDollarSign, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,20 +9,23 @@ import { useEffect, useState } from "react";
 import api from "@/services/api";
 
 const Navbar = () => {
-
   const [unreadCount, setUnreadCount] = useState(0);
-    const location = useLocation();
-    const { myProfile } = useSelector((state) => state.profile);
-    const user = myProfile?.user;
-    const walletBalance = myProfile?.wallet?.balance;
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [loadingWallet, setLoadingWallet] = useState(true);
+  const location = useLocation();
+  const { myProfile } = useSelector((state) => state.profile);
+  const user = myProfile?.user;
 
-    const formatAmount = (amount) => {
-        try {
-            return Number(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-        } catch {
-            return amount;
-        }
-    };
+
+  
+
+  const formatAmount = (amount) => {
+    try {
+      return Number(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    } catch {
+      return amount;
+    }
+  };
 
   const navItems = [
     { path: "/home", label: "Home" },
@@ -44,23 +46,51 @@ const Navbar = () => {
       .slice(0, 2);
   };
 
-  // Fetch unread notification count
-  useEffect(() => {
-    const fetchUnreadCount = async () => {
-      try {
-        const res = await api.get("/notifications");
-        const unread = res.data?.filter((n) => !n.isRead) || [];
-        setUnreadCount(unread.length);
-      } catch (err) {
-        console.error("Failed to fetch notification count", err);
-      }
-    };
+  // Fetch wallet balance
+  const fetchWalletBalance = async () => {
+    try {
+      setLoadingWallet(true);
+      const res = await api.get("/users/me/wallet");
+      setWalletBalance(res.data.balance || 0);
+    } catch (err) {
+      console.error("Failed to fetch wallet balance", err);
+      setWalletBalance(0);
+    } finally {
+      setLoadingWallet(false);
+    }
+  };
 
+  // Fetch unread notification count
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await api.get("/notifications");
+      const unread = res.data?.filter((n) => !n.isRead) || [];
+      setUnreadCount(unread.length);
+    } catch (err) {
+      console.error("Failed to fetch notification count", err);
+    }
+  };
+
+  useEffect(() => {
+    // Fetch both wallet balance and notifications when component mounts
+    fetchWalletBalance();
     fetchUnreadCount();
-    // Optional: Poll every 30s
-    const interval = setInterval(fetchUnreadCount, 30000);
+
+    // Optional: Poll every 30 seconds for updates
+    const interval = setInterval(() => {
+      fetchWalletBalance();
+      fetchUnreadCount();
+    }, 30000);
+
     return () => clearInterval(interval);
   }, []);
+
+  // Also fetch wallet when profile changes (user logs in/out)
+  useEffect(() => {
+    if (user) {
+      fetchWalletBalance();
+    }
+  }, [user]);
 
   return (
     <nav className="fixed top-0 left-0 w-full bg-white border-b z-50">
@@ -96,6 +126,16 @@ const Navbar = () => {
                 )}
               </Link>
             ))}
+          </div>
+
+          {/* Wallet Balance */}
+          <div className="flex items-center px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-700 text-sm font-semibold">
+            <CircleDollarSign className="h-4 w-4 mr-1" />
+            {loadingWallet ? (
+              <span className="text-gray-400">Loading...</span>
+            ) : (
+              `${formatAmount(walletBalance)} Coins`
+            )}
           </div>
 
           {/* Notification Bell */}
@@ -145,6 +185,17 @@ const Navbar = () => {
                 </SheetClose>
               ))}
 
+              {/* Mobile Wallet Balance */}
+              <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <div className="flex items-center">
+                  <CircleDollarSign className="h-5 w-5 text-blue-600 mr-2" />
+                  <span className="font-semibold text-blue-700">Wallet Balance</span>
+                </div>
+                <span className="text-lg font-bold text-blue-800">
+                  {loadingWallet ? "..." : `${formatAmount(walletBalance)} Coins`}
+                </span>
+              </div>
+
               {/* Mobile Notification */}
               <SheetClose asChild>
                 <Link
@@ -161,102 +212,47 @@ const Navbar = () => {
                 </Link>
               </SheetClose>
 
-
-                {/* Desktop Navigation */}
-                <div className="hidden md:flex items-center space-x-6">
-                    {/* Navigation Links */}
-                    <div className="flex items-center space-x-1">
-                        {navItems.map((item) => (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                className={`relative px-4 py-2 rounded-lg font-medium transition-all ${isActivePath(item.path)
-                                    ? "text-indigo-600 bg-indigo-50"
-                                    : "text-gray-600 hover:text-indigo-600 hover:bg-gray-50"
-                                    }`}
-                            >
-                                {item.label}
-                                {isActivePath(item.path) && (
-                                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full" />
-                                )}
-                            </Link>
-                        ))}
-                    </div>
-                    {/* Wallet Balance */}
-                    <div className="flex items-center px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-sm font-semibold">
-                        <span className="mr-1"><CircleDollarSign></CircleDollarSign></span>
-                        {walletBalance !== undefined ? `${formatAmount(walletBalance)} Coins` : '0 Coins'}
-                    </div>
-                    <ProfileDropdown />
+              {/* Mobile Profile Section */}
+              <div className="pt-4 border-t space-y-4">
+                <div className="flex items-center space-x-3 p-2">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user?.avatar} alt={user?.name || "User"} />
+                    <AvatarFallback className="bg-indigo-100 text-indigo-600">
+                      {getInitials(user?.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {user?.name || "User"}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {user?.email || "user@example.com"}
+                    </p>
+                    <p className="text-xs text-green-700 font-semibold mt-1">
+                      {loadingWallet ? "Loading coins..." : `${formatAmount(walletBalance)} Coins`}
+                    </p>
+                  </div>
                 </div>
-
-                {/* Mobile Menu */}
-                <Sheet>
-                    <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon" className="md:hidden">
-                            <Menu className="h-5 w-5" />
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-                        <div className="flex flex-col space-y-4 mt-8">
-                            {navItems.map((item) => (
-                                <SheetClose asChild key={item.path}>
-                                    <Link
-                                        to={item.path}
-                                        className={`text-lg font-medium py-3 px-4 rounded-lg transition-colors ${isActivePath(item.path)
-                                            ? "text-indigo-600 bg-indigo-50"
-                                            : "text-gray-700 hover:text-indigo-600"
-                                            }`}
-                                    >
-                                        {item.label}
-                                    </Link>
-                                </SheetClose>
-                            ))}
-
-                            {/* Mobile Profile Section */}
-                            <div className="pt-4 border-t space-y-4">
-                                <div className="flex items-center space-x-3 p-2">
-                                    <Avatar className="h-10 w-10">
-                                        <AvatarImage src={user?.avatar} alt={user?.name || "User"} />
-                                        <AvatarFallback className="bg-indigo-100 text-indigo-600">
-                                            {getInitials(user?.name)}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium truncate">
-                                            {user?.name || "User"}
-                                        </p>
-                                        <p className="text-xs text-gray-500 truncate">
-                                            {user?.email || "user@example.com"}
-                                        </p>
-                                        <p className="text-xs text-green-700 mt-1">
-                                            {walletBalance !== undefined ? `${formatAmount(walletBalance)} Coins` : '0 Coins'}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <SheetClose asChild>
-                                        <Button variant="outline" className="w-full justify-start" asChild>
-                                            <Link to="/profile">
-                                                <User className="mr-2 h-4 w-4" />
-                                                Profile
-                                            </Link>
-                                        </Button>
-                                    </SheetClose>
-                                    <SheetClose asChild>
-                                        <Button
-                                            variant="default"
-                                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-                                        >
-                                            <LogOut className="mr-2 h-4 w-4" />
-                                            Logout
-                                        </Button>
-                                    </SheetClose>
-                                </div>
-                            </div>
-                        </div>
-                    </SheetContent>
-                </Sheet>
+                <div className="space-y-2">
+                  <SheetClose asChild>
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <Link to="/profile">
+                        <User className="mr-2 h-4 w-4" />
+                        Profile
+                      </Link>
+                    </Button>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Button
+                      variant="default"
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </Button>
+                  </SheetClose>
+                </div>
+              </div>
             </div>
           </SheetContent>
         </Sheet>
