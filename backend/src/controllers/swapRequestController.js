@@ -10,7 +10,7 @@ const Wallet = require('../models/WalletModel');
 const Transaction = require('../models/TransactionModel');
 const Session = require('../models/SessionModel');
 
-// Helper to create a session and chat room once both parties have paid
+// Helper: Create session and chat when both parties have paid
 const createSessionFromSwapRequest = async (swapRequest) => {
   const post = await Post.findById(swapRequest.postId);
 
