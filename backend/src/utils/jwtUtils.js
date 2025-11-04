@@ -1,43 +1,48 @@
 const jwt = require('jsonwebtoken');
 
-const {accessTokenSecret,refreshTokenSecret,accessTokenExpiry,refreshTokenExpiry}= require('../config/jwtConfig');
+const generateAccessToken = (userId, userRole = 'user') => {
+  return jwt.sign(
+    { 
+      userId, 
+      role: userRole 
+    },
+    process.env.JWT_ACCESS_SECRET || process.env.ACCESS_TOKEN_SECRET, // Fallback
+    { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' }
+  );
+};
 
-//generate access token
+const generateRefreshToken = (userId, userRole = 'user') => {
+  return jwt.sign(
+    { 
+      userId, 
+      role: userRole 
+    },
+    process.env.JWT_REFRESH_SECRET || process.env.REFRESH_TOKEN_SECRET, // Fallback
+    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+  );
+};
 
-const generateAccessToken = (userId)=>{
-    return jwt.sign({userId},accessTokenSecret,{expiresIn:accessTokenExpiry});
+// Verify access token 
+const verifyAccessToken = (token) => {
+  try {
+    return jwt.verify(token, process.env.JWT_ACCESS_SECRET || process.env.ACCESS_TOKEN_SECRET);
+  } catch (error) {
+    return null;
+  }
 }
 
-
-//generate refresh token 
-
-const generateRefreshToken = (userId)=>{
-    return jwt.sign({userId},refreshTokenSecret,{expiresIn:refreshTokenExpiry})
+// Verify refresh token
+const verifyRefreshToken = (token) => {
+  try {
+    return jwt.verify(token, process.env.JWT_REFRESH_SECRET || process.env.REFRESH_TOKEN_SECRET);        
+  } catch (error) {
+    return null;
+  }
 }
 
-//verify access token 
-const verifyAccessToken = (token)=>{
-    try {
-        return jwt.verify(token,accessTokenSecret)
-    } catch (error) {
-        return null
-    }
-}
-
-//verify refrech token
-
-const verifyRefreshToken = (token)=>{
-    try {
-        return jwt.verify(token,refreshTokenSecret);        
-    } catch (error) {
-        return null
-    }
-}
-
-
-module.exports={
-        generateAccessToken,
-        generateRefreshToken,
-        verifyAccessToken,
-        verifyRefreshToken
-}
+module.exports = {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken
+};

@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import AdminSidebar from "../Admin/AdminSideBar";
+import AdminSidebar from "./AdminSidebar";
+import ProfileDropdown from "../User/Profile/components/ProfileDropdown";
 
 const AdminLayout = () => {
     return (
@@ -9,8 +10,9 @@ const AdminLayout = () => {
                 <div className="flex">
                     <AdminSidebar />
                     <main className="flex-1 min-w-0">
-                        <div className="border-b p-4">
+                        <div className="flex justify-between items-center border-b p-4">
                             <SidebarTrigger />
+                            <ProfileDropdown />
                         </div>
                         <div>
                             <Outlet />

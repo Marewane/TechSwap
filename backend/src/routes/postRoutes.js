@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const postController = require('../controllers/postController');
-const auth = require('../middleware/authMiddleware');
+const { createPost, getAllPosts, getPostById } = require('../controllers/postController');
+const { authMiddleware } = require('../middleware/authMiddleware');
 
-router.post('/', auth.authMiddleware, postController.createPost);
-router.get('/', postController.getAllPosts);
-router.get('/:id', postController.getPostById);
+// Your existing routes
+router.post('/', authMiddleware, createPost);
+router.get('/', getAllPosts);
+router.get('/:id', getPostById);
 
 module.exports = router;

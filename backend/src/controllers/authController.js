@@ -1,10 +1,13 @@
 const { transformUserResponse } = require('../utils/userTransformer');
-
 const User = require("../models/UserModel");
-
 const passport = require("../config/passportConfig");
-
-const { generateVerificationCode, sendVerificationEmail, generateResetToken, sendPasswordResetEmail, sendPasswordResetConfirmation  } = require('../services/emailService');
+const {
+  generateVerificationCode,
+  sendVerificationEmail,
+  generateResetToken,
+  sendPasswordResetEmail,
+  sendPasswordResetConfirmation
+} = require('../services/emailService');
 
 const {
   generateAccessToken,
@@ -12,121 +15,66 @@ const {
   verifyRefreshToken,
 } = require("../utils/jwtUtils");
 
-// 📝 REGISTER
-//the old vertion
-// const register = async (req, res) => {
-//   try {
-//     const { name, email, password } = req.body;
-
-//     //check if user already exists
-//     const existingUser = await User.findOne({ email });
-//     if (existingUser) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "User already exists with this email",
-//       });
-//     }
-
-//     //create new user
-//     const user = new User({
-//       name,
-//       email,
-//       password, // This will be automatically hashed by your pre-save middleware
-//     });
-//     await user.save();
-
-//     //generate token
-//     const accessToken = generateAccessToken(user._id);
-//     const refreshToken = generateRefreshToken(user._id);
-
-//     // 🔒 SECURITY: Fetch user data again but EXCLUDE the password field
-//     // Why? The original 'user' object still contains the hashed password
-//     // We never want to send password (even hashed) to the client
-//     const userResponse = await User.findById(user._id).select("-password");
-
-//     return res.status(201).json({
-//       success: true,
-//       message: "User registered successfully",
-//       data: { user: userResponse, tokens: { accessToken, refreshToken } },
-//     });
-//   } catch (error) {
-//     console.error("Registration error:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Server error during registration",
-//     });
-//   }
-// };
-
 // 📝 STEP 1: INITIAL REGISTRATION (SEND VERIFICATION CODE)
 const register = async (req, res) => {
   try {
-      const { name, email, password } = req.body;
+    const { name, email, password } = req.body;
 
-      // Check if user already exists
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: 'User already exists with this email'
-        });
-      }
-
-      // Generate verification code
-      const verificationCode = generateVerificationCode();
-      const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-      // Create user but don't save yet
-      const user = new User({
-        name,
-        email,
-        password,
-        verificationCode,
-        verificationCodeExpires,
-        isEmailVerified: false
-      });
-
-      await user.save();
-
-      // Send verification email
-      const emailSent = await sendVerificationEmail(email, verificationCode);
-      
-      if (!emailSent) {
-        await User.findByIdAndDelete(user._id); // Clean up if email fails
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to send verification email'
-        });
-      }
-
-      res.status(201).json({
-        success: true,
-        message: 'Verification code sent to your email',
-        data: {
-          userId: user._id,
-          email: user.email
-        }
-      });
-
-    } catch (error) {
-      console.error('Registration error:', error);
-      res.status(500).json({
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
         success: false,
-        message: 'Server error during registration'
+        message: 'User already exists with this email'
       });
     }
+
+    const verificationCode = generateVerificationCode();
+    const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    const user = new User({
+      name,
+      email,
+      password,
+      verificationCode,
+      verificationCodeExpires,
+      isEmailVerified: false
+    });
+
+    await user.save();
+
+    const emailSent = await sendVerificationEmail(email, verificationCode);
+    if (!emailSent) {
+      await User.findByIdAndDelete(user._id);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email'
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Verification code sent to your email',
+      data: { userId: user._id, email: user.email }
+    });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during registration'
+    });
+  }
 };
 
-// 📝 STEP 2: VERIFY EMAIL WITH CODE
+// 📝 STEP 2: VERIFY EMAIL
 const verifyEmail = async (req, res) => {
   try {
     const { userId, verificationCode } = req.body;
 
-    // Find user and include verification fields
     const user = await User.findOne({
       _id: userId,
       verificationCode,
-      verificationCodeExpires: { $gt: new Date() } // Check if code not expired
+      verificationCodeExpires: { $gt: new Date() }
     }).select('+verificationCode +verificationCodeExpires');
 
     if (!user) {
@@ -136,31 +84,20 @@ const verifyEmail = async (req, res) => {
       });
     }
 
-    // Mark email as verified and clear verification code
     user.isEmailVerified = true;
     user.verificationCode = undefined;
     user.verificationCodeExpires = undefined;
     await user.save();
 
-    // Generate tokens for auto-login after verification
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-
-    // const userResponse = await User.findById(user._id).select('-password');
+    const accessToken = generateAccessToken(user._id, user.role);
+    const refreshToken = generateRefreshToken(user._id, user.role);
 
     const userResponse = transformUserResponse(user);
-
 
     res.json({
       success: true,
       message: 'Email verified successfully!',
-      data: {
-        user: userResponse,
-        tokens: {
-          accessToken,
-          refreshToken
-        }
-      }
+      data: { user: userResponse, tokens: { accessToken, refreshToken } }
     });
 
   } catch (error) {
@@ -176,7 +113,6 @@ const verifyEmail = async (req, res) => {
 const resendVerificationCode = async (req, res) => {
   try {
     const { email } = req.body;
-
     const user = await User.findOne({ email, isEmailVerified: false })
       .select('+verificationCode +verificationCodeExpires');
 
@@ -187,15 +123,12 @@ const resendVerificationCode = async (req, res) => {
       });
     }
 
-    // Generate new verification code
     const verificationCode = generateVerificationCode();
     user.verificationCode = verificationCode;
     user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    // Send new verification email
     const emailSent = await sendVerificationEmail(email, verificationCode);
-    
     if (!emailSent) {
       return res.status(500).json({
         success: false,
@@ -206,10 +139,7 @@ const resendVerificationCode = async (req, res) => {
     res.json({
       success: true,
       message: 'New verification code sent to your email',
-      data: {
-        userId: user._id,
-        email: user.email
-      }
+      data: { userId: user._id, email: user.email }
     });
 
   } catch (error) {
@@ -225,7 +155,6 @@ const resendVerificationCode = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    // ⚡Find user and include password (since we have select: false in schema)
     const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
@@ -235,7 +164,6 @@ const login = async (req, res) => {
       });
     }
 
-    // check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -244,25 +172,19 @@ const login = async (req, res) => {
       });
     }
 
-    // Update last login
     user.lastLogin = new Date();
     await user.save();
 
-    // generate tokens
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-
-    // Return user data without password
-    // const userResponse = await User.findById(user._id).select("-password");
-
+    const accessToken = generateAccessToken(user._id, user.role);
+    const refreshToken = generateRefreshToken(user._id, user.role);
     const userResponse = transformUserResponse(user);
-
 
     return res.json({
       success: true,
       message: "Login successful",
       data: { user: userResponse, tokens: { accessToken, refreshToken } },
     });
+
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({
@@ -284,7 +206,6 @@ const refreshToken = async (req, res) => {
       });
     }
 
-    // Verify refresh token
     const decoded = verifyRefreshToken(refreshToken);
     if (!decoded) {
       return res.status(401).json({
@@ -293,13 +214,9 @@ const refreshToken = async (req, res) => {
       });
     }
 
-    // Generate new access token
     const newAccessToken = generateAccessToken(decoded.userId);
+    res.json({ success: true, data: { accessToken: newAccessToken } });
 
-    res.json({
-      success: true,
-      data: { accessToken: newAccessToken },
-    });
   } catch (error) {
     console.error("Refresh token error:", error);
     return res.status(500).json({
@@ -311,192 +228,71 @@ const refreshToken = async (req, res) => {
 
 // 🚪 LOGOUT
 const logout = (req, res) => {
-  // In a real app, you might blacklist the token here
-  // For now, we'll just return success - client should delete tokens
-  //the real work will be handled by front end❌❌❌
-  return res.json({
-    success: true,
-    message: "Logout successful",
-  });
+  return res.json({ success: true, message: "Logout successful" });
 };
 
-// 🔵 GOOGLE OAUTH - Initiate authentication
+// 🔵 GOOGLE OAUTH
 const googleAuth = (req, res, next) => {
-  // 📝 What this does: Redirects user to Google's login page
-  passport.authenticate("google", {
-    scope: ["profile", "email"], // 📝 What we're asking permission for
-  })(req, res, next);
+  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
 };
-
-// 🔵 GOOGLE OAUTH - Callback handler
-
-// const googleCallback = (req, res, next) => {
-//   passport.authenticate("google", { session: false }, (err, user) => {
-//     if (err || !user) {
-//       return res.redirect(
-//         `${process.env.FRONTEND_URL}/login?error=oauth_failed`
-//       );
-//     }
-
-//     // 📝 Generate JWT tokens for the OAuth user
-//     const accessToken = generateAccessToken(user._id);
-//     const refreshToken = generateRefreshToken(user._id);
-
-//     // 📝 Redirect to frontend with tokens
-//     res.redirect(
-//       `${process.env.FRONTEND_URL}/oauth-success?accessToken=${accessToken}&refreshToken=${refreshToken}`
-//     );
-//   })(req, res, next);
-// };
-
 
 const googleCallback = (req, res, next) => {
-  passport.authenticate('google', { session: false }, (err, user) => {
+  passport.authenticate("google", { session: false }, (err, user, info) => {
     if (err || !user) {
-      // 📝 Also change the error to show in browser
-      return res.send(`
-        <html>
-          <body>
-            <h2>OAuth Failed!</h2>
-            <p>Error: ${err ? err.message : 'User not found'}</p>
-          </body>
-        </html>
-      `);
+      return res.redirect(
+        `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=oauth_failed`
+      );
     }
 
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+    console.log("Google OAuth success for user:", user.email);
 
-    // 📝 TEMPORARY: Show tokens in browser instead of redirecting
+    const isNewUser = info?.isNewUser || user.isNewUser || false;
+    const accessToken = generateAccessToken(user._id, user.role);
+    const refreshToken = generateRefreshToken(user._id, user.role);
 
-    // res.send(`
-    //   <html>
-    //     <body>
-    //       <h2>OAuth Success! 🎉</h2>
-    //       <p><strong>User:</strong> ${user.name} (${user.email})</p>
-    //       <p><strong>Access Token:</strong> ${accessToken}</p>
-    //       <p><strong>Refresh Token:</strong> ${refreshToken}</p>
-    //       <script>
-    //         console.log('OAuth Success!', {
-    //           user: '${user.name}',
-    //           email: '${user.email}', 
-    //           accessToken: '${accessToken}',
-    //           refreshToken: '${refreshToken}'
-    //         });
-    //       </script>
-    //     </body>
-    //   </html>
-    // `);
+    const redirectUrl = `${
+      process.env.FRONTEND_URL || 'http://localhost:5173'
+    }/oauth-success?accessToken=${accessToken}&refreshToken=${refreshToken}&isNewUser=${isNewUser}`;
 
-    const userResponse = transformUserResponse(user);
-    res.send(`
-      <html>
-        <body>
-          <h2>OAuth Success! 🎉</h2>
-          <p><strong>User:</strong> ${userResponse.name} (${userResponse.email})</p>
-          <p><strong>Clean User Data:</strong></p>
-          <pre>${JSON.stringify(userResponse, null, 2)}</pre>
-          <p><strong>Access Token:</strong> ${accessToken}</p>
-          <p><strong>Refresh Token:</strong> ${refreshToken}</p>
-        </body>
-      </html>
-    `);
+    console.log("Redirecting to:", redirectUrl);
+    res.redirect(redirectUrl);
   })(req, res, next);
 };
 
-// 🐙 GITHUB OAUTH - Initiate authentication
+// 🐙 GITHUB OAUTH
 const githubAuth = (req, res, next) => {
-  passport.authenticate("github", {
-    scope: ["user:email"], // 📝 GitHub specific scope for email access
-  })(req, res, next);
+  passport.authenticate("github", { scope: ["user:email"] })(req, res, next);
 };
 
-// 🐙 GITHUB OAUTH - Callback handler
-// const githubCallback = (req, res, next) => {
-//   passport.authenticate("github", { session: false }, (err, user) => {
-//     if (err || !user) {
-//       return res.redirect(
-//         `${process.env.FRONTEND_URL}/login?error=oauth_failed`
-//       );
-//     }
-
-//     const accessToken = generateAccessToken(user._id);
-//     const refreshToken = generateRefreshToken(user._id);
-
-//     res.redirect(
-//       `${process.env.FRONTEND_URL}/oauth-success?accessToken=${accessToken}&refreshToken=${refreshToken}`
-//     );
-//   })(req, res, next);
-// };
-
-// this is just for test 
 const githubCallback = (req, res, next) => {
-  passport.authenticate('github', { session: false }, (err, user) => {
+  passport.authenticate("github", { session: false }, (err, user, info) => {
     if (err || !user) {
-      // 📝 Show error in browser
-      return res.send(`
-        <html>
-          <body>
-            <h2>GitHub OAuth Failed!</h2>
-            <p>Error: ${err ? err.message : 'User not found'}</p>
-          </body>
-        </html>
-      `);
+      return res.redirect(
+        `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=oauth_failed`
+      );
     }
 
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+    console.log("GitHub OAuth success for user:", user.email);
 
-    // 📝 TEMPORARY: Show tokens in browser instead of redirecting
+    const isNewUser = info?.isNewUser || user.isNewUser || false;
+    const accessToken = generateAccessToken(user._id, user.role);
+    const refreshToken = generateRefreshToken(user._id, user.role);
 
-    // res.send(`
-    //   <html>
-    //     <body>
-    //       <h2>GitHub OAuth Success! 🎉</h2>
-    //       <p><strong>User:</strong> ${user.name} (${user.email})</p>
-    //       <p><strong>Access Token:</strong> ${accessToken}</p>
-    //       <p><strong>Refresh Token:</strong> ${refreshToken}</p>
-    //       <script>
-    //         console.log('GitHub OAuth Success!', {
-    //           user: '${user.name}',
-    //           email: '${user.email}', 
-    //           accessToken: '${accessToken}',
-    //           refreshToken: '${refreshToken}'
-    //         });
-    //       </script>
-    //     </body>
-    //   </html>
-    // `);
+    const redirectUrl = `${
+      process.env.FRONTEND_URL || 'http://localhost:5173'
+    }/oauth-success?accessToken=${accessToken}&refreshToken=${refreshToken}&isNewUser=${isNewUser}`;
 
-    
-    const userResponse = transformUserResponse(user);
-    res.send(`
-      <html>
-        <body>
-          <h2>OAuth Success! 🎉</h2>
-          <p><strong>User:</strong> ${userResponse.name} (${userResponse.email})</p>
-          <p><strong>Clean User Data:</strong></p>
-          <pre>${JSON.stringify(userResponse, null, 2)}</pre>
-          <p><strong>Access Token:</strong> ${accessToken}</p>
-          <p><strong>Refresh Token:</strong> ${refreshToken}</p>
-        </body>
-      </html>
-    `);
+    console.log("Redirecting to:", redirectUrl);
+    res.redirect(redirectUrl);
   })(req, res, next);
 };
 
-
-
-// 🔑 FORGOT PASSWORD - Step 1: Request reset
+// 🔑 FORGOT PASSWORD
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-
-    // Find user by email
     const user = await User.findOne({ email });
-    
-    // 📝 SECURITY: Always return success even if email doesn't exist
-    // This prevents email enumeration attacks
+
     if (!user) {
       return res.json({
         success: true,
@@ -504,18 +300,14 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    // Generate reset token and expiry
     const resetToken = generateResetToken();
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Save token to user (include hidden fields)
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = resetTokenExpiry;
     await user.save();
 
-    // Send reset email
     const emailSent = await sendPasswordResetEmail(email, resetToken);
-    
     if (!emailSent) {
       return res.status(500).json({
         success: false,
@@ -537,15 +329,14 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// 🔑 RESET PASSWORD - Step 2: Verify token and set new password
+// 🔑 RESET PASSWORD
 const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
-    // Find user with valid reset token (include hidden fields)
     const user = await User.findOne({
       resetPasswordToken: token,
-      resetPasswordExpires: { $gt: new Date() } // Check if token not expired
+      resetPasswordExpires: { $gt: new Date() }
     }).select('+resetPasswordToken +resetPasswordExpires');
 
     if (!user) {
@@ -555,16 +346,11 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Update password (this will trigger password hashing middleware)
     user.password = newPassword;
-    
-    // Clear reset token fields
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
-    
     await user.save();
 
-    // Send confirmation email
     await sendPasswordResetConfirmation(user.email);
 
     res.json({
@@ -580,7 +366,6 @@ const resetPassword = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   register,

@@ -11,34 +11,34 @@ const generateResetToken = () => {
 // Send password reset email
 const sendPasswordResetEmail = async (email, resetToken) => {
   try {
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    // FIX: Use URL parameter instead of query parameter
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
     
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Reset Your TechSwap Password',
+      subject: 'TechSwap - Password Reset Request',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Password Reset Request</h2>
-          <p>You requested to reset your password. Click the button below to create a new password:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}" 
-               style="background: #007bff; color: white; padding: 12px 24px; 
-                      text-decoration: none; border-radius: 5px; display: inline-block;">
-              Reset Password
-            </a>
-          </div>
-          <p>Or copy this link: <br>${resetUrl}</p>
-          <p><strong>This link expires in 1 hour.</strong></p>
+          <h2 style="color: #2563eb;">Password Reset Request</h2>
+          <p>You requested to reset your password for your TechSwap account.</p>
+          <p>Click the button below to reset your password:</p>
+          <a href="${resetUrl}" 
+             style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+            Reset Password
+          </a>
+          <p>Or copy and paste this link in your browser:</p>
+          <p style="word-break: break-all; color: #2563eb;">${resetUrl}</p>
+          <p>This link will expire in 1 hour.</p>
           <p>If you didn't request this, please ignore this email.</p>
         </div>
-      `
+      `,
     };
 
     await transporter.sendMail(mailOptions);
     return true;
   } catch (error) {
-    console.error('Reset email error:', error);
+    console.error('Email sending error:', error);
     return false;
   }
 };

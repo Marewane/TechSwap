@@ -1,0 +1,140 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import api from "@/services/api";
+
+const popularSkills = [
+  "JavaScript", "Python", "React", "Node.js", "TypeScript", 
+  "HTML/CSS", "UI/UX Design", "Graphic Design", "Digital Marketing",
+  "Content Writing", "Data Analysis", "Machine Learning", "Web Development",
+  "Mobile Development", "DevOps", "Cloud Computing", "Project Management"
+];
+
+export default function StepLearnSkills() {
+  const [selectedSkills, setSelectedSkills] = useState([]);
+  const [customSkill, setCustomSkill] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const toggleSkill = (skill) => {
+    setSelectedSkills(prev =>
+      prev.includes(skill)
+        ? prev.filter(s => s !== skill)
+        : [...prev, skill]
+    );
+  };
+
+  const addCustomSkill = () => {
+    if (customSkill.trim() && !selectedSkills.includes(customSkill.trim())) {
+      setSelectedSkills(prev => [...prev, customSkill.trim()]);
+      setCustomSkill("");
+    }
+  };
+
+const handleContinue = async () => {
+  if (selectedSkills.length === 0) {
+    alert("Please select at least one skill you want to learn");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    // Use PUT instead of PATCH
+    const response = await api.put("/profile/update", {
+      skillsToLearn: selectedSkills
+    });
+
+    if (response.data.success) {
+      navigate("/onboarding/teach-skills");
+    } else {
+      throw new Error(response.data.message || "Failed to save skills");
+    }
+  } catch (error) {
+    console.error("Error saving skills:", error);
+    console.error("Full error details:", error.response?.data);
+    
+    const errorMessage = error.response?.data?.message || "Failed to save your skills. Please try again.";
+    alert(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
+  const handleSkip = () => {
+    navigate("/onboarding/teach-skills");
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <Card className="w-full max-w-2xl">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-semibold">What do you want to learn?</CardTitle>
+          <CardDescription>
+            Select the skills you're interested in learning. This helps us match you with the right teachers.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* Custom Skill Input */}
+          <div className="flex gap-2">
+            <Input
+              placeholder="Add a custom skill..."
+              value={customSkill}
+              onChange={(e) => setCustomSkill(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && addCustomSkill()}
+            />
+            <Button onClick={addCustomSkill}>Add</Button>
+          </div>
+
+          {/* Selected Skills */}
+          {selectedSkills.length > 0 && (
+            <div>
+              <h3 className="font-semibold mb-2">Your selected skills:</h3>
+              <div className="flex flex-wrap gap-2">
+                {selectedSkills.map(skill => (
+                  <Badge 
+                    key={skill} 
+                    variant="secondary"
+                    className="cursor-pointer"
+                    onClick={() => toggleSkill(skill)}
+                  >
+                    {skill} ×
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Popular Skills */}
+          <div>
+            <h3 className="font-semibold mb-2">Popular Skills:</h3>
+            <div className="flex flex-wrap gap-2">
+              {popularSkills.map(skill => (
+                <Badge
+                  key={skill}
+                  variant={selectedSkills.includes(skill) ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => toggleSkill(skill)}
+                >
+                  {skill}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" onClick={handleSkip}>
+            Skip for now
+          </Button>
+          <Button onClick={handleContinue} disabled={loading}>
+            {loading ? "Saving..." : "Continue"}
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}

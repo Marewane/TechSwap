@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const {
-    getProfile,
+    getMyProfile,
+    getUserProfile,
     updateProfile
 } = require('../controllers/profileController');
 const { authMiddleware } = require('../middleware/authMiddleware');
@@ -9,10 +10,11 @@ const { authMiddleware } = require('../middleware/authMiddleware');
 // Protect all profile routes
 router.use(authMiddleware);
 
-// @route   GET /api/profile/view
-router.get('/view', getProfile);
+router.get('/me', authMiddleware, getMyProfile);
+router.put('/update', authMiddleware, updateProfile);
 
-// @route   PUT /api/profile/update
-router.put('/update', updateProfile);
+// public route (no authMiddleware)
+router.get('/user/:userId', getUserProfile);
+
 
 module.exports = router;
