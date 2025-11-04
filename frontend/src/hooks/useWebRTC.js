@@ -36,6 +36,13 @@ export const useWebRTC = (sessionId, socketFunctions) => {
     return senders.find(sender => sender.track && sender.track.kind === 'video');
   }, []);
 
+  // --- Helper: Find Audio Sender ---
+  const findAudioSender = useCallback((pc) => {
+    if (!pc) return null;
+    const senders = pc.getSenders();
+    return senders.find(sender => sender.track && sender.track.kind === 'audio');
+  }, []);
+
   // --- Renegotiation Helper (CRITICAL FOR SCREEN SHARE) ---
   // FIXED: Both initiator and responder can now trigger renegotiation
   const renegotiate = useCallback(async () => {
@@ -192,8 +199,14 @@ export const useWebRTC = (sessionId, socketFunctions) => {
       const pc = peerConnectionRef.current;
       if (pc && stream.getTracks().length > 0) {
         stream.getTracks().forEach(track => {
-          console.log('Adding local track to peer connection:', track.kind);
-          pc.addTrack(track, stream);
+          // Check if sender already exists for this track kind
+          const existingSender = track.kind === 'video' ? findVideoSender(pc) : findAudioSender(pc);
+          if (!existingSender) {
+            console.log('Adding local track to peer connection:', track.kind);
+            pc.addTrack(track, stream);
+          } else {
+            console.log('Sender already exists for', track.kind, '- skipping addTrack');
+          }
         });
       }
 
@@ -227,10 +240,16 @@ export const useWebRTC = (sessionId, socketFunctions) => {
 
       const pc = peerConnectionRef.current;
       if (pc) {
-        const senders = pc.getSenders();
-        const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+        const audioSender = findAudioSender(pc);
         if (audioSender) {
-          pc.removeTrack(audioSender);
+          // Prefer disabling via replaceTrack(null) to keep transceiver alive
+          try {
+            await audioSender.replaceTrack(null);
+            console.log('🎤 Audio track replaced with null');
+          } catch (e) {
+            console.warn('Failed to replace audio track with null, removing sender instead');
+            try { pc.removeTrack(audioSender); } catch {}
+          }
         }
       }
 
@@ -246,10 +265,22 @@ export const useWebRTC = (sessionId, socketFunctions) => {
         stream.addTrack(newAudioTrack);
 
         const pc = peerConnectionRef.current;
-        if (pc && !isSharingScreen) {
-          pc.addTrack(newAudioTrack, stream);
-          // CRITICAL: Trigger renegotiation so remote peer receives audio
-          console.log('🎤 Audio track added, triggering renegotiation');
+        if (pc) {
+          const existingSender = findAudioSender(pc);
+          if (existingSender) {
+            try {
+              await existingSender.replaceTrack(newAudioTrack);
+              console.log('🎤 Audio track replaced with new track');
+            } catch (e) {
+              console.warn('Failed to replace existing audio track, adding new sender');
+              pc.addTrack(newAudioTrack, stream);
+            }
+          } else {
+            console.log('🎤 Adding new audio track to peer connection');
+            pc.addTrack(newAudioTrack, stream);
+          }
+          // Trigger renegotiation so remote peer receives audio (even during screen share)
+          console.log('🎤 Audio track added/replaced, triggering renegotiation');
           await renegotiate();
         }
 
@@ -262,7 +293,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
         alert('Could not access microphone. Please check permissions.');
       }
     }
-  }, [isSharingScreen, renegotiate]);
+  }, [renegotiate, findAudioSender]);
 
   // --- Toggle Video ---
   const toggleVideo = useCallback(async () => {
@@ -362,21 +393,28 @@ export const useWebRTC = (sessionId, socketFunctions) => {
 
       const pc = peerConnectionRef.current;
       if (pc) {
+        // CRITICAL FIX: Only replace VIDEO sender, keep audio sender intact
         const videoSender = findVideoSender(pc);
+        const audioSender = findAudioSender(pc);
+        
+        console.log('Current senders:', {
+          hasVideoSender: !!videoSender,
+          hasAudioSender: !!audioSender,
+          videoTrack: videoSender?.track?.id,
+          audioTrack: audioSender?.track?.id
+        });
+
         if (videoSender) {
-          console.log('🔄 Replacing camera track with screen track');
+          console.log('🔄 Replacing camera video track with screen track (keeping audio)');
           await videoSender.replaceTrack(screenTrack);
-          
-          // CRITICAL: Force renegotiation to notify remote peer
-          console.log('🔄 Triggering renegotiation for screen share');
-          await renegotiate();
         } else {
-          console.log('➕ Adding screen track (no existing sender)');
+          console.log('➕ Adding screen track (no existing video sender)');
           pc.addTrack(screenTrack, screenStream);
-          // CRITICAL: Trigger renegotiation when adding new track
-          console.log('🔄 Triggering renegotiation for screen share');
-          await renegotiate();
         }
+        
+        // CRITICAL: Force renegotiation to notify remote peer
+        console.log('🔄 Triggering renegotiation for screen share');
+        await renegotiate();
       }
 
       setIsSharingScreen(true);
@@ -397,7 +435,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
       setScreenStream(null);
       setIsSharingScreen(false);
     }
-  }, [findVideoSender, renegotiate]);
+  }, [findVideoSender, findAudioSender, renegotiate]);
 
   // --- Stop Screen Share (FIXED VERSION) ---
   const stopScreenShare = useCallback(async () => {
@@ -421,24 +459,32 @@ export const useWebRTC = (sessionId, socketFunctions) => {
       if (pc && localCameraStream) {
         const videoTracks = localCameraStream.getVideoTracks();
         const videoSender = findVideoSender(pc);
+        const audioSender = findAudioSender(pc);
+        
+        console.log('Stopping screen share - current senders:', {
+          hasVideoSender: !!videoSender,
+          hasAudioSender: !!audioSender,
+          cameraVideoTracks: videoTracks.length
+        });
+
         if (videoTracks.length > 0) {
           const [cameraVideoTrack] = videoTracks;
-          console.log('🔄 Replacing screen track with camera track');
+          console.log('🔄 Replacing screen track with camera track (keeping audio)');
           if (videoSender) {
             await videoSender.replaceTrack(cameraVideoTrack);
-            
-            // CRITICAL: Force renegotiation to notify remote peer
-            console.log('🔄 Triggering renegotiation to switch back to camera');
-            await renegotiate();
           } else {
             pc.addTrack(cameraVideoTrack, localCameraStream);
           }
         } else {
+          console.log('🔄 No camera video track, replacing with null');
           if (videoSender) {
             await videoSender.replaceTrack(null);
-            await renegotiate();
           }
         }
+        
+        // CRITICAL: Force renegotiation to notify remote peer
+        console.log('🔄 Triggering renegotiation to switch back to camera');
+        await renegotiate();
       }
 
       setIsSharingScreen(false);
@@ -446,7 +492,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
     } catch (error) {
       console.error('❌ Error stopping screen share:', error);
     }
-  }, [findVideoSender, renegotiate]);
+  }, [findVideoSender, findAudioSender, renegotiate]);
 
   // --- Create Offer (Initiator) ---
   const createOffer = useCallback(async () => {

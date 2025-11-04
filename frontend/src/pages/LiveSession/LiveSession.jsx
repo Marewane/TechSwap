@@ -80,7 +80,11 @@ const LiveSession = () => {
 
   // --- Refs for video elements ---
   const mainVideoRef = useRef(null);
+  
   const cameraPreviewRef = useRef(null);
+  const remoteAudioRef = useRef(null);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
   // --- Simulate fetching session data ---
   useEffect(() => {
@@ -233,41 +237,68 @@ const LiveSession = () => {
     }
   }, [isInitiator, isConnected, sessionId]);
 
+  // --- Handle user interaction to enable audio ---
+  useEffect(() => {
+    const handleInteraction = () => {
+      if (!hasUserInteracted) {
+        console.log('✅ User interaction detected - enabling audio playback');
+        setHasUserInteracted(true);
+        setAutoplayBlocked(false);
+        
+        // Try to play remote audio if it exists
+        if (remoteAudioRef.current && remoteAudioRef.current.srcObject) {
+          remoteAudioRef.current.play().catch(err => {
+            console.warn('Still cannot play audio:', err);
+          });
+        }
+      }
+    };
+
+    // Listen for any user interaction
+    document.addEventListener('click', handleInteraction);
+    document.addEventListener('keydown', handleInteraction);
+    document.addEventListener('touchstart', handleInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('keydown', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
+    };
+  }, [hasUserInteracted]);
+
   // --- MAIN VIDEO DISPLAY LOGIC ---
   useEffect(() => {
     const videoElement = mainVideoRef.current;
-    if (videoElement) {
-      // Priority: Remote stream (or remote screen share) > Your screen share > Nothing
-      if (remoteStream) {
-        console.log('Displaying remote stream in main video');
-        videoElement.srcObject = remoteStream;
-        // Start muted to allow autoplay
-        videoElement.muted = true;
-        // Explicitly play the video
-        videoElement.play().then(() => {
-          // Once playing, check if stream has audio and unmute
-          const hasAudio = remoteStream.getAudioTracks().length > 0;
-          if (hasAudio) {
-            console.log('Remote stream has audio, unmuting...');
-            videoElement.muted = false;
-          } else {
-            console.log('Remote stream is video only (screen share), keeping muted');
-          }
-        }).catch(err => {
-          console.warn('Failed to play remote video:', err);
-        });
-      } else if (isSharingScreen && screenStream) {
-        // Only show your screen share if there's no remote stream yet
-        console.log('Displaying your screen share in main video (no remote yet)');
-        videoElement.srcObject = screenStream;
-        // Explicitly play the video
-        videoElement.play().catch(err => {
-          console.warn('Failed to play screen share:', err);
-        });
-      } else {
-        videoElement.srcObject = null;
-      }
+    if (!videoElement) return;
+
+    const remoteHasVideo = !!(remoteStream && remoteStream.getVideoTracks().some(t => t.readyState === 'live'));
+
+    // Priority:
+    // 1) Remote stream ONLY if it has a video track
+    // 2) Otherwise keep showing your screen share if active
+    // 3) Otherwise nothing
+    if (remoteStream && remoteHasVideo) {
+      console.log('Displaying remote stream (with video) in main video');
+      videoElement.srcObject = remoteStream;
+      // Always mute the main video element - audio handled by separate element
+      videoElement.muted = true;
+      videoElement.play().catch(err => {
+        console.warn('Failed to play remote video:', err);
+      });
+      return;
     }
+
+    if (isSharingScreen && screenStream) {
+      console.log('Displaying your screen share (remote has no video)');
+      videoElement.srcObject = screenStream;
+      videoElement.muted = true; // local content
+      videoElement.play().catch(err => {
+        console.warn('Failed to play screen share:', err);
+      });
+      return;
+    }
+
+    videoElement.srcObject = null;
   }, [screenStream, remoteStream, isSharingScreen]);
 
   // --- CAMERA PREVIEW LOGIC ---
@@ -285,6 +316,42 @@ const LiveSession = () => {
       }
     }
   }, [localStream, isVideoEnabled]);
+
+  // --- REMOTE AUDIO PLAYBACK (separate hidden audio element) ---
+  useEffect(() => {
+    const audioEl = remoteAudioRef.current;
+    if (!audioEl) return;
+
+    if (remoteStream && remoteStream.getAudioTracks().length > 0) {
+      console.log('🔊 Setting up remote audio playback');
+      audioEl.srcObject = remoteStream;
+      audioEl.muted = false;
+      audioEl.volume = 1.0;
+      
+      const play = async () => {
+        try {
+          await audioEl.play();
+          console.log('✅ Remote audio playing successfully');
+          setAutoplayBlocked(false);
+        } catch (e) {
+          console.warn('⚠️ Autoplay blocked for remote audio; will play after user interaction.');
+          setAutoplayBlocked(true);
+          
+          // If user has already interacted, try again
+          if (hasUserInteracted) {
+            setTimeout(() => {
+              audioEl.play().catch(err => {
+                console.error('Failed to play audio even after interaction:', err);
+              });
+            }, 100);
+          }
+        }
+      };
+      play();
+    } else {
+      audioEl.srcObject = null;
+    }
+  }, [remoteStream, hasUserInteracted]);
 
   const handleEndCall = () => {
     if (window.confirm('Are you sure you want to end this session?')) {
@@ -375,6 +442,13 @@ const LiveSession = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+      {/* Autoplay Warning Banner */}
+      {autoplayBlocked && (
+        <div className="bg-yellow-600 text-white px-4 py-2 text-center text-sm font-medium">
+          🔊 Click anywhere to enable audio playback
+        </div>
+      )}
+
       {/* Top Header */}
       <header className="bg-gray-800 border-b border-gray-700 px-6 py-3 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
@@ -462,7 +536,7 @@ const LiveSession = () => {
                 ref={mainVideoRef}
                 autoPlay
                 playsInline
-                muted={!remoteStream} // Only mute when showing local screen share
+                muted={true} // Always muted - audio handled by separate element
                 className="w-full h-full object-contain bg-black rounded"
               />
               {/* Placeholder for Main Video */}
@@ -576,6 +650,8 @@ const LiveSession = () => {
             onScreenShare={isSharingScreen ? stopScreenShare : startScreenShare}
             onEndCall={handleEndCall}
           />
+          {/* Hidden audio element to ensure remote audio is heard even when showing local screen */}
+          <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
         </div>
       </div>
     </div>

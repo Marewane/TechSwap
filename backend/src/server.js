@@ -12,27 +12,11 @@ dotenv.config();
 // Connect to MongoDB
 connectDB();
 
-const app = express();
+// Import the main app with all routes configured
+const app = require('./app');
 
-// CORS: Security - controls who can access your API
-// JSON: Functionality - parses request data for your controllers
-
-// // Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173', // Frontend URL
-  credentials: true     // Allow cookies/tokens
-}));
-app.use(express.json());
-
-// Import routes
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const sessionRoutes = require('./routes/sessionRoutes');
-
-// Use routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/sessions', sessionRoutes);
+// Note: All routes are now configured in app.js
+// This includes: auth, users, sessions, profile, payments, etc.
 
 // Create HTTP server
 const server = http.createServer(app);
