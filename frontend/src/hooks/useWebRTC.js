@@ -18,6 +18,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
   const screenStreamRef = useRef(null);
   const iceCandidateQueueRef = useRef([]);
   const hasRemoteDescriptionRef = useRef(false);
+  const isNegotiatingRef = useRef(false); // Prevent duplicate renegotiations
 
   // --- Configuration ---
   const configuration = {
@@ -45,11 +46,19 @@ export const useWebRTC = (sessionId, socketFunctions) => {
         return;
       }
 
+      // Prevent duplicate renegotiations
+      if (isNegotiatingRef.current) {
+        console.log('⏳ Already negotiating, skipping...');
+        return;
+      }
+
       // Check if we're already negotiating
       if (pc.signalingState !== 'stable') {
         console.log('⏳ Signaling state not stable, waiting...', pc.signalingState);
         return;
       }
+
+      isNegotiatingRef.current = true;
 
       console.log(`🔄 Starting renegotiation (${isInitiator ? 'INITIATOR' : 'RESPONDER'})...`);
       
@@ -66,6 +75,11 @@ export const useWebRTC = (sessionId, socketFunctions) => {
       }
     } catch (error) {
       console.error('❌ Renegotiation failed:', error);
+    } finally {
+      // Reset negotiation lock after a short delay
+      setTimeout(() => {
+        isNegotiatingRef.current = false;
+      }, 1000);
     }
   }, [sessionId, socketFunctions, isInitiator]);
 
@@ -127,18 +141,11 @@ export const useWebRTC = (sessionId, socketFunctions) => {
       console.log('ICE gathering state:', pc.iceGatheringState);
     };
 
-    // Negotiation Needed Handler (Important for screen share)
-    // FIXED: Both peers can now handle negotiation
+    // Negotiation Needed Handler
+    // NOTE: We manually trigger renegotiation when needed, so we don't need this handler
+    // to prevent race conditions and duplicate offers
     pc.onnegotiationneeded = async () => {
-      console.log(`⚠️ Negotiation needed event fired (${isInitiator ? 'INITIATOR' : 'RESPONDER'})`);
-      
-      // Both peers should handle negotiation when tracks change
-      if (pc.signalingState === 'stable') {
-        console.log('✅ Signaling state is stable, triggering renegotiation');
-        await renegotiate();
-      } else {
-        console.log('⏳ Signaling state not stable:', pc.signalingState);
-      }
+      console.log(`⚠️ Negotiation needed event fired (${isInitiator ? 'INITIATOR' : 'RESPONDER'}) - ignoring, using manual renegotiation`);
     };
 
     peerConnectionRef.current = pc;
@@ -241,6 +248,9 @@ export const useWebRTC = (sessionId, socketFunctions) => {
         const pc = peerConnectionRef.current;
         if (pc && !isSharingScreen) {
           pc.addTrack(newAudioTrack, stream);
+          // CRITICAL: Trigger renegotiation so remote peer receives audio
+          console.log('🎤 Audio track added, triggering renegotiation');
+          await renegotiate();
         }
 
         setIsAudioEnabled(true);
@@ -252,7 +262,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
         alert('Could not access microphone. Please check permissions.');
       }
     }
-  }, [isSharingScreen]);
+  }, [isSharingScreen, renegotiate]);
 
   // --- Toggle Video ---
   const toggleVideo = useCallback(async () => {
@@ -363,6 +373,9 @@ export const useWebRTC = (sessionId, socketFunctions) => {
         } else {
           console.log('➕ Adding screen track (no existing sender)');
           pc.addTrack(screenTrack, screenStream);
+          // CRITICAL: Trigger renegotiation when adding new track
+          console.log('🔄 Triggering renegotiation for screen share');
+          await renegotiate();
         }
       }
 

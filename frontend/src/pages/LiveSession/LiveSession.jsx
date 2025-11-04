@@ -1,4 +1,4 @@
-// src/pages/LiveSession/LiveSession.jsx - COMPLETE WORKING VERSION
+// src/pages/LiveSession/LiveSession.jsx - FIXED AUDIO VERSION
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -241,8 +241,19 @@ const LiveSession = () => {
       if (remoteStream) {
         console.log('Displaying remote stream in main video');
         videoElement.srcObject = remoteStream;
-        // Explicitly play the video to ensure it renders
-        videoElement.play().catch(err => {
+        // Start muted to allow autoplay
+        videoElement.muted = true;
+        // Explicitly play the video
+        videoElement.play().then(() => {
+          // Once playing, check if stream has audio and unmute
+          const hasAudio = remoteStream.getAudioTracks().length > 0;
+          if (hasAudio) {
+            console.log('Remote stream has audio, unmuting...');
+            videoElement.muted = false;
+          } else {
+            console.log('Remote stream is video only (screen share), keeping muted');
+          }
+        }).catch(err => {
           console.warn('Failed to play remote video:', err);
         });
       } else if (isSharingScreen && screenStream) {
@@ -446,12 +457,12 @@ const LiveSession = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 flex items-center justify-center p-0 relative overflow-hidden">
-              {/* Main Video Element */}
+              {/* Main Video Element - Remote Stream (NOT MUTED) */}
               <video
                 ref={mainVideoRef}
                 autoPlay
                 playsInline
-                muted
+                muted={!remoteStream} // Only mute when showing local screen share
                 className="w-full h-full object-contain bg-black rounded"
               />
               {/* Placeholder for Main Video */}
@@ -478,7 +489,7 @@ const LiveSession = () => {
                 </div>
               )}
 
-              {/* Camera Preview (Small, in corner) */}
+              {/* Camera Preview (Small, in corner) - ALWAYS MUTED */}
               <div className="absolute bottom-4 right-4 w-32 h-24 md:w-48 md:h-36 bg-gray-700 rounded-lg overflow-hidden border-2 border-white border-opacity-30">
                 <video
                   ref={cameraPreviewRef}
