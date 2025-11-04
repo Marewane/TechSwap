@@ -43,6 +43,7 @@ const createSessionFromSwapRequest = async (swapRequest) => {
     await Notification.create([
       {
         userId: post.userId,
+        senderId: swapRequest.requesterId,
         type: 'session',
         title: 'Session Confirmed!',
         content: `Your swap session for "${post.title}" is now confirmed and scheduled for ${swapRequest.scheduledTime.toLocaleString()}.`,
@@ -51,6 +52,7 @@ const createSessionFromSwapRequest = async (swapRequest) => {
       },
       {
         userId: swapRequest.requesterId,
+        senderId: post.userId,
         type: 'session',
         title: 'Session Confirmed!',
         content: `Your swap session for "${post.title}" is now confirmed and scheduled for ${swapRequest.scheduledTime.toLocaleString()}.`,

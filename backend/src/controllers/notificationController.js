@@ -1,4 +1,5 @@
 const Notification = require('../models/NotificationModel');
+const SwapRequest = require('../models/SwapRequestModel');
 
 getMyNotifications = async (req, res) => {
   try {
@@ -7,14 +8,37 @@ getMyNotifications = async (req, res) => {
       .sort({ createdAt: -1 })
       .populate('senderId', 'name avatar');
 
-    // Map senderId into a "sender" field to match frontend expectations
-    const shaped = notifications.map((n) => {
-      const json = n.toObject();
-      return {
-        ...json,
-        sender: json.senderId || null,
-      };
-    });
+    // Map senderId into a "sender" field and enrich with swap request meta
+    const shaped = await Promise.all(
+      notifications.map(async (n) => {
+        const json = n.toObject();
+        let swapMeta = null;
+        try {
+          if (json.relatedModel === 'SwapRequest' && json.relatedId) {
+            const sr = await SwapRequest.findById(json.relatedId).populate('postId');
+            if (sr) {
+              const youAreRequester = sr.requesterId?.toString() === req.user._id.toString();
+              const youAreOwner = sr.postId?.userId?.toString() === req.user._id.toString();
+              swapMeta = {
+                status: sr.status,
+                requesterPaid: !!sr.requesterPaid,
+                ownerPaid: !!sr.ownerPaid,
+                youAreRequester,
+                youAreOwner,
+              };
+            }
+          }
+        } catch (e) {
+          // swallow enrichment errors; do not block notifications
+        }
+
+        return {
+          ...json,
+          sender: json.senderId || null,
+          swapMeta,
+        };
+      })
+    );
 
     res.json(shaped);
   } catch (err) {
@@ -31,7 +55,20 @@ markAsRead = async (req, res) => {
   }
 };
 
+markAllAsRead = async (req, res) => {
+  try {
+    const result = await Notification.updateMany(
+      { userId: req.user._id, isRead: false },
+      { $set: { isRead: true } }
+    );
+    res.json({ message: 'All notifications marked as read.', modified: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getMyNotifications,
   markAsRead,
+  markAllAsRead,
 }

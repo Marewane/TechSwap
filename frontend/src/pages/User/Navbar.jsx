@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSelector, useDispatch } from "react-redux";
+import { fetchMyProfile } from "@/features/profile/profileSlice";
 import { useEffect, useState } from "react";
 import api from "@/services/api";
 
@@ -13,6 +14,7 @@ const Navbar = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [loadingWallet, setLoadingWallet] = useState(true);
   const location = useLocation();
+  const dispatch = useDispatch();
   const { myProfile } = useSelector((state) => state.profile);
   const user = myProfile?.user;
 
@@ -85,12 +87,37 @@ const Navbar = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // On hard refresh or direct visit, hydrate profile so avatar/name render
+  useEffect(() => {
+    if (!myProfile) {
+      dispatch(fetchMyProfile());
+    }
+  }, [myProfile, dispatch]);
+
   // Also fetch wallet when profile changes (user logs in/out)
   useEffect(() => {
     if (user) {
       fetchWalletBalance();
     }
   }, [user]);
+
+  // Listen for global wallet balance updates (e.g., after payment validation)
+  useEffect(() => {
+    const handler = (e) => {
+      if (typeof e?.detail?.balance === 'number') {
+        setWalletBalance(e.detail.balance);
+      }
+    };
+    window.addEventListener('wallet:update', handler);
+    return () => window.removeEventListener('wallet:update', handler);
+  }, []);
+
+  // When notifications page auto-marks all as read, refresh the count quickly
+  useEffect(() => {
+    const handleMarkedAll = () => fetchUnreadCount();
+    window.addEventListener('notifications:read-all', handleMarkedAll);
+    return () => window.removeEventListener('notifications:read-all', handleMarkedAll);
+  }, []);
 
   return (
     <nav className="fixed top-0 left-0 w-full bg-white border-b z-50">
@@ -138,15 +165,10 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Notification Bell */}
+          {/* Notification Bell - simplified (no unread badge) */}
           <Link to="/notifications" className="relative">
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5 text-gray-600" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
             </Button>
           </Link>
 
@@ -196,7 +218,7 @@ const Navbar = () => {
                 </span>
               </div>
 
-              {/* Mobile Notification */}
+              {/* Mobile Notification - simplified */}
               <SheetClose asChild>
                 <Link
                   to="/notifications"
@@ -204,11 +226,6 @@ const Navbar = () => {
                 >
                   <Bell className="h-5 w-5" />
                   Notifications
-                  {unreadCount > 0 && (
-                    <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                  )}
                 </Link>
               </SheetClose>
 

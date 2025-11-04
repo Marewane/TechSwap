@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { loginUser } from "@/features/user/userSlice";
+import { fetchMyProfile } from "@/features/profile/profileSlice";
+import api from "@/services/api";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,13 +30,19 @@ export default function Login() {
     
     try {
       const result = await dispatch(loginUser(formData)).unwrap();
-      
+
+      // Ensure axios has the latest token for immediate subsequent calls
+      if (result?.tokens?.accessToken) {
+        api.defaults.headers.common["Authorization"] = `Bearer ${result.tokens.accessToken}`;
+      }
+
+      // Immediately hydrate profile so Navbar avatar/wallet reflect the logged-in user
+      dispatch(fetchMyProfile());
+
       // Redirect based on role - FIXED LOGIC
       if (result.user.role === "admin") {
         navigate("/admin/dashboard");
       } else {
-        // For regular users, always go to home page
-        // Remove the profile setup check for now
         navigate("/home");
       }
     } catch (err) {

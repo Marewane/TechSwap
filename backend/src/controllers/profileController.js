@@ -4,6 +4,7 @@ const Review = require('../models/ReviewModel');
 const Post = require('../models/PostModel');
 // Sessions feature removed from profile response
 const Transaction = require('../models/TransactionModel');
+const Wallet = require('../models/WalletModel');
 
 // =====================================================
 // @desc   Get OWN profile
@@ -26,27 +27,27 @@ const getMyProfile = async (req, res) => {
     }
 
     // Get related data (sessions removed)
-    const [posts, transactions] = await Promise.all([
+    const [posts, wallet] = await Promise.all([
       Post.find({ userId })
         .select('title content skillsOffered skillsWanted availability createdAt')
         .populate({ path: 'userId', select: 'name avatar rating' }),
-      Transaction.find({ userId }).select('amount status type createdAt')
+      Wallet.findOne({ userId })
     ]);
 
-    // Compute wallet balance from transactions (completed only)
-    const balance = transactions
-      .filter(tx => tx.status === 'completed')
-      .reduce((sum, tx) => {
-        const amt = Number(tx.amount) || 0;
-        return sum + (tx.type === 'credit' ? amt : -amt);
-      }, 0);
+    // Derive transactions by walletId (most recent first)
+    let transactions = [];
+    if (wallet) {
+      transactions = await Transaction.find({ walletId: wallet._id })
+        .select('amount type balanceAfter description createdAt')
+        .sort({ createdAt: -1 });
+    }
 
     res.status(200).json({
       success: true,
       data: {
         user,
         posts,
-        wallet: { balance },
+        wallet: { balance: wallet ? wallet.balance : 0 },
         transactions,
         isOwner: true
       }

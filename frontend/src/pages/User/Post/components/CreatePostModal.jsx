@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { Plus, X, Loader2, Calendar, Check } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
+import { fetchMyProfile } from "@/features/profile/profileSlice";
 import { createPost } from "@/features/posts/postsSlice";
 
 const CreatePostModal = () => {
     const dispatch = useDispatch();
     const { loading, error } = useSelector((state) => state.posts);
-    const { user } = useSelector((state) => state.user); // Get user data from Redux
+    const { user } = useSelector((state) => state.user); // fallback
+    const { myProfile } = useSelector((state) => state.profile); // source of truth for skills
     
     const [open, setOpen] = useState(false);
     const [formData, setFormData] = useState({
@@ -23,10 +25,13 @@ const CreatePostModal = () => {
 
     const [timeError, setTimeError] = useState("");
     const modalRef = useRef(null);
+    const [teachInput, setTeachInput] = useState("");
+    const [learnInput, setLearnInput] = useState("");
 
-    // Get user's actual skills from profile
-    const userTeachingSkills = user?.skillsToTeach || [];
-    const userLearningSkills = user?.skillsToLearn || [];
+    // Get user's actual skills from profile first, fallback to user slice
+    const profileUser = myProfile?.user || user;
+    const userTeachingSkills = profileUser?.skillsToTeach || [];
+    const userLearningSkills = profileUser?.skillsToLearn || [];
 
     const daysOfWeek = [
         { value: "Monday", label: "Monday", short: "Mon" },
@@ -61,6 +66,13 @@ const CreatePostModal = () => {
             document.body.style.overflow = "unset";
         };
     }, [open]);
+
+    // Ensure we have fresh profile data when opening the modal so suggested tags appear
+    useEffect(() => {
+        if (open && !myProfile) {
+            dispatch(fetchMyProfile());
+        }
+    }, [open, myProfile, dispatch]);
 
     // Generate time slots function
     const generateTimeSlots = (start, end, days) => {
@@ -151,6 +163,20 @@ const CreatePostModal = () => {
             ...prev,
             [type === "offered" ? "skillsOffered" : "skillsWanted"]: []
         }));
+    };
+
+    const addInputSkill = (type) => {
+        const raw = type === "offered" ? teachInput : learnInput;
+        const skill = (raw || "").trim();
+        if (!skill) return;
+        setFormData((prev) => {
+            const key = type === "offered" ? "skillsOffered" : "skillsWanted";
+            const exists = prev[key].some((s) => s.toLowerCase() === skill.toLowerCase());
+            if (exists) return prev;
+            return { ...prev, [key]: [...prev[key], skill] };
+        });
+        if (type === "offered") setTeachInput("");
+        if (type === "wanted") setLearnInput("");
     };
 
     const toggleDay = (day) => {
@@ -341,14 +367,7 @@ const CreatePostModal = () => {
                 </div>
 
                 {/* Skills Grid - Offered */}
-                {userTeachingSkills.length === 0 ? (
-                    <div className="text-center py-4 text-gray-500 border border-gray-200 rounded-lg">
-                        <p className="text-sm">No teaching skills found in your profile.</p>
-                        <p className="text-xs mt-1">
-                            Update your profile to add skills you can teach.
-                        </p>
-                    </div>
-                ) : (
+                {userTeachingSkills.length > 0 && (
                     <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
                         {userTeachingSkills.map((skill, index) => (
                             <button
@@ -371,6 +390,25 @@ const CreatePostModal = () => {
                         ))}
                     </div>
                 )}
+
+                {/* Manual add input - Offered */}
+                <div className="mt-2 flex items-center gap-2">
+                    <input
+                        type="text"
+                        value={teachInput}
+                        onChange={(e) => setTeachInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') addInputSkill('offered'); }}
+                        placeholder="Type a skill you can teach and press Enter"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => addInputSkill('offered')}
+                        className="px-3 py-2 text-sm bg-gray-600 hover:bg-gray-700 text-white rounded-md"
+                    >
+                        Add
+                    </button>
+                </div>
             </div>
 
             {/* Skills Wanted Section */}
@@ -412,14 +450,7 @@ const CreatePostModal = () => {
                 </div>
 
                 {/* Skills Grid - Wanted */}
-                {userLearningSkills.length === 0 ? (
-                    <div className="text-center py-4 text-gray-500 border border-gray-200 rounded-lg">
-                        <p className="text-sm">No learning skills found in your profile.</p>
-                        <p className="text-xs mt-1">
-                            Update your profile to add skills you want to learn.
-                        </p>
-                    </div>
-                ) : (
+                {userLearningSkills.length > 0 && (
                     <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
                         {userLearningSkills.map((skill, index) => (
                             <button
@@ -442,6 +473,25 @@ const CreatePostModal = () => {
                         ))}
                     </div>
                 )}
+
+                {/* Manual add input - Wanted */}
+                <div className="mt-2 flex items-center gap-2">
+                    <input
+                        type="text"
+                        value={learnInput}
+                        onChange={(e) => setLearnInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') addInputSkill('wanted'); }}
+                        placeholder="Type a skill you want to learn and press Enter"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => addInputSkill('wanted')}
+                        className="px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                    >
+                        Add
+                    </button>
+                </div>
             </div>
 
             {/* Validation Messages */}

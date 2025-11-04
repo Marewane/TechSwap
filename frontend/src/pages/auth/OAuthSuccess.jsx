@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setAuth } from "@/features/user/userSlice";
+import { fetchMyProfile } from "@/features/profile/profileSlice";
 import api from "@/services/api";
 
 export default function OAuthSuccess() {
@@ -43,6 +44,9 @@ export default function OAuthSuccess() {
 
           // Set authorization header
           api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+
+          // Immediately hydrate profile so Navbar has avatar/wallet
+          dispatch(fetchMyProfile());
 
           // SIMPLIFIED LOGIC: Trust the backend's isNewUser flag
           if (isNewUser) {

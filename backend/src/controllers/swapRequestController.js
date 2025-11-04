@@ -43,6 +43,7 @@ const createSessionFromSwapRequest = async (swapRequest) => {
   await Notification.create([
     {
       userId: post.userId,
+      senderId: swapRequest.requesterId,
       type: 'session',
       title: 'Session Confirmed!',
       content: `Your swap session for "${post.title}" is now confirmed and scheduled for ${swapRequest.scheduledTime.toLocaleString()}.`,
@@ -51,6 +52,7 @@ const createSessionFromSwapRequest = async (swapRequest) => {
     },
     {
       userId: swapRequest.requesterId,
+      senderId: post.userId,
       type: 'session',
       title: 'Session Confirmed!',
       content: `Your swap session for "${post.title}" is now confirmed and scheduled for ${swapRequest.scheduledTime.toLocaleString()}.`,
@@ -195,7 +197,7 @@ const acceptSwapRequest = async (req, res) => {
 const rejectSwapRequest = async (req, res) => {
   try {
     const { requestId } = req.params;
-    const swapRequest = await SwapRequest.findById(requestId);
+    const swapRequest = await SwapRequest.findById(requestId).populate('postId');
     
     if (!swapRequest) {
       return res.status(404).json({ message: 'Swap request not found' });
@@ -216,8 +218,8 @@ const rejectSwapRequest = async (req, res) => {
       userId: swapRequest.requesterId,
       senderId: req.user._id,
       type: 'swap_rejected',
-      title: 'Swap Request Rejected',
-      content: 'Your swap request has been rejected.',
+      title: `Swap Request Rejected: "${post.title}"`,
+      content: `Your request to swap ${post.skillsWanted?.length ? `"${post.skillsWanted.join(', ')}"` : 'skills'} for ${post.skillsOffered?.length ? `"${post.skillsOffered.join(', ')}"` : 'skills'} was rejected by ${req.user.name}.`,
       relatedId: swapRequest._id,
       relatedModel: 'Post'
     });

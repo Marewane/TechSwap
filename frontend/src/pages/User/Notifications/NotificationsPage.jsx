@@ -274,10 +274,10 @@ const NotificationsPage = () => {
   const [walletInfo, setWalletInfo] = useState({ currentBalance: 0, requiredCoins: 50 });
   const [actionFeedback, setActionFeedback] = useState({});
   const [processingActions, setProcessingActions] = useState({});
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0); // kept for compatibility, not shown in UI
   const navigate = useNavigate();
 
-  // Fetch notifications and calculate unread count
+  // Fetch notifications, then silently mark them as read
   const fetchNotifications = async () => {
     try {
       const res = await api.get("/notifications");
@@ -295,7 +295,16 @@ const NotificationsPage = () => {
   };
 
   useEffect(() => {
-    fetchNotifications();
+    fetchNotifications().then(async () => {
+      try {
+        await api.post('/notifications/read-all');
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        setUnreadCount(0);
+        window.dispatchEvent(new Event('notifications:read-all'));
+      } catch (e) {
+        console.warn('Failed to mark all as read on mount', e?.response?.data || e.message);
+      }
+    });
   }, []);
 
   // Update unread count whenever notifications change
@@ -307,10 +316,14 @@ const NotificationsPage = () => {
   // Check if notification should show payment validation button
   const shouldShowPaymentButton = (notification) => {
     const isPaymentEligible = notification.type === 'swap_accepted' || notification.type === 'payment';
-    
-    return isPaymentEligible && 
-           !notification.isRead && 
-           !actionFeedback[notification._id] && 
+    const meta = notification.swapMeta;
+
+    if (!isPaymentEligible || !meta) return false;
+
+    const youNeedToPay = (meta.youAreRequester && !meta.requesterPaid) || (meta.youAreOwner && !meta.ownerPaid);
+
+    return meta.status === 'accepted' && youNeedToPay &&
+           !actionFeedback[notification._id] &&
            !processingActions[notification._id];
   };
 
@@ -396,7 +409,14 @@ const NotificationsPage = () => {
         )
       );
 
-      // ✅ 3. SHOW ACTION FEEDBACK IN NOTIFICATION
+      // ✅ 3a. BROADCAST WALLET BALANCE UPDATE FOR NAVBAR (immediate UI sync)
+      try {
+        if (typeof window !== 'undefined' && data?.newBalance !== undefined) {
+          window.dispatchEvent(new CustomEvent('wallet:update', { detail: { balance: data.newBalance } }));
+        }
+      } catch {}
+
+      // ✅ 3b. SHOW ACTION FEEDBACK IN NOTIFICATION
       setActionFeedback(prev => ({
         ...prev,
         [selectedNotificationId]: {
@@ -574,17 +594,11 @@ const NotificationsPage = () => {
 
   // Check if a notification should show swap actions
   const shouldShowSwapActions = (notification) => {
-    // Only show actions for unread swap_request notifications
-    if (notification.type !== 'swap_request' || notification.isRead) {
-      return false;
-    }
-    
-    // Don't show actions if we're processing or have feedback
-    if (processingActions[notification._id] || actionFeedback[notification._id]) {
-      return false;
-    }
-    
-    return true;
+    if (notification.type !== 'swap_request') return false;
+    const meta = notification.swapMeta;
+    if (!meta) return false;
+    if (processingActions[notification._id] || actionFeedback[notification._id]) return false;
+    return meta.status === 'pending';
   };
 
   const getIcon = (type) => {
@@ -627,16 +641,22 @@ const NotificationsPage = () => {
     <>
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
+          <div className="space-y-1">
             <h1 className="text-3xl font-bold text-gray-800">Notifications</h1>
-            {unreadCount > 0 && (
-              <span className="bg-red-500 text-white text-sm font-medium px-2.5 py-0.5 rounded-full">
-                {unreadCount} unread
-              </span>
-            )}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={fetchNotifications}>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await fetchNotifications();
+                try {
+                  await api.post('/notifications/read-all');
+                  setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+                  setUnreadCount(0);
+                  window.dispatchEvent(new Event('notifications:read-all'));
+                } catch {}
+              }}
+            >
               <Loader2 className="h-4 w-4 mr-2" />
               Refresh
             </Button>
