@@ -1,4 +1,4 @@
-// src/pages/LiveSession/LiveSession.jsx (Updated with Improved Design)
+// src/pages/LiveSession/LiveSession.jsx - COMPLETE WORKING VERSION
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -36,6 +36,8 @@ const LiveSession = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [participants, setParticipants] = useState([]);
+  const [isInitiator, setIsInitiator] = useState(false);
+  const hasInitiatedOfferRef = useRef(false);
 
   // --- Initialize Socket.IO connection ---
   const {
@@ -59,11 +61,17 @@ const LiveSession = () => {
     isSharingScreen,
     isAudioEnabled,
     isVideoEnabled,
-    getUserMedia,
+    connectionStatus,
     toggleAudio,
     toggleVideo,
     startScreenShare,
     stopScreenShare,
+    createOffer,
+    createAnswer,
+    handleOffer,
+    handleAnswer,
+    handleIceCandidate,
+    setInitiatorStatus
   } = useWebRTC(sessionId, {
     sendOffer: socketSendOffer,
     sendAnswer: socketSendAnswer,
@@ -107,6 +115,12 @@ const LiveSession = () => {
         setSession(mockSession);
         setParticipants([mockSession.hostId, mockSession.learnerId]);
 
+        // Determine if current user is the host (initiator)
+        const loggedInUserId = user?._id;
+        const userIsHost = mockSession.hostId._id === loggedInUserId;
+        setIsInitiator(userIsHost);
+        console.log(`User is ${userIsHost ? 'HOST (initiator)' : 'LEARNER (responder)'}`);
+
       } catch (err) {
         console.error("Failed to fetch session:", err);
         setError(err.message || "Failed to load session details.");
@@ -121,7 +135,7 @@ const LiveSession = () => {
       setError("Invalid session ID.");
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, user]);
 
   // --- Connect to Socket.IO when component mounts and token is available ---
   useEffect(() => {
@@ -147,26 +161,116 @@ const LiveSession = () => {
     }
   }, [isConnected, sessionId, joinSession]);
 
+  // --- Register Socket.IO Event Listeners for WebRTC Signaling ---
+  useEffect(() => {
+    if (!socket) return;
+
+    console.log('Registering WebRTC signaling listeners...');
+
+    // Handle incoming offer
+    const onOffer = (data) => {
+      console.log('Received WebRTC offer from:', data.from);
+      handleOffer(data.offer);
+    };
+
+    // Handle incoming answer
+    const onAnswer = (data) => {
+      console.log('Received WebRTC answer from:', data.from);
+      handleAnswer(data.answer);
+    };
+
+    // Handle incoming ICE candidate
+    const onIceCandidate = (data) => {
+      console.log('Received ICE candidate from:', data.from);
+      handleIceCandidate(data.candidate);
+    };
+
+    // Handle user joined
+    const onUserJoined = (data) => {
+      console.log('User joined session:', data.userId);
+      
+      // If we're the initiator and haven't sent offer yet, send it now
+      if (isInitiator && !hasInitiatedOfferRef.current) {
+        console.log('Initiator sending offer to new participant...');
+        hasInitiatedOfferRef.current = true;
+        // Small delay to ensure both peers are ready
+        setTimeout(() => {
+          createOffer();
+        }, 1000);
+      }
+    };
+
+    // Handle user left
+    const onUserLeft = (data) => {
+      console.log('User left session:', data.userId);
+    };
+
+    // Register listeners
+    socket.on('webrtc-offer', onOffer);
+    socket.on('webrtc-answer', onAnswer);
+    socket.on('webrtc-ice-candidate', onIceCandidate);
+    socket.on('user-joined', onUserJoined);
+    socket.on('user-left', onUserLeft);
+
+    // Cleanup listeners on unmount
+    return () => {
+      console.log('Cleaning up WebRTC signaling listeners...');
+      socket.off('webrtc-offer', onOffer);
+      socket.off('webrtc-answer', onAnswer);
+      socket.off('webrtc-ice-candidate', onIceCandidate);
+      socket.off('user-joined', onUserJoined);
+      socket.off('user-left', onUserLeft);
+    };
+  }, [socket, isInitiator, createOffer, handleOffer, handleAnswer, handleIceCandidate]);
+
+  // --- Initiate Offer if User Joins First as Initiator ---
+  useEffect(() => {
+    // If we're the initiator, connected, and in the session, wait a bit then send offer
+    // This handles the case where the initiator joins first
+    if (isInitiator && isConnected && sessionId && !hasInitiatedOfferRef.current) {
+      console.log('Initiator connected first, waiting for responder...');
+      // The offer will be sent when 'user-joined' event fires (see above)
+    }
+  }, [isInitiator, isConnected, sessionId]);
+
   // --- MAIN VIDEO DISPLAY LOGIC ---
   useEffect(() => {
-    if (mainVideoRef.current) {
-      if (isSharingScreen && screenStream) {
-        mainVideoRef.current.srcObject = screenStream;
-      } else if (remoteStream) {
-        mainVideoRef.current.srcObject = remoteStream;
+    const videoElement = mainVideoRef.current;
+    if (videoElement) {
+      // Priority: Remote stream (or remote screen share) > Your screen share > Nothing
+      if (remoteStream) {
+        console.log('Displaying remote stream in main video');
+        videoElement.srcObject = remoteStream;
+        // Explicitly play the video to ensure it renders
+        videoElement.play().catch(err => {
+          console.warn('Failed to play remote video:', err);
+        });
+      } else if (isSharingScreen && screenStream) {
+        // Only show your screen share if there's no remote stream yet
+        console.log('Displaying your screen share in main video (no remote yet)');
+        videoElement.srcObject = screenStream;
+        // Explicitly play the video
+        videoElement.play().catch(err => {
+          console.warn('Failed to play screen share:', err);
+        });
       } else {
-        mainVideoRef.current.srcObject = null;
+        videoElement.srcObject = null;
       }
     }
   }, [screenStream, remoteStream, isSharingScreen]);
 
   // --- CAMERA PREVIEW LOGIC ---
   useEffect(() => {
-    if (cameraPreviewRef.current) {
+    const previewElement = cameraPreviewRef.current;
+    if (previewElement) {
       if (localStream && isVideoEnabled) {
-        cameraPreviewRef.current.srcObject = localStream;
+        previewElement.srcObject = localStream;
+        // Explicitly play the preview video
+        previewElement.play().catch(err => {
+          console.warn('Failed to play camera preview:', err);
+        });
       } else {
-        cameraPreviewRef.current.srcObject = null;
+        previewElement.srcObject = null;
       }
     }
   }, [localStream, isVideoEnabled]);
@@ -174,6 +278,7 @@ const LiveSession = () => {
   const handleEndCall = () => {
     if (window.confirm('Are you sure you want to end this session?')) {
       console.log("Ending session...");
+      leaveSession(sessionId);
       navigate('/events');
     }
   };
@@ -189,6 +294,22 @@ const LiveSession = () => {
   const timeUntil = scheduledDate - new Date();
   const isPastScheduledTime = timeUntil < 0;
   const minutesUntil = Math.abs(Math.floor(timeUntil / 1000 / 60));
+
+  // --- Connection Status Display ---
+  const getConnectionStatusBadge = () => {
+    switch (connectionStatus) {
+      case 'connected':
+        return <Badge variant="default" className="bg-green-600">Connected</Badge>;
+      case 'connecting':
+        return <Badge variant="secondary">Connecting...</Badge>;
+      case 'disconnected':
+        return <Badge variant="outline">Disconnected</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">Connection Failed</Badge>;
+      default:
+        return <Badge variant="outline">{connectionStatus}</Badge>;
+    }
+  };
 
   if (loading) {
     return (
@@ -284,6 +405,9 @@ const LiveSession = () => {
               {isConnected ? 'Connected' : 'Disconnected'}
             </Badge>
 
+            {/* WebRTC Connection Status */}
+            {getConnectionStatusBadge()}
+
             {/* Participant Info */}
             <div className="flex items-center text-sm text-gray-300 ">
               <User className="w-4 h-4 mr-1" />
@@ -313,7 +437,13 @@ const LiveSession = () => {
         <div className="flex-1 bg-gray-800 rounded-lg p-4 flex flex-col bg-black-800">
           <Card className="flex-1 flex flex-col h-full bg-black-800">
             <CardHeader>
-              <CardTitle className="text-lg text-white">Video Call</CardTitle>
+              <CardTitle className="text-lg text-white">
+                Video Call
+                {remoteStream && <span className="ml-2 text-sm text-green-400">(Remote Stream Active)</span>}
+                {!remoteStream && connectionStatus === 'connecting' && (
+                  <span className="ml-2 text-sm text-yellow-400">(Connecting...)</span>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 flex items-center justify-center p-0 relative overflow-hidden">
               {/* Main Video Element */}
@@ -321,6 +451,7 @@ const LiveSession = () => {
                 ref={mainVideoRef}
                 autoPlay
                 playsInline
+                muted
                 className="w-full h-full object-contain bg-black rounded"
               />
               {/* Placeholder for Main Video */}
@@ -331,12 +462,17 @@ const LiveSession = () => {
                       <VideoIcon className="w-8 h-8 text-gray-400" />
                     </div>
                     <p className="text-gray-400 text-sm">
-                      Waiting for participant or screen share...
+                      {connectionStatus === 'connecting' ? 'Connecting to participant...' : 
+                       connectionStatus === 'connected' ? 'Connected! Waiting for video...' :
+                       'Waiting for participant...'}
                     </p>
+                    {isInitiator && !hasInitiatedOfferRef.current && (
+                      <p className="text-blue-400 text-xs mt-2">You are the host. Waiting for learner to join...</p>
+                    )}
                   </div>
                 </div>
               )}
-              {isSharingScreen && !screenStream && (
+              {isSharingScreen && !remoteStream && !screenStream && (
                  <div className="absolute inset-0 flex items-center justify-center bg-gray-700/50">
                   <p className="text-gray-400 text-sm">Preparing screen share...</p>
                 </div>
@@ -406,7 +542,7 @@ const LiveSession = () => {
                     </div>
                     {participant._id === loggedInUserId && (
                       <Badge variant="default" className="text-xs">
-                        You
+                        You {isInitiator && '(Host)'}
                       </Badge>
                     )}
                   </div>

@@ -169,19 +169,43 @@ io.on('connection', (socket) => {
   });
 
   // WebRTC signaling - Handle offer from initiator
+  // socket.on('webrtc-offer', (data) => {
+  //   try {
+  //     const { offer, targetUserId, sessionId } = data;
+      
+  //     // Verify user is in the session room
+  //     const roomName = `session-${sessionId}`;
+  //     if (socket.rooms.has(roomName)) {
+  //       // Send offer to target user only
+  //       socket.to(roomName).emit('webrtc-offer', {
+  //         offer,
+  //         from: socket.userId,
+  //         targetUserId
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error('WebRTC offer error:', error);
+  //     socket.emit('error', { message: 'Error sending offer' });
+  //   }
+  // });
+
+
+  // WebRTC signaling - Handle offer from initiator
   socket.on('webrtc-offer', (data) => {
     try {
       const { offer, targetUserId, sessionId } = data;
+      console.log(`📤 Relaying offer from ${socket.userId} to session ${sessionId}`); // ADD THIS
       
-      // Verify user is in the session room
       const roomName = `session-${sessionId}`;
       if (socket.rooms.has(roomName)) {
-        // Send offer to target user only
         socket.to(roomName).emit('webrtc-offer', {
           offer,
           from: socket.userId,
           targetUserId
         });
+        console.log(`✅ Offer relayed successfully`); // ADD THIS
+      } else {
+        console.log(`❌ User not in room ${roomName}`); // ADD THIS
       }
     } catch (error) {
       console.error('WebRTC offer error:', error);
@@ -190,18 +214,41 @@ io.on('connection', (socket) => {
   });
 
   // WebRTC signaling - Handle answer from responder
+  // socket.on('webrtc-answer', (data) => {
+  //   try {
+  //     const { answer, targetUserId, sessionId } = data;
+      
+  //     const roomName = `session-${sessionId}`;
+  //     if (socket.rooms.has(roomName)) {
+  //       // Send answer back to the original offerer
+  //       socket.to(roomName).emit('webrtc-answer', {
+  //         answer,
+  //         from: socket.userId,
+  //         targetUserId
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error('WebRTC answer error:', error);
+  //     socket.emit('error', { message: 'Error sending answer' });
+  //   }
+  // });
+
+// WebRTC signaling - Handle answer from responder
   socket.on('webrtc-answer', (data) => {
     try {
       const { answer, targetUserId, sessionId } = data;
+      console.log(`📥 Relaying answer from ${socket.userId} to session ${sessionId}`); // ADDED
       
       const roomName = `session-${sessionId}`;
       if (socket.rooms.has(roomName)) {
-        // Send answer back to the original offerer
         socket.to(roomName).emit('webrtc-answer', {
           answer,
           from: socket.userId,
           targetUserId
         });
+        console.log(`✅ Answer relayed successfully`); // ADDED
+      } else {
+        console.log(`❌ User not in room ${roomName}`); // ADDED
       }
     } catch (error) {
       console.error('WebRTC answer error:', error);
@@ -209,19 +256,44 @@ io.on('connection', (socket) => {
     }
   });
 
+
+  // WebRTC signaling - Handle ICE candidates
+  // socket.on('webrtc-ice-candidate', (data) => {
+  //   try {
+  //     const { candidate, targetUserId, sessionId } = data;
+      
+  //     const roomName = `session-${sessionId}`;
+  //     if (socket.rooms.has(roomName)) {
+  //       // Send ICE candidate to target user
+  //       socket.to(roomName).emit('webrtc-ice-candidate', {
+  //         candidate,
+  //         from: socket.userId,
+  //         targetUserId
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error('WebRTC ICE candidate error:', error);
+  //     socket.emit('error', { message: 'Error sending ICE candidate' });
+  //   }
+  // });
+
+
   // WebRTC signaling - Handle ICE candidates
   socket.on('webrtc-ice-candidate', (data) => {
     try {
       const { candidate, targetUserId, sessionId } = data;
+      console.log(`⚡ Relaying ICE candidate from ${socket.userId} to session ${sessionId}`); // ADDED
       
       const roomName = `session-${sessionId}`;
       if (socket.rooms.has(roomName)) {
-        // Send ICE candidate to target user
         socket.to(roomName).emit('webrtc-ice-candidate', {
           candidate,
           from: socket.userId,
           targetUserId
         });
+        console.log(`✅ ICE candidate relayed successfully`); // ADDED
+      } else {
+        console.log(`❌ User not in room ${roomName}`); // ADDED
       }
     } catch (error) {
       console.error('WebRTC ICE candidate error:', error);
