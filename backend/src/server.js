@@ -5,6 +5,7 @@ const socketIo = require('socket.io');
 const cors = require('cors');
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
+const Session = require('./models/SessionModel');
 
 // Load environment variables
 dotenv.config();
@@ -40,6 +41,48 @@ const io = socketIo(server, {
 
 // JWT authentication middleware for Socket.IO
 const jwt = require('jsonwebtoken');
+
+const emitSessionParticipants = async (sessionId, sessionDoc) => {
+  try {
+    const normalizedSessionId = sessionId.toString();
+    const session = sessionDoc || await Session.findById(normalizedSessionId).select('hostId learnerId');
+    if (!session) return;
+
+    const roomName = `session-${normalizedSessionId}`;
+    const room = io.sockets.adapter.rooms.get(roomName);
+    const connectedIds = new Set();
+
+    if (room) {
+      for (const socketId of room) {
+        const memberSocket = io.sockets.sockets.get(socketId);
+        if (memberSocket?.userId) {
+          connectedIds.add(memberSocket.userId.toString());
+        }
+      }
+    }
+
+    const hostId = session.hostId.toString();
+    const learnerId = session.learnerId.toString();
+
+    io.to(roomName).emit('session-participants', {
+      sessionId: normalizedSessionId,
+      participants: [
+        {
+          userId: hostId,
+          role: 'host',
+          isOnline: connectedIds.has(hostId)
+        },
+        {
+          userId: learnerId,
+          role: 'learner',
+          isOnline: connectedIds.has(learnerId)
+        }
+      ]
+    });
+  } catch (error) {
+    console.error('emitSessionParticipants error:', error);
+  }
+};
 
 const authenticateSocket = (socket, next) => {
   try {
@@ -95,12 +138,11 @@ io.use(authenticateSocket);
 
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.userId}`);
+  const joinedSessions = new Set();
 
   // Join session room with authorization check
   socket.on('join-session', async (sessionId) => {
     try {
-      // Import Session model to check authorization
-      const Session = require('./models/SessionModel');
       const session = await Session.findById(sessionId);
       
       if (!session) {
@@ -108,7 +150,7 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Check if user is authorized to join this session
+      const normalizedSessionId = sessionId.toString();
       const isAuthorized = session.hostId.toString() === socket.userId.toString() || 
                          session.learnerId.toString() === socket.userId.toString();
       
@@ -117,23 +159,18 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Join the session room
-      socket.join(`session-${sessionId}`);
-      console.log(`User ${socket.userId} joined session ${sessionId}`);
+      const roomName = `session-${normalizedSessionId}`;
+      socket.join(roomName);
+      joinedSessions.add(normalizedSessionId);
+      console.log(`User ${socket.userId} joined session ${normalizedSessionId}`);
       
       // Notify other users in the room
-      socket.to(`session-${sessionId}`).emit('user-joined', {
+      socket.to(roomName).emit('user-joined', {
         userId: socket.userId,
         timestamp: new Date()
       });
 
-      // Send current participants to the joining user
-      const room = io.sockets.adapter.rooms.get(`session-${sessionId}`);
-      const participants = room ? Array.from(room) : [];
-      socket.emit('session-participants', {
-        participants,
-        sessionId
-      });
+      await emitSessionParticipants(normalizedSessionId, session);
 
     } catch (error) {
       console.error('Join session error:', error);
@@ -142,37 +179,21 @@ io.on('connection', (socket) => {
   });
 
   // Leave session room
-  socket.on('leave-session', (sessionId) => {
-    socket.leave(`session-${sessionId}`);
-    console.log(`User ${socket.userId} left session ${sessionId}`);
+  socket.on('leave-session', async (sessionId) => {
+    const normalizedSessionId = sessionId.toString();
+    const roomName = `session-${normalizedSessionId}`;
+
+    socket.leave(roomName);
+    joinedSessions.delete(normalizedSessionId);
+    console.log(`User ${socket.userId} left session ${normalizedSessionId}`);
     
-    socket.to(`session-${sessionId}`).emit('user-left', {
+    socket.to(roomName).emit('user-left', {
       userId: socket.userId,
       timestamp: new Date()
     });
+
+    await emitSessionParticipants(normalizedSessionId);
   });
-
-  // WebRTC signaling - Handle offer from initiator
-  // socket.on('webrtc-offer', (data) => {
-  //   try {
-  //     const { offer, targetUserId, sessionId } = data;
-      
-  //     // Verify user is in the session room
-  //     const roomName = `session-${sessionId}`;
-  //     if (socket.rooms.has(roomName)) {
-  //       // Send offer to target user only
-  //       socket.to(roomName).emit('webrtc-offer', {
-  //         offer,
-  //         from: socket.userId,
-  //         targetUserId
-  //       });
-  //     }
-  //   } catch (error) {
-  //     console.error('WebRTC offer error:', error);
-  //     socket.emit('error', { message: 'Error sending offer' });
-  //   }
-  // });
-
 
   // WebRTC signaling - Handle offer from initiator
   socket.on('webrtc-offer', (data) => {
@@ -198,26 +219,6 @@ io.on('connection', (socket) => {
   });
 
   // WebRTC signaling - Handle answer from responder
-  // socket.on('webrtc-answer', (data) => {
-  //   try {
-  //     const { answer, targetUserId, sessionId } = data;
-      
-  //     const roomName = `session-${sessionId}`;
-  //     if (socket.rooms.has(roomName)) {
-  //       // Send answer back to the original offerer
-  //       socket.to(roomName).emit('webrtc-answer', {
-  //         answer,
-  //         from: socket.userId,
-  //         targetUserId
-  //       });
-  //     }
-  //   } catch (error) {
-  //     console.error('WebRTC answer error:', error);
-  //     socket.emit('error', { message: 'Error sending answer' });
-  //   }
-  // });
-
-// WebRTC signaling - Handle answer from responder
   socket.on('webrtc-answer', (data) => {
     try {
       const { answer, targetUserId, sessionId } = data;
@@ -239,28 +240,6 @@ io.on('connection', (socket) => {
       socket.emit('error', { message: 'Error sending answer' });
     }
   });
-
-
-  // WebRTC signaling - Handle ICE candidates
-  // socket.on('webrtc-ice-candidate', (data) => {
-  //   try {
-  //     const { candidate, targetUserId, sessionId } = data;
-      
-  //     const roomName = `session-${sessionId}`;
-  //     if (socket.rooms.has(roomName)) {
-  //       // Send ICE candidate to target user
-  //       socket.to(roomName).emit('webrtc-ice-candidate', {
-  //         candidate,
-  //         from: socket.userId,
-  //         targetUserId
-  //       });
-  //     }
-  //   } catch (error) {
-  //     console.error('WebRTC ICE candidate error:', error);
-  //     socket.emit('error', { message: 'Error sending ICE candidate' });
-  //   }
-  // });
-
 
   // WebRTC signaling - Handle ICE candidates
   socket.on('webrtc-ice-candidate', (data) => {
@@ -303,8 +282,19 @@ io.on('connection', (socket) => {
   });
 
   // Handle disconnect
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log(`User disconnected: ${socket.userId}`);
+
+    for (const sessionId of joinedSessions) {
+      const roomName = `session-${sessionId}`;
+      socket.to(roomName).emit('user-left', {
+        userId: socket.userId,
+        timestamp: new Date()
+      });
+      await emitSessionParticipants(sessionId);
+    }
+
+    joinedSessions.clear();
   });
 
   // Handle errors

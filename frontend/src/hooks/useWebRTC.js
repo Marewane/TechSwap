@@ -16,6 +16,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
+  const remoteStreamRef = useRef(null);
   const iceCandidateQueueRef = useRef([]);
   const hasRemoteDescriptionRef = useRef(false);
   const isNegotiatingRef = useRef(false); // Prevent duplicate renegotiations
@@ -116,58 +117,43 @@ export const useWebRTC = (sessionId, socketFunctions) => {
     // Remote Track Handler
     // CRITICAL FIX: Properly merge tracks when remote stream updates (e.g., when audio is added)
     pc.ontrack = (event) => {
-      console.log('🎥 Remote track received:', event.track.kind, event.track.id);
-      if (event.streams && event.streams[0]) {
-        const incomingStream = event.streams[0];
-        
-        // If we already have a remote stream, merge tracks instead of replacing
-        setRemoteStream(prevStream => {
-          if (prevStream && prevStream.id === incomingStream.id) {
-            // Same stream, just update the tracks (React will handle re-render)
-            console.log('✅ Remote stream updated (same stream ID, tracks merged)');
-            return incomingStream;
-          } else if (prevStream) {
-            // Different stream - merge tracks from both streams
-            const mergedStream = new MediaStream();
-            
-            // Add all tracks from previous stream
-            prevStream.getTracks().forEach(track => {
-              if (track.readyState !== 'ended') {
-                mergedStream.addTrack(track);
-              }
-            });
-            
-            // Add all tracks from incoming stream (avoid duplicates)
-            incomingStream.getTracks().forEach(track => {
-              const existingTrack = mergedStream.getTracks().find(
-                t => t.kind === track.kind && t.id === track.id
-              );
-              if (!existingTrack && track.readyState !== 'ended') {
-                mergedStream.addTrack(track);
-              }
-            });
-            
-            console.log('✅ Remote streams merged:', {
-              previous: prevStream.id,
-              incoming: incomingStream.id,
-              merged: mergedStream.id,
-              tracks: mergedStream.getTracks().map(t => `${t.kind}:${t.id}`)
-            });
-            
-            return mergedStream;
-          } else {
-            // First remote stream
-            console.log('✅ Setting initial remote stream:', incomingStream.id);
-            return incomingStream;
+      const incomingTrack = event.track;
+      console.log('🎥 Remote track received:', incomingTrack.kind, incomingTrack.id);
+
+      const existingStream = remoteStreamRef.current;
+      const combinedStream = new MediaStream();
+      const addTrackIfNeeded = (track) => {
+        if (!track || track.readyState === 'ended') return;
+        const alreadyPresent = combinedStream.getTracks().some(t => t.id === track.id);
+        if (!alreadyPresent) {
+          combinedStream.addTrack(track);
+        }
+      };
+
+      if (existingStream) {
+        existingStream.getTracks().forEach(track => {
+          if (track.kind === incomingTrack.kind && track.id !== incomingTrack.id) {
+            return; // Replace old track of same kind with the incoming one
           }
-        });
-        
-        // Log track details
-        const currentStream = event.streams[0];
-        currentStream.getTracks().forEach(track => {
-          console.log(`  - ${track.kind} track: ${track.id}, enabled: ${track.enabled}, readyState: ${track.readyState}`);
+          addTrackIfNeeded(track);
         });
       }
+
+      if (event.streams && event.streams[0]) {
+        event.streams[0].getTracks().forEach(addTrackIfNeeded);
+      }
+
+      addTrackIfNeeded(incomingTrack);
+
+      if (combinedStream.getTracks().length === 0) {
+        console.warn('No active tracks found for remote stream');
+        return;
+      }
+
+      remoteStreamRef.current = combinedStream;
+      setRemoteStream(combinedStream);
+
+      console.log('✅ Updated remote stream:', combinedStream.id, 'tracks:', combinedStream.getTracks().map(t => `${t.kind}:${t.id}`));
     };
 
     // Connection State Handler
