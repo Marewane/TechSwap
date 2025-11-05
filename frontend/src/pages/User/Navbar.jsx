@@ -1,12 +1,14 @@
 // frontend/src/pages/User/Navbar.jsx
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, User, LogOut, CircleDollarSign, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchMyProfile } from "@/features/profile/profileSlice";
+import { logout as logoutAction } from "@/features/user/userSlice";
 import { useEffect, useState } from "react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import api from "@/services/api";
 
 // Resolve avatar to absolute URL if backend returns a relative path
@@ -23,6 +25,7 @@ const Navbar = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [loadingWallet, setLoadingWallet] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { myProfile } = useSelector((state) => state.profile);
   const user = myProfile?.user;
@@ -95,6 +98,15 @@ const Navbar = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      // Best-effort server logout (no need to block on response)
+      api.post("/auth/logout").catch(() => {});
+    } catch {}
+    dispatch(logoutAction());
+    navigate("/login");
+  };
 
   // On hard refresh or direct visit, hydrate profile so avatar/name render
   useEffect(() => {
@@ -182,14 +194,29 @@ const Navbar = () => {
           </Link>
 
           {/* Profile Dropdown */}
-          <Link to="/profile" className="flex items-center gap-2">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={resolveAvatarUrl(user?.avatar)} alt={user?.name || "User"} />
-              <AvatarFallback className="bg-indigo-100 text-indigo-600 text-xs">
-                {getInitials(user?.name)}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center focus:outline-none cursor-pointer">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={resolveAvatarUrl(user?.avatar)} alt={user?.name || "User"} />
+                  <AvatarFallback className="bg-indigo-100 text-indigo-600 text-xs">
+                    {getInitials(user?.name)}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/profile")}>
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Mobile Menu */}
@@ -270,6 +297,7 @@ const Navbar = () => {
                   </SheetClose>
                   <SheetClose asChild>
                     <Button
+                      onClick={handleLogout}
                       variant="default"
                       className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
                     >
