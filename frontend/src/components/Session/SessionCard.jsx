@@ -38,21 +38,36 @@ const SessionCard = ({
   const formattedDateTime = scheduledDate.toLocaleString();
   const timeUntil = scheduledDate - new Date();
   const hoursUntil = Math.floor(timeUntil / (1000 * 60 * 60));
+  const minutesUntil = Math.floor(timeUntil / (1000 * 60));
   const isSoon = timeUntil > 0 && timeUntil <= 1000 * 60 * 60 * 2; // Within 2 hours
   const isTooLate = hoursUntil < -1; // More than 1 hour past scheduled time
+  // Check if scheduled time has been reached (backend requirement: now >= scheduledTime)
+  const isTimeReached = timeUntil <= 0;
+  // Allow starting within 5 minutes BEFORE scheduled time (matches backend buffer)
+  // Backend allows: time has passed OR (0 < timeDifference <= 5 minutes)
+  const canStartNow = isTimeReached || (minutesUntil > 0 && minutesUntil <= 5);
 
   // Get button props based on session status and user role
   const getButtonProps = () => {
     switch (session.status) {
       case 'scheduled':
         if (isHost) {
-          const isDisabled = isTooLate;
+          // CRITICAL FIX: Match backend validation exactly
+          // Backend allows: status === 'ready' OR (status === 'scheduled' AND (time has passed OR within 5 min before))
+          // isTooLate: more than 1 hour past (disabled)
+          // canStartNow: time has passed OR within 5 minutes before
+          const isDisabled = isTooLate || (!canStartNow);
+          const tooltipText = isTooLate 
+            ? 'Session time has passed more than 1 hour ago.' 
+            : !canStartNow && minutesUntil > 5
+              ? `Session starts in ${minutesUntil} minutes. You can start 5 minutes before.`
+              : null;
           return {
             text: 'Start Session',
             onClick: () => onStartSession(session),
             variant: 'default',
             disabled: isDisabled,
-            tooltip: isDisabled ? 'Session time has passed.' : null
+            tooltip: tooltipText
           };
         } else if (isLearner) {
           return {

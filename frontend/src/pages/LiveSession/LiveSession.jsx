@@ -271,12 +271,21 @@ const LiveSession = () => {
     const videoElement = mainVideoRef.current;
     if (!videoElement) return;
 
-    const remoteHasVideo = !!(remoteStream && remoteStream.getVideoTracks().some(t => t.readyState === 'live'));
+    // CRITICAL FIX: When User A is sharing screen, ALWAYS show screen share (highest priority)
+    // This prevents remote stream changes (like when User B enables mic) from disrupting screen share
+    if (isSharingScreen && screenStream) {
+      console.log('🖥️ Displaying your screen share (priority - ignoring remote stream changes)');
+      videoElement.srcObject = screenStream;
+      videoElement.muted = true; // local content, no audio
+      videoElement.play().catch(err => {
+        console.warn('Failed to play screen share:', err);
+      });
+      return;
+    }
 
-    // Priority:
-    // 1) Remote stream ONLY if it has a video track
-    // 2) Otherwise keep showing your screen share if active
-    // 3) Otherwise nothing
+    // Only show remote stream if User A is NOT sharing screen
+    const remoteHasVideo = !!(remoteStream && remoteStream.getVideoTracks().some(t => t.readyState === 'live'));
+    
     if (remoteStream && remoteHasVideo) {
       console.log('Displaying remote stream (with video) in main video');
       videoElement.srcObject = remoteStream;
@@ -288,16 +297,7 @@ const LiveSession = () => {
       return;
     }
 
-    if (isSharingScreen && screenStream) {
-      console.log('Displaying your screen share (remote has no video)');
-      videoElement.srcObject = screenStream;
-      videoElement.muted = true; // local content
-      videoElement.play().catch(err => {
-        console.warn('Failed to play screen share:', err);
-      });
-      return;
-    }
-
+    // No video to display
     videoElement.srcObject = null;
   }, [screenStream, remoteStream, isSharingScreen]);
 
@@ -322,9 +322,18 @@ const LiveSession = () => {
     const audioEl = remoteAudioRef.current;
     if (!audioEl) return;
 
-    if (remoteStream && remoteStream.getAudioTracks().length > 0) {
-      console.log('🔊 Setting up remote audio playback');
-      audioEl.srcObject = remoteStream;
+    // CRITICAL FIX: Check for audio tracks in remote stream (even if stream changes)
+    const audioTracks = remoteStream ? remoteStream.getAudioTracks().filter(t => t.readyState === 'live') : [];
+    
+    if (audioTracks.length > 0) {
+      console.log(`🔊 Setting up remote audio playback (${audioTracks.length} active audio track(s))`);
+      
+      // Always update srcObject to ensure new tracks are included
+      // This handles the case where User B enables mic after connection is established
+      if (audioEl.srcObject !== remoteStream) {
+        audioEl.srcObject = remoteStream;
+      }
+      
       audioEl.muted = false;
       audioEl.volume = 1.0;
       
@@ -347,8 +356,33 @@ const LiveSession = () => {
           }
         }
       };
-      play();
+      
+      // Replay if audio was already playing (handles track updates)
+      if (!audioEl.paused) {
+        play();
+      } else {
+        play();
+      }
+      
+      // Listen for track ending (e.g., if User B disables mic)
+      const handleTrackEnd = () => {
+        const remainingTracks = remoteStream.getAudioTracks().filter(t => t.readyState === 'live');
+        if (remainingTracks.length === 0) {
+          console.log('🔇 All remote audio tracks ended');
+        }
+      };
+      
+      audioTracks.forEach(track => {
+        track.addEventListener('ended', handleTrackEnd);
+      });
+      
+      return () => {
+        audioTracks.forEach(track => {
+          track.removeEventListener('ended', handleTrackEnd);
+        });
+      };
     } else {
+      console.log('🔇 No active remote audio tracks');
       audioEl.srcObject = null;
     }
   }, [remoteStream, hasUserInteracted]);

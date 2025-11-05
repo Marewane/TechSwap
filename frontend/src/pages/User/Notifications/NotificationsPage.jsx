@@ -7,6 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Bell, Check, X, Clock, Mail, CheckCircle, CreditCard, Coins, AlertCircle, UserCheck, UserX, Loader2, Calendar } from "lucide-react";
 
+// Normalize avatar URLs (handles relative paths from backend)
+const resolveAvatarUrl = (url) => {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000/api";
+  const origin = apiBase.replace(/\/?api\/?$/, "");
+  return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 // Payment Confirmation Modal Component
 const PaymentConfirmationModal = ({ 
   isOpen, 
@@ -688,7 +697,7 @@ const NotificationsPage = () => {
                 >
                   <div className="flex items-start gap-4">
                     <Avatar className="h-12 w-12">
-                      <AvatarImage src={n.sender?.avatar} alt={n.sender?.name} />
+                      <AvatarImage src={resolveAvatarUrl(n.sender?.avatar)} alt={n.sender?.name} />
                       <AvatarFallback className="bg-indigo-100 text-indigo-700">
                         {getInitials(n.sender?.name)}
                       </AvatarFallback>

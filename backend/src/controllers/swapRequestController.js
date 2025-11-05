@@ -120,7 +120,7 @@ const createSwapRequest = async (req, res) => {
       duration
     });
 
-    // Notify post owner
+    // Notify post owner - link notification to the SwapRequest so frontend can show actions
     await Notification.create({
       userId: post.userId,
       senderId: req.user._id,
@@ -128,7 +128,7 @@ const createSwapRequest = async (req, res) => {
       title: 'New Swap Request',
       content: `You have a new swap request from ${req.user.name}.`,
       relatedId: swapRequest._id,
-      relatedModel: 'Post'
+      relatedModel: 'SwapRequest'
     });
 
     console.log(" Swap request created:", swapRequest._id);

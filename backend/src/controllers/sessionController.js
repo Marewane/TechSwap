@@ -613,35 +613,40 @@ const startLiveSession = async (req, res) => {
 
     // Authorization & Status Check: Must be 'scheduled' or 'ready'
     // Allow starting if:
-    // 1. Status is 'ready' (old way)
-    // 2. Status is 'scheduled' AND current time is >= scheduledTime (new/improved way)
+    // 1. Status is 'ready' (can start anytime)
+    // 2. Status is 'scheduled' AND (time has passed OR within 5 minutes before scheduled time)
     const now = new Date();
     const scheduledTime = new Date(session.scheduledTime);
+    const fiveMinutesInMillis = 5 * 60 * 1000;
+    const timeDifference = scheduledTime.getTime() - now.getTime();
 
     const isReady = session.status === 'ready';
     const isScheduledAndTimeReached = session.status === 'scheduled' && now >= scheduledTime;
+    // Allow starting 'scheduled' sessions within 5 minutes BEFORE scheduled time (timeDifference is positive)
+    const isScheduledAndWithinBuffer = session.status === 'scheduled' && timeDifference > 0 && timeDifference <= fiveMinutesInMillis;
 
-    if (!(isReady || isScheduledAndTimeReached)) {
-      console.warn(`StartLiveSession: Session ${id} cannot start. Status: ${session.status}, Now: ${now.toISOString()}, Scheduled: ${scheduledTime.toISOString()}`);
+    if (!(isReady || isScheduledAndTimeReached || isScheduledAndWithinBuffer)) {
+      const minutesUntil = Math.round(timeDifference / (1000 * 60));
+      console.warn(`StartLiveSession: Session ${id} cannot start. Status: ${session.status}, Now: ${now.toISOString()}, Scheduled: ${scheduledTime.toISOString()}, Minutes until: ${minutesUntil}`);
       return res.status(400).json({ 
         error: 'Session is not ready to start', 
         currentStatus: session.status,
         currentTime: now.toISOString(),
         scheduledTime: scheduledTime.toISOString(),
-        message: "Session must be 'ready' or 'scheduled' and the scheduled time must have passed."
+        minutesUntil: minutesUntil,
+        message: "Session must be 'ready' or 'scheduled' (within 5 minutes of scheduled time or after)."
       });
     }
 
-    // Time Check: Ensure we are not trying to start significantly before the scheduled time
-    // Allow a small buffer (e.g., 5 minutes) to account for slight clock differences.
-    const fiveMinutesInMillis = 5 * 60 * 1000;
-    if (scheduledTime.getTime() - now.getTime() > fiveMinutesInMillis) {
-      console.warn(`StartLiveSession: Attempting to start session ${id} too early. Scheduled: ${scheduledTime.toISOString()}, Now: ${now.toISOString()}`);
+    // Additional check: If trying to start more than 5 minutes before, block it
+    if (timeDifference > fiveMinutesInMillis) {
+      const minutesEarly = Math.round(timeDifference / (1000 * 60));
+      console.warn(`StartLiveSession: Attempting to start session ${id} too early. Scheduled: ${scheduledTime.toISOString()}, Now: ${now.toISOString()}, ${minutesEarly} minutes early`);
       return res.status(400).json({ 
-        error: 'Cannot start session significantly before scheduled time',
-        scheduledTime: session.scheduledTime,
+        error: 'Cannot start session more than 5 minutes before scheduled time',
+        scheduledTime: scheduledTime.toISOString(),
         currentTime: now.toISOString(),
-        timeDifferenceMinutes: Math.round((scheduledTime.getTime() - now.getTime()) / (1000 * 60))
+        timeDifferenceMinutes: minutesEarly
       });
     }
 

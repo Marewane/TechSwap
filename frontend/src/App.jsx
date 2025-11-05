@@ -37,33 +37,21 @@ function App() {
       <Route path="/" element={<Navigate to="/landing-page" replace />} />
 
       {/* Public Routes */}
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/home" element={<Home />} /> 
-      <Route path="/events" element={<Events />} /> {/* Add this route */}
-      <Route path="/live-session/:id" element={<LiveSession />} />
-      {/* <Route 
-              path="/live-session/:id" 
-              element={
-                <VideoCallErrorBoundary>
-                  <LiveSession />
-                </VideoCallErrorBoundary>
-              } 
-            /> */}
       <Route path="/landing-page" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/events" element={<Events />} />
+      <Route path="/live-session/:id" element={<LiveSession />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/verify-email" element={<EmailVerification />} />
       <Route path="/oauth-success" element={<OAuthSuccess />} />
 
-      {/* App Routes (Protected) */}
+      {/* App Routes (Protected) - UserLayout wraps these routes */}
       <Route path="/" element={<UserLayout />}>
-        <Route path="/home" element={<PostsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/profile/:userId" element={<ProfilePage />} />
+        <Route path="home" element={<PostsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="profile/:userId" element={<ProfilePage />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>
       {/* Profile Setup Routes */}

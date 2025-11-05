@@ -114,15 +114,58 @@ export const useWebRTC = (sessionId, socketFunctions) => {
     };
 
     // Remote Track Handler
+    // CRITICAL FIX: Properly merge tracks when remote stream updates (e.g., when audio is added)
     pc.ontrack = (event) => {
       console.log('🎥 Remote track received:', event.track.kind, event.track.id);
       if (event.streams && event.streams[0]) {
-        console.log('✅ Setting remote stream:', event.streams[0].id);
-        setRemoteStream(event.streams[0]);
+        const incomingStream = event.streams[0];
+        
+        // If we already have a remote stream, merge tracks instead of replacing
+        setRemoteStream(prevStream => {
+          if (prevStream && prevStream.id === incomingStream.id) {
+            // Same stream, just update the tracks (React will handle re-render)
+            console.log('✅ Remote stream updated (same stream ID, tracks merged)');
+            return incomingStream;
+          } else if (prevStream) {
+            // Different stream - merge tracks from both streams
+            const mergedStream = new MediaStream();
+            
+            // Add all tracks from previous stream
+            prevStream.getTracks().forEach(track => {
+              if (track.readyState !== 'ended') {
+                mergedStream.addTrack(track);
+              }
+            });
+            
+            // Add all tracks from incoming stream (avoid duplicates)
+            incomingStream.getTracks().forEach(track => {
+              const existingTrack = mergedStream.getTracks().find(
+                t => t.kind === track.kind && t.id === track.id
+              );
+              if (!existingTrack && track.readyState !== 'ended') {
+                mergedStream.addTrack(track);
+              }
+            });
+            
+            console.log('✅ Remote streams merged:', {
+              previous: prevStream.id,
+              incoming: incomingStream.id,
+              merged: mergedStream.id,
+              tracks: mergedStream.getTracks().map(t => `${t.kind}:${t.id}`)
+            });
+            
+            return mergedStream;
+          } else {
+            // First remote stream
+            console.log('✅ Setting initial remote stream:', incomingStream.id);
+            return incomingStream;
+          }
+        });
         
         // Log track details
-        event.streams[0].getTracks().forEach(track => {
-          console.log(`  - ${track.kind} track: ${track.id}, enabled: ${track.enabled}`);
+        const currentStream = event.streams[0];
+        currentStream.getTracks().forEach(track => {
+          console.log(`  - ${track.kind} track: ${track.id}, enabled: ${track.enabled}, readyState: ${track.readyState}`);
         });
       }
     };
@@ -270,17 +313,22 @@ export const useWebRTC = (sessionId, socketFunctions) => {
           if (existingSender) {
             try {
               await existingSender.replaceTrack(newAudioTrack);
-              console.log('🎤 Audio track replaced with new track');
+              console.log('🎤 Audio track replaced with new track (preserving video/screen track)');
             } catch (e) {
               console.warn('Failed to replace existing audio track, adding new sender');
               pc.addTrack(newAudioTrack, stream);
             }
           } else {
-            console.log('🎤 Adding new audio track to peer connection');
+            console.log('🎤 Adding new audio track to peer connection (preserving video/screen track)');
             pc.addTrack(newAudioTrack, stream);
           }
-          // Trigger renegotiation so remote peer receives audio (even during screen share)
-          console.log('🎤 Audio track added/replaced, triggering renegotiation');
+          
+          // CRITICAL FIX: Only renegotiate audio - don't disrupt video/screen tracks
+          // The renegotiation will update the SDP to include audio, but won't affect existing video tracks
+          console.log('🎤 Audio track added/replaced, triggering renegotiation (video/screen safe)');
+          
+          // Small delay to ensure track is properly set before renegotiation
+          await new Promise(resolve => setTimeout(resolve, 100));
           await renegotiate();
         }
 

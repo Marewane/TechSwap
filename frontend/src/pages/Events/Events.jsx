@@ -41,7 +41,20 @@ const Events = () => {
       navigate(`/live-session/${session._id}`);
     } catch (err) {
       console.error('Error starting session:', err);
-      alert('Failed to start session. Please try again.');
+      
+      // Extract error message from backend response
+      const errorMessage = err.response?.data?.error || 
+                          err.response?.data?.message || 
+                          err.message || 
+                          'Failed to start session. Please try again.';
+      
+      // Show detailed error message
+      alert(`Failed to start session: ${errorMessage}`);
+      
+      // Log full error details for debugging
+      if (err.response?.data) {
+        console.error('Backend error details:', err.response.data);
+      }
     }
   };
 

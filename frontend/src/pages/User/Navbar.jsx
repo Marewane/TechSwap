@@ -9,6 +9,15 @@ import { fetchMyProfile } from "@/features/profile/profileSlice";
 import { useEffect, useState } from "react";
 import api from "@/services/api";
 
+// Resolve avatar to absolute URL if backend returns a relative path
+const resolveAvatarUrl = (url) => {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url; // already absolute
+  const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000/api";
+  const origin = apiBase.replace(/\/?api\/?$/, "");
+  return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 const Navbar = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [walletBalance, setWalletBalance] = useState(0);
@@ -175,7 +184,7 @@ const Navbar = () => {
           {/* Profile Dropdown */}
           <Link to="/profile" className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user?.avatar} alt={user?.name || "User"} />
+              <AvatarImage src={resolveAvatarUrl(user?.avatar)} alt={user?.name || "User"} />
               <AvatarFallback className="bg-indigo-100 text-indigo-600 text-xs">
                 {getInitials(user?.name)}
               </AvatarFallback>
@@ -233,7 +242,7 @@ const Navbar = () => {
               <div className="pt-4 border-t space-y-4">
                 <div className="flex items-center space-x-3 p-2">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user?.avatar} alt={user?.name || "User"} />
+                    <AvatarImage src={resolveAvatarUrl(user?.avatar)} alt={user?.name || "User"} />
                     <AvatarFallback className="bg-indigo-100 text-indigo-600">
                       {getInitials(user?.name)}
                     </AvatarFallback>
