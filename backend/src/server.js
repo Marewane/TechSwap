@@ -178,6 +178,18 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('request-session-participants', async (sessionId) => {
+    try {
+      if (!sessionId) return;
+      const normalizedSessionId = sessionId.toString();
+      const session = await Session.findById(normalizedSessionId).select('hostId learnerId');
+      if (!session) return;
+      await emitSessionParticipants(normalizedSessionId, session);
+    } catch (error) {
+      console.error('request-session-participants error:', error);
+    }
+  });
+
   // Leave session room
   socket.on('leave-session', async (sessionId) => {
     const normalizedSessionId = sessionId.toString();

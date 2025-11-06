@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { useSocket } from '../../hooks/useSocket';
 import { useWebRTC } from '../../hooks/useWebRTC';
 import ControlsBar from '../../components/Session/ControlsBar';
+import api from '../../services/api';
 import { 
   Phone, 
   Clock, 
@@ -86,48 +87,31 @@ const LiveSession = () => {
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
-  // --- Simulate fetching session data ---
+  // --- Fetch session data from API ---
   useEffect(() => {
     const fetchSession = async () => {
       console.log(`Fetching session data for ID: ${sessionId}`);
       setLoading(true);
       setError(null);
       try {
-        await new Promise(resolve => setTimeout(resolve, 800));
+        const response = await api.get(`/sessions/${sessionId}`);
+        const sessionData = response.data?.data;
 
-        const mockSession = {
-          _id: sessionId,
-          title: "React Fundamentals - Live Coding Session",
-          description: "Learning React hooks and components with live code examples",
-          status: "scheduled",
-          scheduledTime: new Date(Date.now() + 30 * 60000).toISOString(),
-          sessionType: "skillTeaching",
-          hostId: {
-            _id: "68ed1a63453769b1a7cae5d9",
-            name: "Youssef fakhi",
-            email: "youssef.fakhi.dev@gmail.com"
-          },
-          learnerId: {
-            _id: "68f101e53e8926ff52306ac6",
-            name: "Marouane",
-            email: "mrxbrowkn@gmail.com"
-          },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
+        if (!sessionData) {
+          throw new Error('Session not found');
+        }
 
-        setSession(mockSession);
-        setParticipants([mockSession.hostId, mockSession.learnerId]);
+        setSession(sessionData);
+        setParticipants([sessionData.hostId, sessionData.learnerId]);
 
-        // Determine if current user is the host (initiator)
         const loggedInUserId = user?._id;
-        const userIsHost = mockSession.hostId._id === loggedInUserId;
+        const userIsHost = sessionData.hostId?._id === loggedInUserId;
         setIsInitiator(userIsHost);
+        setInitiatorStatus(userIsHost);
         console.log(`User is ${userIsHost ? 'HOST (initiator)' : 'LEARNER (responder)'}`);
-
       } catch (err) {
-        console.error("Failed to fetch session:", err);
-        setError(err.message || "Failed to load session details.");
+        console.error('Failed to fetch session:', err);
+        setError(err.response?.data?.error || err.message || 'Failed to load session details.');
       } finally {
         setLoading(false);
       }
@@ -136,10 +120,10 @@ const LiveSession = () => {
     if (sessionId) {
       fetchSession();
     } else {
-      setError("Invalid session ID.");
+      setError('Invalid session ID.');
       setLoading(false);
     }
-  }, [sessionId, user]);
+  }, [sessionId, user, setInitiatorStatus]);
 
   // --- Connect to Socket.IO when component mounts and token is available ---
   useEffect(() => {
