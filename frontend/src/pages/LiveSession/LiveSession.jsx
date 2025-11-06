@@ -39,6 +39,7 @@ const LiveSession = () => {
   const [participants, setParticipants] = useState([]);
   const [isInitiator, setIsInitiator] = useState(false);
   const hasInitiatedOfferRef = useRef(false);
+  const lastJoinedSocketIdRef = useRef(null);
 
   // --- Initialize Socket.IO connection ---
   const {
@@ -151,8 +152,19 @@ const LiveSession = () => {
     if (isConnected && sessionId) {
       console.log(`Socket.IO connected. Joining session room: ${sessionId}`);
       joinSession(sessionId);
+      lastJoinedSocketIdRef.current = socket?.id || null;
     }
-  }, [isConnected, sessionId, joinSession]);
+  }, [isConnected, sessionId, joinSession, socket]);
+
+  useEffect(() => {
+    if (!socket || !sessionId) return;
+
+    if (socket.id && lastJoinedSocketIdRef.current !== socket.id) {
+      console.log(`Socket instance changed (${socket.id}). Rejoining session ${sessionId}`);
+      joinSession(sessionId);
+      lastJoinedSocketIdRef.current = socket.id;
+    }
+  }, [socket, sessionId, joinSession]);
 
   // --- Register Socket.IO Event Listeners for WebRTC Signaling ---
   useEffect(() => {
@@ -273,6 +285,26 @@ const LiveSession = () => {
       // The offer will be sent when 'user-joined' event fires (see above)
     }
   }, [isInitiator, isConnected, sessionId]);
+
+  // --- Fallback: force initial offer once both participants are online ---
+  useEffect(() => {
+    if (
+      !isInitiator ||
+      !isConnected ||
+      !sessionId ||
+      hasInitiatedOfferRef.current ||
+      participants.length < 2
+    ) {
+      return;
+    }
+
+    const everyoneOnline = participants.every((p) => p.isOnline);
+    if (everyoneOnline) {
+      console.log('Both participants online; ensuring initial offer is sent.');
+      hasInitiatedOfferRef.current = true;
+      createOffer();
+    }
+  }, [participants, isInitiator, isConnected, sessionId, createOffer]);
 
   // --- Handle user interaction to enable audio ---
   useEffect(() => {
