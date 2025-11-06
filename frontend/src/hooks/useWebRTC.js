@@ -346,10 +346,12 @@ export const useWebRTC = (sessionId, socketFunctions) => {
 
   // --- Toggle Video ---
   const toggleVideo = useCallback(async () => {
-    const stream = localStreamRef.current;
+    let stream = localStreamRef.current;
     if (!stream) {
-      console.warn('No local camera stream available for video toggle');
-      return;
+      console.warn('No local camera stream found; creating placeholder stream for video toggle');
+      stream = new MediaStream();
+      localStreamRef.current = stream;
+      setLocalStream(stream);
     }
 
     const videoTracks = stream.getVideoTracks();
@@ -381,6 +383,11 @@ export const useWebRTC = (sessionId, socketFunctions) => {
           video: { width: { ideal: 1280 }, height: { ideal: 720 } } 
         });
         const [newVideoTrack] = videoStream.getVideoTracks();
+        if (!newVideoTrack) {
+          console.warn('No video track returned from getUserMedia');
+          return;
+        }
+
         stream.addTrack(newVideoTrack);
 
         const pc = peerConnectionRef.current;
@@ -388,11 +395,11 @@ export const useWebRTC = (sessionId, socketFunctions) => {
           const videoSender = findVideoSender(pc);
           if (videoSender) {
             await videoSender.replaceTrack(newVideoTrack);
-            // Renegotiate after track change
-            await renegotiate();
           } else {
             pc.addTrack(newVideoTrack, stream);
           }
+          console.log('🎥 Video track added/replaced, triggering renegotiation');
+          await renegotiate();
         }
 
         setIsVideoEnabled(true);
