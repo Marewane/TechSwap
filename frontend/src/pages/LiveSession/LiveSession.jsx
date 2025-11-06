@@ -102,7 +102,12 @@ const LiveSession = () => {
         }
 
         setSession(sessionData);
-        setParticipants([sessionData.hostId, sessionData.learnerId]);
+
+        const initialParticipants = [
+          sessionData.hostId ? { ...sessionData.hostId, role: 'host', isOnline: false } : null,
+          sessionData.learnerId ? { ...sessionData.learnerId, role: 'learner', isOnline: false } : null,
+        ].filter(Boolean);
+        setParticipants(initialParticipants);
 
         const loggedInUserId = user?._id;
         const userIsHost = sessionData.hostId?._id === loggedInUserId;
@@ -211,10 +216,58 @@ const LiveSession = () => {
     };
   }, [socket, isInitiator, createOffer, handleOffer, handleAnswer, handleIceCandidate]);
 
+  // --- Subscribe to participant status updates ---
+  useEffect(() => {
+    if (!socket || !session) return;
+
+    const handleSessionParticipants = (payload) => {
+      if (!payload || payload.sessionId !== session._id) return;
+
+      const hostId = session.hostId?._id || session.hostId;
+      const learnerId = session.learnerId?._id || session.learnerId;
+
+      const userMap = new Map();
+      if (hostId) {
+        userMap.set(String(hostId), session.hostId);
+      }
+      if (learnerId) {
+        userMap.set(String(learnerId), session.learnerId);
+      }
+
+      const mappedParticipants = payload.participants
+        .map((participant) => {
+          const userId = String(participant.userId);
+          const baseUser = userMap.get(userId) || {};
+
+          return {
+            ...(typeof baseUser === 'object' ? baseUser : {}),
+            _id: baseUser?._id || userId,
+            role: participant.role,
+            isOnline: Boolean(participant.isOnline),
+          };
+        })
+        .filter(Boolean);
+
+      if (mappedParticipants.length > 0) {
+        console.log('✅ mapped participants:', mappedParticipants);
+        setParticipants(mappedParticipants);
+      }
+    };
+
+    socket.on('session-participants', handleSessionParticipants);
+
+    if (sessionId) {
+      console.log('📨 requesting session participants snapshot for', sessionId);
+      socket.emit('request-session-participants', sessionId);
+    }
+
+    return () => {
+      socket.off('session-participants', handleSessionParticipants);
+    };
+  }, [socket, session, sessionId]);
+
   // --- Initiate Offer if User Joins First as Initiator ---
   useEffect(() => {
-    // If we're the initiator, connected, and in the session, wait a bit then send offer
-    // This handles the case where the initiator joins first
     if (isInitiator && isConnected && sessionId && !hasInitiatedOfferRef.current) {
       console.log('Initiator connected first, waiting for responder...');
       // The offer will be sent when 'user-joined' event fires (see above)
@@ -594,24 +647,27 @@ const LiveSession = () => {
                   >
                     <div className="relative">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
-                        {participant.name.charAt(0)}
+                        {(participant.name || participant.role)?.charAt(0)?.toUpperCase()}
                       </div>
                       {/* Online status indicator */}
                       <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800 ${
-                        isConnected ? 'bg-green-500' : 'bg-gray-500'
+                        participant.isOnline ? 'bg-green-500' : 'bg-gray-500'
                       }`}></div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white truncate">
-                        {participant.name}
+                        {participant.name || participant.role}
                       </p>
                       <p className="text-xs text-gray-400 truncate">
-                        {participant.email}
+                        {participant.email || participant.role}
                       </p>
                     </div>
-                    {participant._id === loggedInUserId && (
-                      <Badge variant="default" className="text-xs">
-                        You {isInitiator && '(Host)'}
+                    <Badge variant="secondary" className="text-xs capitalize">
+                      {participant._id === loggedInUserId ? 'You' : participant.role}
+                    </Badge>
+                    {participant._id === loggedInUserId && isInitiator && (
+                      <Badge variant="default" className="text-xs ml-1">
+                        Host
                       </Badge>
                     )}
                   </div>

@@ -64,7 +64,7 @@ const emitSessionParticipants = async (sessionId, sessionDoc) => {
     const hostId = session.hostId.toString();
     const learnerId = session.learnerId.toString();
 
-    io.to(roomName).emit('session-participants', {
+    const payload = {
       sessionId: normalizedSessionId,
       participants: [
         {
@@ -78,7 +78,13 @@ const emitSessionParticipants = async (sessionId, sessionDoc) => {
           isOnline: connectedIds.has(learnerId)
         }
       ]
-    });
+    };
+
+    console.log('session-participants -> room:', roomName);
+    console.log('connected socketIds:', Array.from(connectedIds));
+    console.log('payload:', payload);
+
+    io.to(roomName).emit('session-participants', payload);
   } catch (error) {
     console.error('emitSessionParticipants error:', error);
   }
