@@ -64,6 +64,7 @@ const LiveSession = () => {
     isAudioEnabled,
     isVideoEnabled,
     connectionStatus,
+    hasRemoteVideo,
     toggleAudio,
     toggleVideo,
     startScreenShare,
@@ -340,7 +341,7 @@ const LiveSession = () => {
     const videoElement = mainVideoRef.current;
     if (!videoElement) return;
 
-    const remoteHasVideo = !!(remoteStream && remoteStream.getVideoTracks().some(t => t.readyState === 'live'));
+    const remoteHasVideo = Boolean(hasRemoteVideo);
 
     // Priority:
     // 1) Remote stream ONLY if it has a video track
@@ -368,7 +369,7 @@ const LiveSession = () => {
     }
 
     videoElement.srcObject = null;
-  }, [screenStream, remoteStream, isSharingScreen]);
+  }, [screenStream, remoteStream, isSharingScreen, hasRemoteVideo]);
 
   // --- CAMERA PREVIEW LOGIC ---
   useEffect(() => {
@@ -599,7 +600,7 @@ const LiveSession = () => {
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 flex items-center justify-center p-0 relative overflow-hidden">
+            <CardContent className="flex-1 overflow-y-auto p-0 relative overflow-hidden">
               {/* Main Video Element - Remote Stream (NOT MUTED) */}
               <video
                 ref={mainVideoRef}
@@ -609,7 +610,7 @@ const LiveSession = () => {
                 className="w-full h-full object-contain bg-black rounded"
               />
               {/* Placeholder for Main Video */}
-              {!remoteStream && !isSharingScreen && (
+              {(!remoteStream || !hasRemoteVideo) && !isSharingScreen && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-700/50">
                   <div className="text-center">
                     <div className="bg-gray-600 border-2 border-dashed rounded-xl w-20 h-20 mx-auto flex items-center justify-center mb-2">

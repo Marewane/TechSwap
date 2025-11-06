@@ -11,6 +11,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [isInitiator, setIsInitiator] = useState(false);
+  const [remoteVideoAvailable, setRemoteVideoAvailable] = useState(false);
 
   // --- Refs ---
   const peerConnectionRef = useRef(null);
@@ -151,6 +152,26 @@ export const useWebRTC = (sessionId, socketFunctions) => {
 
       remoteStreamRef.current = combinedStream;
       setRemoteStream(combinedStream);
+
+      if (incomingTrack.kind === 'video') {
+        if (!incomingTrack.muted) {
+          setRemoteVideoAvailable(true);
+        }
+
+        const handleTrackUnavailable = () => {
+          console.log('🎬 Remote video track muted/ended');
+          setRemoteVideoAvailable(false);
+        };
+
+        const handleTrackAvailable = () => {
+          console.log('🎬 Remote video track active');
+          setRemoteVideoAvailable(true);
+        };
+
+        incomingTrack.addEventListener('mute', handleTrackUnavailable);
+        incomingTrack.addEventListener('ended', handleTrackUnavailable);
+        incomingTrack.addEventListener('unmute', handleTrackAvailable);
+      }
 
       console.log('✅ Updated remote stream:', combinedStream.id, 'tracks:', combinedStream.getTracks().map(t => `${t.kind}:${t.id}`));
     };
@@ -698,6 +719,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
       }
+      setRemoteVideoAvailable(false);
     };
   }, []);
 
@@ -718,6 +740,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
     handleOffer,
     handleAnswer,
     handleIceCandidate,
-    setInitiatorStatus
+    setInitiatorStatus,
+    hasRemoteVideo: remoteVideoAvailable,
   };
 };
