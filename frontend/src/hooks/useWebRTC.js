@@ -21,6 +21,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
   const iceCandidateQueueRef = useRef([]);
   const hasRemoteDescriptionRef = useRef(false);
   const isNegotiatingRef = useRef(false); // Prevent duplicate renegotiations
+  const remoteVideoMuteTimerRef = useRef(null);
 
   // --- Configuration ---
   const configuration = {
@@ -154,17 +155,30 @@ export const useWebRTC = (sessionId, socketFunctions) => {
       setRemoteStream(combinedStream);
 
       if (incomingTrack.kind === 'video') {
-        if (!incomingTrack.muted) {
-          setRemoteVideoAvailable(true);
-        }
+        setRemoteVideoAvailable(true);
 
         const handleTrackUnavailable = () => {
           console.log('🎬 Remote video track muted/ended');
-          setRemoteVideoAvailable(false);
+          if (remoteVideoMuteTimerRef.current) {
+            clearTimeout(remoteVideoMuteTimerRef.current);
+          }
+          remoteVideoMuteTimerRef.current = setTimeout(() => {
+            const hasLiveVideo = Boolean(
+              remoteStreamRef.current?.getVideoTracks()?.some(track => track.readyState === 'live')
+            );
+            if (!hasLiveVideo) {
+              setRemoteVideoAvailable(false);
+            }
+            remoteVideoMuteTimerRef.current = null;
+          }, 500);
         };
 
         const handleTrackAvailable = () => {
           console.log('🎬 Remote video track active');
+          if (remoteVideoMuteTimerRef.current) {
+            clearTimeout(remoteVideoMuteTimerRef.current);
+            remoteVideoMuteTimerRef.current = null;
+          }
           setRemoteVideoAvailable(true);
         };
 
@@ -725,6 +739,10 @@ export const useWebRTC = (sessionId, socketFunctions) => {
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
+      }
+      if (remoteVideoMuteTimerRef.current) {
+        clearTimeout(remoteVideoMuteTimerRef.current);
+        remoteVideoMuteTimerRef.current = null;
       }
       setRemoteVideoAvailable(false);
     };
