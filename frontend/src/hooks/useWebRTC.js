@@ -164,13 +164,13 @@ export const useWebRTC = (sessionId, socketFunctions) => {
           }
           remoteVideoMuteTimerRef.current = setTimeout(() => {
             const hasLiveVideo = Boolean(
-              remoteStreamRef.current?.getVideoTracks()?.some(track => track.readyState === 'live')
+              remoteStreamRef.current?.getVideoTracks()?.some(track => track.readyState === 'live' && !track.muted)
             );
             if (!hasLiveVideo) {
               setRemoteVideoAvailable(false);
             }
             remoteVideoMuteTimerRef.current = null;
-          }, 500);
+          }, 1500);
         };
 
         const handleTrackAvailable = () => {
