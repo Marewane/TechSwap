@@ -47,6 +47,20 @@ export const requestSwap = createAsyncThunk(
     }
 );
 
+export const updatePost = createAsyncThunk(
+    "posts/updatePost",
+    async ({ postId, updates }, { rejectWithValue }) => {
+        try {
+            const res = await api.put(`/posts/${postId}`, updates);
+            return res.data; // { success, data: updatedPost }
+        } catch (err) {
+            return rejectWithValue(
+                err.response?.data?.message || "Failed to update post"
+            );
+        }
+    }
+);
+
 const postsSlice = createSlice({
     name: "posts",
     initialState: {
@@ -73,6 +87,36 @@ const postsSlice = createSlice({
         clearSuccess: (state) => {
             state.successMessage = null;
             state.swapSuccess = null;
+        },
+        postAdded: (state, action) => {
+            const newPost = action.payload;
+            if (!newPost?._id) return;
+
+            const existingIndex = state.posts.findIndex((post) => post._id === newPost._id);
+            if (existingIndex !== -1) {
+                state.posts[existingIndex] = { ...state.posts[existingIndex], ...newPost };
+                return;
+            }
+
+            if (state.currentPage === 1) {
+                state.posts.unshift(newPost);
+                if (state.posts.length > state.limit) {
+                    state.posts.pop();
+                }
+            }
+
+            if (typeof state.total === "number") {
+                state.total += 1;
+            }
+        },
+        postUpdated: (state, action) => {
+            const updatedPost = action.payload;
+            if (!updatedPost?._id) return;
+
+            const index = state.posts.findIndex((post) => post._id === updatedPost._id);
+            if (index !== -1) {
+                state.posts[index] = { ...state.posts[index], ...updatedPost };
+            }
         },
     },
     extraReducers: (builder) => {
@@ -131,8 +175,29 @@ const postsSlice = createSlice({
                 state.requestingSwap = null;
                 state.swapError = action.payload;
             });
+
+        // Update post
+        builder
+            .addCase(updatePost.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(updatePost.fulfilled, (state, action) => {
+                state.loading = false;
+                const updated = action.payload.data || action.payload;
+                if (!updated?._id) return;
+                const idx = state.posts.findIndex(p => p._id === updated._id);
+                if (idx !== -1) {
+                    state.posts[idx] = { ...state.posts[idx], ...updated };
+                }
+                state.successMessage = "Post updated successfully!";
+            })
+            .addCase(updatePost.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            });
     },
 });
 
-export const { setPage, clearError, clearSuccess } = postsSlice.actions;
+export const { setPage, clearError, clearSuccess, postAdded, postUpdated } = postsSlice.actions;
 export default postsSlice.reducer;

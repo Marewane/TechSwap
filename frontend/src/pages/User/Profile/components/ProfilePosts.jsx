@@ -134,20 +134,33 @@ const ProfilePosts = ({ posts, requestingSwap, onOpenScheduler, isOwner = false,
 
                             {/* Action Button */}
                             <div className="mt-auto pt-3">
-                                <Button
-                                    className="w-full bg-gray-700 text-white font-medium py-2.5"
-                                    onClick={() => onOpenScheduler && onOpenScheduler(post)}
-                                    disabled={requestingSwap === post?._id}
-                                >
-                                    {requestingSwap === post?._id ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                            Requesting...
-                                        </>
-                                    ) : (
-                                        'Request Swap'
-                                    )}
-                                </Button>
+                                {isOwner ? (
+                                    <Button
+                                        variant="outline"
+                                        className="w-full"
+                                        onClick={() => {
+                                            // Dispatch a global event for edit (hook up a listener where you handle editing)
+                                            try { window.dispatchEvent(new CustomEvent('profile:edit-post', { detail: { postId: post?._id, post } })); } catch {}
+                                        }}
+                                    >
+                                        Edit Post
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        className="w-full bg-gray-700 text-white font-medium py-2.5"
+                                        onClick={() => onOpenScheduler && onOpenScheduler(post)}
+                                        disabled={requestingSwap === post?._id}
+                                    >
+                                        {requestingSwap === post?._id ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                Requesting...
+                                            </>
+                                        ) : (
+                                            'Request Swap'
+                                        )}
+                                    </Button>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

@@ -6,6 +6,7 @@ const SwapRequest = require("../models/SwapRequestModel");
 const Session = require("../models/SessionModel");
 const Post = require("../models/PostModel");
 const ChatRoom = require("../models/ChatRoomModel");
+const { broadcastNotifications } = require('../utils/notificationEmitter');
 
 // Helper function to create swap session when both parties have paid
 const createSessionFromSwapRequest = async (swapRequest) => {
@@ -40,7 +41,7 @@ const createSessionFromSwapRequest = async (swapRequest) => {
     });
 
     // Notify both parties that session is confirmed
-    await Notification.create([
+    const notifications = await Notification.create([
       {
         userId: post.userId,
         senderId: swapRequest.requesterId,
@@ -60,6 +61,8 @@ const createSessionFromSwapRequest = async (swapRequest) => {
         relatedModel: 'Session'
       }
     ]);
+
+    await broadcastNotifications(notifications);
 
     console.log(`Swap session created: ${session._id}`);
     return session;
@@ -111,7 +114,7 @@ const autoValidateAfterCoinPurchase = async (userId, swapRequestId, coinsPurchas
     });
 
     // Create notification for the other party
-    await Notification.create({
+    const notification = await Notification.create({
       userId: isRequester ? swapRequest.postId.userId : swapRequest.requesterId,
       senderId: userId,
       type: 'payment',
@@ -122,6 +125,8 @@ const autoValidateAfterCoinPurchase = async (userId, swapRequestId, coinsPurchas
       relatedId: swapRequest._id,
       relatedModel: 'SwapRequest',
     });
+
+    await broadcastNotifications(notification);
 
     console.log(`Auto-validation successful for user ${userId}`);
 
@@ -197,7 +202,7 @@ const handleStripeWebhook = async (req, res) => {
       });
 
       if (purpose === 'swap_validation') {
-        await Notification.create({
+        const notification = await Notification.create({
           userId: userId,
           type: 'payment',
           title: 'Coins Purchased Successfully!',
@@ -205,6 +210,7 @@ const handleStripeWebhook = async (req, res) => {
           relatedId: swapRequestId || null,
           relatedModel: swapRequestId ? 'SwapRequest' : 'Wallet'
         });
+        await broadcastNotifications(notification);
         
         console.log(`✅ Created notification for user ${userId} about coin purchase`);
         

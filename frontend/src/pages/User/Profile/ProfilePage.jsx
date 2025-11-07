@@ -17,12 +17,14 @@ import ProfilePosts from './components/ProfilePosts';
 import ProfileReviews from './components/ProfileReviews';
 import ProfileReviewsPreview from './components/ProfileReviewsPreview';
 import ProfileTransactions from './components/ProfileTransactions';
+import EditPostModal from './components/EditPostModal';
 
 const ProfilePage = () => {
     const dispatch = useDispatch();
     const { userId } = useParams();
     const { myProfile, userProfile, loading, error, successMessage, isOwner } = useSelector((state) => state.profile);
     const [activeTab, setActiveTab] = useState('overview');
+    const [editingPost, setEditingPost] = useState(null);
 
     useEffect(() => {
         if (userId) {
@@ -31,6 +33,16 @@ const ProfilePage = () => {
             dispatch(fetchMyProfile());
         }
     }, [dispatch, userId]);
+
+    useEffect(() => {
+        const handler = (e) => {
+            const p = e?.detail?.post || null;
+            setEditingPost(p);
+            if (p) setActiveTab('posts');
+        };
+        window.addEventListener('profile:edit-post', handler);
+        return () => window.removeEventListener('profile:edit-post', handler);
+    }, []);
 
     // Handle profile updates
     const handleProfileUpdate = async (updatedData) => {
@@ -149,6 +161,11 @@ const ProfilePage = () => {
                     currentUser={profileData.user} // Pass the current user data
                 />
             )}
+            <EditPostModal
+                open={!!editingPost}
+                post={editingPost}
+                onClose={() => setEditingPost(null)}
+            />
             {/* Reviews Tab */}
             {activeTab === 'reviews' && (
                 <ProfileReviews reviews={profileData.reviews || []} />

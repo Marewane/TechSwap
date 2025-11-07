@@ -4,6 +4,7 @@ const Transaction = require('../../models/TransactionModel');
 const Session = require('../../models/SessionModel');
 const ChatRoom = require('../../models/ChatRoomModel');
 const Notification = require('../../models/NotificationModel');
+const { broadcastNotifications } = require('../../utils/notificationEmitter');
 
 const createPaymentIntent = async (req, res) => {
   const { coinsNumber, userId } = req.body;
@@ -101,7 +102,7 @@ const handleSessionPayment = async (req, res) => {
         { sessionId: session._id }
       );
 
-      await Notification.create([
+      const notifications = await Notification.create([
         {
           userId: chatRoom.hostId._id,
           type: 'session',
@@ -119,6 +120,8 @@ const handleSessionPayment = async (req, res) => {
           relatedModel: 'Session'
         }
       ]);
+
+      await broadcastNotifications(notifications);
     }
 
     res.status(200).json({

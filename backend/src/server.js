@@ -6,6 +6,7 @@ const cors = require('cors');
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const Session = require('./models/SessionModel');
+const { registerSocketServer } = require('./utils/socketRegistry');
 
 // Load environment variables
 dotenv.config();
@@ -38,6 +39,10 @@ const io = socketIo(server, {
   },
   transports: ['websocket', 'polling']
 });
+
+// Make the Socket.IO instance available throughout the app (e.g., inside controllers)
+app.set('io', io);
+registerSocketServer(io);
 
 // JWT authentication middleware for Socket.IO
 const jwt = require('jsonwebtoken');
@@ -139,6 +144,8 @@ io.use(authenticateSocket);
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.userId}`);
   const joinedSessions = new Set();
+  const userRoom = `user-${socket.userId}`;
+  socket.join(userRoom);
 
   // Join session room with authorization check
   socket.on('join-session', async (sessionId) => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchPosts, setPage, clearError, clearSuccess, requestSwap } from "../../../features/posts/postsSlice";
+import { fetchPosts, setPage, clearError, clearSuccess, requestSwap, postAdded, postUpdated } from "../../../features/posts/postsSlice";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Star, ChevronLeft, ChevronRight, Loader2, Clock, Calendar } from "lucide-react";
 import CreatePostModal from "./components/CreatePostModal";
 import SessionScheduler from "@/components/SessionScheduler";
+import useSocket from "@/hooks/useSocket";
 
 const PostsPage = () => {
     const dispatch = useDispatch();
@@ -23,12 +24,50 @@ const PostsPage = () => {
         swapError,
         swapSuccess
     } = useSelector((state) => state.posts);
+    const { tokens } = useSelector((state) => state.user);
+
+    const accessToken = tokens?.accessToken;
+    const { socket, connect, disconnect } = useSocket(accessToken);
 
     const [schedulerPost, setSchedulerPost] = useState(null);
 
     useEffect(() => {
         dispatch(fetchPosts({ page: currentPage, limit }));
     }, [dispatch, currentPage, limit]);
+
+    useEffect(() => {
+        if (!accessToken) return;
+        connect();
+        return () => {
+            disconnect();
+        };
+    }, [accessToken, connect, disconnect]);
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const handlePostCreated = (payload) => {
+            const newPost = payload?.post || payload;
+            if (newPost) {
+                dispatch(postAdded(newPost));
+            }
+        };
+
+        const handlePostUpdated = (payload) => {
+            const updated = payload?.post || payload;
+            if (updated) {
+                dispatch(postUpdated(updated));
+            }
+        };
+
+        socket.on("post:created", handlePostCreated);
+        socket.on("post:updated", handlePostUpdated);
+
+        return () => {
+            socket.off("post:created", handlePostCreated);
+            socket.off("post:updated", handlePostUpdated);
+        };
+    }, [socket, dispatch]);
 
     useEffect(() => {
         if (swapSuccess) {

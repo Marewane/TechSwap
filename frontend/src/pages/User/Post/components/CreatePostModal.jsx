@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Plus, X, Loader2, Calendar, Check } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchMyProfile } from "@/features/profile/profileSlice";
@@ -25,6 +25,8 @@ const CreatePostModal = () => {
 
     const [timeError, setTimeError] = useState("");
     const modalRef = useRef(null);
+    const teachInputRef = useRef(null);
+    const learnInputRef = useRef(null);
     const [teachInput, setTeachInput] = useState("");
     const [learnInput, setLearnInput] = useState("");
 
@@ -165,7 +167,7 @@ const CreatePostModal = () => {
         }));
     };
 
-    const addInputSkill = (type) => {
+    const addInputSkill = useCallback((type) => {
         const raw = type === "offered" ? teachInput : learnInput;
         const skill = (raw || "").trim();
         if (!skill) return;
@@ -175,9 +177,21 @@ const CreatePostModal = () => {
             if (exists) return prev;
             return { ...prev, [key]: [...prev[key], skill] };
         });
-        if (type === "offered") setTeachInput("");
-        if (type === "wanted") setLearnInput("");
-    };
+        if (type === "offered") {
+            setTeachInput("");
+            // Maintain focus on the input after clearing
+            setTimeout(() => {
+                teachInputRef.current?.focus();
+            }, 0);
+        }
+        if (type === "wanted") {
+            setLearnInput("");
+            // Maintain focus on the input after clearing
+            setTimeout(() => {
+                learnInputRef.current?.focus();
+            }, 0);
+        }
+    }, [teachInput, learnInput]);
 
     const toggleDay = (day) => {
         setFormData((prev) => ({
@@ -394,10 +408,30 @@ const CreatePostModal = () => {
                 {/* Manual add input - Offered */}
                 <div className="mt-2 flex items-center gap-2">
                     <input
+                        key="teach-input"
+                        ref={teachInputRef}
                         type="text"
                         value={teachInput}
-                        onChange={(e) => setTeachInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') addInputSkill('offered'); }}
+                        onChange={(e) => {
+                            const newValue = e.target.value;
+                            const cursorPosition = e.target.selectionStart;
+                            setTeachInput(newValue);
+                            // Restore focus and cursor position after state update
+                            requestAnimationFrame(() => {
+                                if (teachInputRef.current) {
+                                    teachInputRef.current.focus();
+                                    // Set cursor to the correct position (after the typed character)
+                                    const newCursorPos = Math.min(cursorPosition, newValue.length);
+                                    teachInputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                                }
+                            });
+                        }}
+                        onKeyDown={(e) => { 
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                addInputSkill('offered');
+                            }
+                        }}
                         placeholder="Type a skill you can teach and press Enter"
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
                     />
@@ -477,10 +511,30 @@ const CreatePostModal = () => {
                 {/* Manual add input - Wanted */}
                 <div className="mt-2 flex items-center gap-2">
                     <input
+                        key="learn-input"
+                        ref={learnInputRef}
                         type="text"
                         value={learnInput}
-                        onChange={(e) => setLearnInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') addInputSkill('wanted'); }}
+                        onChange={(e) => {
+                            const newValue = e.target.value;
+                            const cursorPosition = e.target.selectionStart;
+                            setLearnInput(newValue);
+                            // Restore focus and cursor position after state update
+                            requestAnimationFrame(() => {
+                                if (learnInputRef.current) {
+                                    learnInputRef.current.focus();
+                                    // Set cursor to the correct position (after the typed character)
+                                    const newCursorPos = Math.min(cursorPosition, newValue.length);
+                                    learnInputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+                                }
+                            });
+                        }}
+                        onKeyDown={(e) => { 
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                addInputSkill('wanted');
+                            }
+                        }}
                         placeholder="Type a skill you want to learn and press Enter"
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
                     />

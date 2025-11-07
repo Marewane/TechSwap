@@ -4,12 +4,14 @@ import { Menu, User, LogOut, CircleDollarSign, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchMyProfile } from "@/features/profile/profileSlice";
 import { logout as logoutAction } from "@/features/user/userSlice";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import api from "@/services/api";
+import useSocket from "@/hooks/useSocket";
 
 // Resolve avatar to absolute URL if backend returns a relative path
 const resolveAvatarUrl = (url) => {
@@ -28,7 +30,10 @@ const Navbar = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { myProfile } = useSelector((state) => state.profile);
+  const { tokens } = useSelector((state) => state.user);
   const user = myProfile?.user;
+  const accessToken = tokens?.accessToken;
+  const { socket, connect, disconnect } = useSocket(accessToken);
 
 
   
@@ -61,7 +66,7 @@ const Navbar = () => {
   };
 
   // Fetch wallet balance
-  const fetchWalletBalance = async () => {
+  const fetchWalletBalance = useCallback(async () => {
     try {
       setLoadingWallet(true);
       const res = await api.get("/users/me/wallet");
@@ -72,18 +77,20 @@ const Navbar = () => {
     } finally {
       setLoadingWallet(false);
     }
-  };
+  }, []);
 
   // Fetch unread notification count
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     try {
       const res = await api.get("/notifications");
       const unread = res.data?.filter((n) => !n.isRead) || [];
       setUnreadCount(unread.length);
+      return unread.length;
     } catch (err) {
       console.error("Failed to fetch notification count", err);
+      return undefined;
     }
-  };
+  }, []);
 
   useEffect(() => {
     // Fetch both wallet balance and notifications when component mounts
@@ -97,7 +104,7 @@ const Navbar = () => {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchWalletBalance, fetchUnreadCount]);
 
   const handleLogout = async () => {
     try {
@@ -120,7 +127,7 @@ const Navbar = () => {
     if (user) {
       fetchWalletBalance();
     }
-  }, [user]);
+  }, [user, fetchWalletBalance]);
 
   // Listen for global wallet balance updates (e.g., after payment validation)
   useEffect(() => {
@@ -135,10 +142,51 @@ const Navbar = () => {
 
   // When notifications page auto-marks all as read, refresh the count quickly
   useEffect(() => {
-    const handleMarkedAll = () => fetchUnreadCount();
+    const handleMarkedAll = () => {
+      fetchUnreadCount();
+    };
+    const handleUpdated = (e) => {
+      if (e.detail?.unreadCount !== undefined) {
+        setUnreadCount(e.detail.unreadCount);
+      }
+    };
     window.addEventListener('notifications:read-all', handleMarkedAll);
-    return () => window.removeEventListener('notifications:read-all', handleMarkedAll);
+    window.addEventListener('notifications:updated', handleUpdated);
+    return () => {
+      window.removeEventListener('notifications:read-all', handleMarkedAll);
+      window.removeEventListener('notifications:updated', handleUpdated);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    connect();
+    return () => {
+      disconnect();
+    };
+  }, [accessToken, connect, disconnect]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNotificationNew = (notification) => {
+      if (!notification) return;
+
+      fetchUnreadCount().then((count) => {
+        if (typeof count === "number") {
+          window.dispatchEvent(new CustomEvent("notifications:updated", { detail: { unreadCount: count } }));
+        }
+      });
+
+      window.dispatchEvent(new CustomEvent("notifications:new", { detail: { notification } }));
+    };
+
+    socket.on("notification:new", handleNotificationNew);
+
+    return () => {
+      socket.off("notification:new", handleNotificationNew);
+    };
+  }, [socket, fetchUnreadCount]);
 
   return (
     <nav className="fixed top-0 left-0 w-full bg-white border-b z-50">
@@ -186,10 +234,18 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Notification Bell - simplified (no unread badge) */}
+          {/* Notification Bell with unread badge */}
           <Link to="/notifications" className="relative">
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5 text-gray-600" />
+              {unreadCount > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold rounded-full"
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Badge>
+              )}
             </Button>
           </Link>
 
@@ -254,14 +310,22 @@ const Navbar = () => {
                 </span>
               </div>
 
-              {/* Mobile Notification - simplified */}
+              {/* Mobile Notification with badge */}
               <SheetClose asChild>
                 <Link
                   to="/notifications"
-                  className="text-lg font-medium py-3 px-4 rounded-lg text-gray-700 hover:text-indigo-600 flex items-center gap-2"
+                  className="text-lg font-medium py-3 px-4 rounded-lg text-gray-700 hover:text-indigo-600 flex items-center gap-2 relative"
                 >
                   <Bell className="h-5 w-5" />
                   Notifications
+                  {unreadCount > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="h-5 w-5 flex items-center justify-center p-0 text-xs font-bold rounded-full"
+                    >
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Badge>
+                  )}
                 </Link>
               </SheetClose>
 

@@ -277,7 +277,9 @@ export const useWebRTC = (sessionId, socketFunctions) => {
             console.log('🎤 Audio track replaced with null');
           } catch (e) {
             console.warn('Failed to replace audio track with null, removing sender instead');
-            try { pc.removeTrack(audioSender); } catch {}
+            try { pc.removeTrack(audioSender); } catch {
+              
+            }
           }
         }
       }

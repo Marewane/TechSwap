@@ -1,11 +1,13 @@
 // NotificationPage.jsx - FIXED VERSION WITH PERSISTENT STATE
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import api from "@/services/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Bell, Check, X, Clock, Mail, CheckCircle, CreditCard, Coins, AlertCircle, UserCheck, UserX, Loader2, Calendar } from "lucide-react";
+import { Bell, Check, X, Clock, Mail, CheckCircle, CreditCard, Coins, AlertCircle, UserCheck, UserX, Loader2, Calendar, Video } from "lucide-react";
+import useSocket from "@/hooks/useSocket";
 
 // Normalize avatar URLs (handles relative paths from backend)
 const resolveAvatarUrl = (url) => {
@@ -285,9 +287,12 @@ const NotificationsPage = () => {
   const [processingActions, setProcessingActions] = useState({});
   const [unreadCount, setUnreadCount] = useState(0); // kept for compatibility, not shown in UI
   const navigate = useNavigate();
+  const { tokens } = useSelector((state) => state.user);
+  const accessToken = tokens?.accessToken;
+  const { socket, connect, disconnect } = useSocket(accessToken);
 
   // Fetch notifications, then silently mark them as read
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const res = await api.get("/notifications");
       const notificationsData = res.data || [];
@@ -301,7 +306,7 @@ const NotificationsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchNotifications().then(async () => {
@@ -314,7 +319,67 @@ const NotificationsPage = () => {
         console.warn('Failed to mark all as read on mount', e?.response?.data || e.message);
       }
     });
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    connect();
+    return () => {
+      disconnect();
+    };
+  }, [accessToken, connect, disconnect]);
+
+  const handleIncomingNotification = useCallback((notification) => {
+    if (!notification) return;
+
+    setNotifications((prev) => {
+      const existingIndex = prev.findIndex((n) => n._id === notification._id);
+      let updated;
+
+      if (existingIndex !== -1) {
+        updated = [...prev];
+        updated[existingIndex] = { ...prev[existingIndex], ...notification };
+      } else {
+        updated = [notification, ...prev];
+      }
+
+      updated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      const unread = updated.filter((n) => !n.isRead).length;
+      setUnreadCount(unread);
+      window.dispatchEvent(new CustomEvent('notifications:updated', { detail: { unreadCount: unread } }));
+
+      return updated;
+    });
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const onNotificationNew = (notification) => {
+      handleIncomingNotification(notification);
+    };
+
+    socket.on("notification:new", onNotificationNew);
+
+    return () => {
+      socket.off("notification:new", onNotificationNew);
+    };
+  }, [socket, handleIncomingNotification]);
+
+  useEffect(() => {
+    const handleFromWindow = (event) => {
+      const notification = event.detail?.notification;
+      if (notification) {
+        handleIncomingNotification(notification);
+      }
+    };
+
+    window.addEventListener('notifications:new', handleFromWindow);
+    return () => {
+      window.removeEventListener('notifications:new', handleFromWindow);
+    };
+  }, [handleIncomingNotification]);
 
   // Update unread count whenever notifications change
   useEffect(() => {
@@ -531,9 +596,13 @@ const NotificationsPage = () => {
     try {
       await api.post(`/notifications/${id}/read`);
       // Update local state immediately
-      setNotifications(prev =>
-        prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
-      );
+      setNotifications(prev => {
+        const updated = prev.map((n) => (n._id === id ? { ...n, isRead: true } : n));
+        // Dispatch event to update Navbar badge
+        const unread = updated.filter(n => !n.isRead).length;
+        window.dispatchEvent(new CustomEvent('notifications:updated', { detail: { unreadCount: unread } }));
+        return updated;
+      });
     } catch (err) {
       console.error("Failed to mark as read", err);
     }
@@ -608,6 +677,13 @@ const NotificationsPage = () => {
     if (!meta) return false;
     if (processingActions[notification._id] || actionFeedback[notification._id]) return false;
     return meta.status === 'pending';
+  };
+
+  // Check if notification is a session confirmed notification
+  const shouldShowSessionButton = (notification) => {
+    return notification.type === 'session' && 
+           notification.title === 'Session Confirmed!' && 
+           notification.relatedId;
   };
 
   const getIcon = (type) => {
@@ -687,6 +763,7 @@ const NotificationsPage = () => {
               const hasFeedback = actionFeedback[n._id];
               const showSwapActions = shouldShowSwapActions(n);
               const showPaymentButton = shouldShowPaymentButton(n);
+              const showSessionButton = shouldShowSessionButton(n);
               
               return (
                 <Card
@@ -795,8 +872,22 @@ const NotificationsPage = () => {
                         </Button>
                       )}
 
+                      {/* Session Confirmed Button - Navigate to session */}
+                      {showSessionButton && (
+                        <Button
+                          onClick={() => {
+                            navigate(`/live-session/${n.relatedId}`);
+                          }}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                          size="sm"
+                        >
+                          <Video className="h-4 w-4 mr-1" />
+                          Go to Session
+                        </Button>
+                      )}
+
                       {/* Mark as Read Button - Only show if no active processing/feedback */}
-                      {!n.isRead && !showSwapActions && !showPaymentButton && !hasFeedback && !isProcessing && (
+                      {!n.isRead && !showSwapActions && !showPaymentButton && !showSessionButton && !hasFeedback && !isProcessing && (
                         <Button
                           size="sm"
                           variant="ghost"

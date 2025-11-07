@@ -1,5 +1,16 @@
 const Post = require('../models/PostModel');
 
+const broadcastPostEvent = (req, event, payload) => {
+  try {
+    const io = req?.app?.get('io');
+    if (io) {
+      io.emit(event, payload);
+    }
+  } catch (error) {
+    console.error(`❌ Failed to emit socket event ${event}:`, error);
+  }
+};
+
 // Helper function to generate time slots (time only, no day)
 const generateTimeSlots = (start, end, days) => {
     if (!start || !end || !days || days.length === 0) return [];
@@ -110,6 +121,8 @@ const createPost = async (req, res) => {
     console.log('✅ Post created successfully:', post._id);
     console.log('=== CREATE POST COMPLETED ===');
 
+    broadcastPostEvent(req, 'post:created', { post });
+
     res.status(201).json({
       success: true,
       data: post
@@ -184,4 +197,57 @@ const getPostById = async (req, res) => {
   }
 };
 
-module.exports = { createPost, getAllPosts, getPostById };
+// Update an existing post (owner only)
+const updatePost = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user?._id;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
+
+    if (String(post.userId) !== String(userId)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to update this post' });
+    }
+
+    const { title, content, skillsOffered, skillsWanted, availability } = req.body;
+
+    if (title !== undefined) post.title = title;
+    if (content !== undefined) post.content = content;
+    if (skillsOffered !== undefined) post.skillsOffered = skillsOffered;
+    if (skillsWanted !== undefined) post.skillsWanted = skillsWanted;
+
+    if (availability) {
+      const formattedAvailability = {
+        days: Array.isArray(availability.days) ? availability.days : [],
+        startTime: availability.startTime || "",
+        endTime: availability.endTime || "",
+      };
+      post.availability = formattedAvailability;
+
+      post.timeSlotsAvailable = formattedAvailability.days.length > 0 &&
+        formattedAvailability.startTime &&
+        formattedAvailability.endTime
+        ? generateTimeSlots(
+            formattedAvailability.startTime,
+            formattedAvailability.endTime,
+            formattedAvailability.days
+          )
+        : [];
+    }
+
+    const updated = await post.save();
+    const populated = await updated.populate('userId', 'name avatar skillsToTeach skillsToLearn rating totalSession');
+
+    broadcastPostEvent(req, 'post:updated', { postId: populated._id, post: populated });
+
+    return res.json({ success: true, data: populated });
+  } catch (err) {
+    console.error('❌ ERROR in updatePost:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { createPost, getAllPosts, getPostById, updatePost };

@@ -9,6 +9,7 @@ const User = require('../models/UserModel');
 const Wallet = require('../models/WalletModel');
 const Transaction = require('../models/TransactionModel');
 const Session = require('../models/SessionModel');
+const { broadcastNotifications } = require('../utils/notificationEmitter');
 
 // Helper: Create session and chat when both parties have paid
 const createSessionFromSwapRequest = async (swapRequest) => {
@@ -40,7 +41,7 @@ const createSessionFromSwapRequest = async (swapRequest) => {
     learnerPaid: true
   });
 
-  await Notification.create([
+  const notifications = await Notification.create([
     {
       userId: post.userId,
       senderId: swapRequest.requesterId,
@@ -60,6 +61,8 @@ const createSessionFromSwapRequest = async (swapRequest) => {
       relatedModel: 'Session'
     }
   ]);
+
+  await broadcastNotifications(notifications);
 
   return session;
 };
@@ -121,7 +124,7 @@ const createSwapRequest = async (req, res) => {
     });
 
     // Notify post owner - link notification to the SwapRequest so frontend can show actions
-    await Notification.create({
+    const notification = await Notification.create({
       userId: post.userId,
       senderId: req.user._id,
       type: 'swap_request',
@@ -130,6 +133,8 @@ const createSwapRequest = async (req, res) => {
       relatedId: swapRequest._id,
       relatedModel: 'SwapRequest'
     });
+
+    await broadcastNotifications(notification);
 
     console.log(" Swap request created:", swapRequest._id);
     res.status(201).json(swapRequest);
@@ -176,7 +181,7 @@ const acceptSwapRequest = async (req, res) => {
     await swapRequest.save();
 
     // ENRICHED NOTIFICATION: Include post title, skills, and owner name
-    await Notification.create({
+    const notification = await Notification.create({
       userId: swapRequest.requesterId,
       senderId: req.user._id, // post owner
       type: 'swap_accepted',
@@ -185,6 +190,8 @@ const acceptSwapRequest = async (req, res) => {
       relatedId: swapRequest._id,
       relatedModel: 'SwapRequest'
     });
+
+    await broadcastNotifications(notification);
 
     res.json({ message: 'Swap request accepted', swapRequest });
   } catch (err) {
@@ -214,7 +221,7 @@ const rejectSwapRequest = async (req, res) => {
     await swapRequest.save();
 
     // Notify requester
-    await Notification.create({
+    const notification = await Notification.create({
       userId: swapRequest.requesterId,
       senderId: req.user._id,
       type: 'swap_rejected',
@@ -223,6 +230,8 @@ const rejectSwapRequest = async (req, res) => {
       relatedId: swapRequest._id,
       relatedModel: 'Post'
     });
+
+    await broadcastNotifications(notification);
 
     res.json({ message: 'Swap request rejected', swapRequest });
   } catch (err) {
@@ -277,7 +286,7 @@ const validatePayment = async (req, res) => {
 
       // Create notification for the other party
       if (isRequester) {
-        await Notification.create({
+        const notification = await Notification.create({
           userId: swapRequest.postId.userId,
           senderId: userId,
           type: 'payment',
@@ -286,8 +295,9 @@ const validatePayment = async (req, res) => {
           relatedId: swapRequest._id,
           relatedModel: 'SwapRequest',
         });
+        await broadcastNotifications(notification);
       } else if (isOwner) {
-        await Notification.create({
+        const notification = await Notification.create({
           userId: swapRequest.requesterId,
           senderId: userId,
           type: 'payment',
@@ -296,6 +306,7 @@ const validatePayment = async (req, res) => {
           relatedId: swapRequest._id,
           relatedModel: 'SwapRequest',
         });
+        await broadcastNotifications(notification);
       }
 
       // Check if both parties have paid and create session
@@ -469,7 +480,7 @@ const validateCoinPayment = async (req, res) => {
     await swapRequest.save();
 
     // Create notification
-    await Notification.create({
+    const notification = await Notification.create({
       userId: isRequester ? swapRequest.postId.userId : swapRequest.requesterId,
       senderId: userId,
       type: 'payment',
@@ -480,6 +491,7 @@ const validateCoinPayment = async (req, res) => {
       relatedId: swapRequest._id,
       relatedModel: 'SwapRequest',
     });
+    await broadcastNotifications(notification);
 
     // Check if both parties have paid and create session
     let session = null;
