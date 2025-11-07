@@ -11,6 +11,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [isInitiator, setIsInitiator] = useState(false);
+  const [remoteVideoAvailable, setRemoteVideoAvailable] = useState(false);
 
   // --- Refs ---
   const peerConnectionRef = useRef(null);
@@ -20,6 +21,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
   const iceCandidateQueueRef = useRef([]);
   const hasRemoteDescriptionRef = useRef(false);
   const isNegotiatingRef = useRef(false); // Prevent duplicate renegotiations
+  const remoteVideoMuteTimerRef = useRef(null);
 
   // --- Configuration ---
   const configuration = {
@@ -152,6 +154,39 @@ export const useWebRTC = (sessionId, socketFunctions) => {
 
       remoteStreamRef.current = combinedStream;
       setRemoteStream(combinedStream);
+
+      if (incomingTrack.kind === 'video') {
+        setRemoteVideoAvailable(true);
+
+        const handleTrackUnavailable = () => {
+          console.log('🎬 Remote video track muted/ended');
+          if (remoteVideoMuteTimerRef.current) {
+            clearTimeout(remoteVideoMuteTimerRef.current);
+          }
+          remoteVideoMuteTimerRef.current = setTimeout(() => {
+            const hasLiveVideo = Boolean(
+              remoteStreamRef.current?.getVideoTracks()?.some(track => track.readyState === 'live' && !track.muted)
+            );
+            if (!hasLiveVideo) {
+              setRemoteVideoAvailable(false);
+            }
+            remoteVideoMuteTimerRef.current = null;
+          }, 1500);
+        };
+
+        const handleTrackAvailable = () => {
+          console.log('🎬 Remote video track active');
+          if (remoteVideoMuteTimerRef.current) {
+            clearTimeout(remoteVideoMuteTimerRef.current);
+            remoteVideoMuteTimerRef.current = null;
+          }
+          setRemoteVideoAvailable(true);
+        };
+
+        incomingTrack.addEventListener('mute', handleTrackUnavailable);
+        incomingTrack.addEventListener('ended', handleTrackUnavailable);
+        incomingTrack.addEventListener('unmute', handleTrackAvailable);
+      }
 
       console.log('✅ Updated remote stream:', combinedStream.id, 'tracks:', combinedStream.getTracks().map(t => `${t.kind}:${t.id}`));
     };
@@ -331,10 +366,12 @@ export const useWebRTC = (sessionId, socketFunctions) => {
 
   // --- Toggle Video ---
   const toggleVideo = useCallback(async () => {
-    const stream = localStreamRef.current;
+    let stream = localStreamRef.current;
     if (!stream) {
-      console.warn('No local camera stream available for video toggle');
-      return;
+      console.warn('No local camera stream found; creating placeholder stream for video toggle');
+      stream = new MediaStream();
+      localStreamRef.current = stream;
+      setLocalStream(stream);
     }
 
     const videoTracks = stream.getVideoTracks();
@@ -366,6 +403,11 @@ export const useWebRTC = (sessionId, socketFunctions) => {
           video: { width: { ideal: 1280 }, height: { ideal: 720 } } 
         });
         const [newVideoTrack] = videoStream.getVideoTracks();
+        if (!newVideoTrack) {
+          console.warn('No video track returned from getUserMedia');
+          return;
+        }
+
         stream.addTrack(newVideoTrack);
 
         const pc = peerConnectionRef.current;
@@ -373,11 +415,11 @@ export const useWebRTC = (sessionId, socketFunctions) => {
           const videoSender = findVideoSender(pc);
           if (videoSender) {
             await videoSender.replaceTrack(newVideoTrack);
-            // Renegotiate after track change
-            await renegotiate();
           } else {
             pc.addTrack(newVideoTrack, stream);
           }
+          console.log('🎥 Video track added/replaced, triggering renegotiation');
+          await renegotiate();
         }
 
         setIsVideoEnabled(true);
@@ -704,6 +746,11 @@ export const useWebRTC = (sessionId, socketFunctions) => {
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
       }
+      if (remoteVideoMuteTimerRef.current) {
+        clearTimeout(remoteVideoMuteTimerRef.current);
+        remoteVideoMuteTimerRef.current = null;
+      }
+      setRemoteVideoAvailable(false);
     };
   }, []);
 
@@ -724,6 +771,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
     handleOffer,
     handleAnswer,
     handleIceCandidate,
-    setInitiatorStatus
+    setInitiatorStatus,
+    hasRemoteVideo: remoteVideoAvailable,
   };
 };

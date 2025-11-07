@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { useSocket } from '../../hooks/useSocket';
 import { useWebRTC } from '../../hooks/useWebRTC';
 import ControlsBar from '../../components/Session/ControlsBar';
+import api from '../../services/api';
 import { 
   Phone, 
   Clock, 
@@ -38,6 +39,7 @@ const LiveSession = () => {
   const [participants, setParticipants] = useState([]);
   const [isInitiator, setIsInitiator] = useState(false);
   const hasInitiatedOfferRef = useRef(false);
+  const lastJoinedSocketIdRef = useRef(null);
 
   // --- Initialize Socket.IO connection ---
   const {
@@ -62,6 +64,7 @@ const LiveSession = () => {
     isAudioEnabled,
     isVideoEnabled,
     connectionStatus,
+    hasRemoteVideo,
     toggleAudio,
     toggleVideo,
     startScreenShare,
@@ -86,48 +89,36 @@ const LiveSession = () => {
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
-  // --- Simulate fetching session data ---
+  // --- Fetch session data from API ---
   useEffect(() => {
     const fetchSession = async () => {
       console.log(`Fetching session data for ID: ${sessionId}`);
       setLoading(true);
       setError(null);
       try {
-        await new Promise(resolve => setTimeout(resolve, 800));
+        const response = await api.get(`/sessions/${sessionId}`);
+        const sessionData = response.data?.data;
 
-        const mockSession = {
-          _id: sessionId,
-          title: "React Fundamentals - Live Coding Session",
-          description: "Learning React hooks and components with live code examples",
-          status: "scheduled",
-          scheduledTime: new Date(Date.now() + 30 * 60000).toISOString(),
-          sessionType: "skillTeaching",
-          hostId: {
-            _id: "68ed1a63453769b1a7cae5d9",
-            name: "Youssef fakhi",
-            email: "youssef.fakhi.dev@gmail.com"
-          },
-          learnerId: {
-            _id: "68f101e53e8926ff52306ac6",
-            name: "Marouane",
-            email: "mrxbrowkn@gmail.com"
-          },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
+        if (!sessionData) {
+          throw new Error('Session not found');
+        }
 
-        setSession(mockSession);
-        setParticipants([mockSession.hostId, mockSession.learnerId]);
+        setSession(sessionData);
 
-        // Determine if current user is the host (initiator)
+        const initialParticipants = [
+          sessionData.hostId ? { ...sessionData.hostId, role: 'host', isOnline: false } : null,
+          sessionData.learnerId ? { ...sessionData.learnerId, role: 'learner', isOnline: false } : null,
+        ].filter(Boolean);
+        setParticipants(initialParticipants);
+
         const loggedInUserId = user?._id;
-        const userIsHost = mockSession.hostId._id === loggedInUserId;
+        const userIsHost = sessionData.hostId?._id === loggedInUserId;
         setIsInitiator(userIsHost);
+        setInitiatorStatus(userIsHost);
         console.log(`User is ${userIsHost ? 'HOST (initiator)' : 'LEARNER (responder)'}`);
-
       } catch (err) {
-        console.error("Failed to fetch session:", err);
-        setError(err.message || "Failed to load session details.");
+        console.error('Failed to fetch session:', err);
+        setError(err.response?.data?.error || err.message || 'Failed to load session details.');
       } finally {
         setLoading(false);
       }
@@ -136,10 +127,10 @@ const LiveSession = () => {
     if (sessionId) {
       fetchSession();
     } else {
-      setError("Invalid session ID.");
+      setError('Invalid session ID.');
       setLoading(false);
     }
-  }, [sessionId, user]);
+  }, [sessionId, user, setInitiatorStatus]);
 
   // --- Connect to Socket.IO when component mounts and token is available ---
   useEffect(() => {
@@ -162,8 +153,19 @@ const LiveSession = () => {
     if (isConnected && sessionId) {
       console.log(`Socket.IO connected. Joining session room: ${sessionId}`);
       joinSession(sessionId);
+      lastJoinedSocketIdRef.current = socket?.id || null;
     }
-  }, [isConnected, sessionId, joinSession]);
+  }, [isConnected, sessionId, joinSession, socket]);
+
+  useEffect(() => {
+    if (!socket || !sessionId) return;
+
+    if (socket.id && lastJoinedSocketIdRef.current !== socket.id) {
+      console.log(`Socket instance changed (${socket.id}). Rejoining session ${sessionId}`);
+      joinSession(sessionId);
+      lastJoinedSocketIdRef.current = socket.id;
+    }
+  }, [socket, sessionId, joinSession]);
 
   // --- Register Socket.IO Event Listeners for WebRTC Signaling ---
   useEffect(() => {
@@ -227,15 +229,83 @@ const LiveSession = () => {
     };
   }, [socket, isInitiator, createOffer, handleOffer, handleAnswer, handleIceCandidate]);
 
+  // --- Subscribe to participant status updates ---
+  useEffect(() => {
+    if (!socket || !session) return;
+
+    const handleSessionParticipants = (payload) => {
+      if (!payload || payload.sessionId !== session._id) return;
+
+      const hostId = session.hostId?._id || session.hostId;
+      const learnerId = session.learnerId?._id || session.learnerId;
+
+      const userMap = new Map();
+      if (hostId) {
+        userMap.set(String(hostId), session.hostId);
+      }
+      if (learnerId) {
+        userMap.set(String(learnerId), session.learnerId);
+      }
+
+      const mappedParticipants = payload.participants
+        .map((participant) => {
+          const userId = String(participant.userId);
+          const baseUser = userMap.get(userId) || {};
+
+          return {
+            ...(typeof baseUser === 'object' ? baseUser : {}),
+            _id: baseUser?._id || userId,
+            role: participant.role,
+            isOnline: Boolean(participant.isOnline),
+          };
+        })
+        .filter(Boolean);
+
+      if (mappedParticipants.length > 0) {
+        console.log('✅ mapped participants:', mappedParticipants);
+        setParticipants(mappedParticipants);
+      }
+    };
+
+    socket.on('session-participants', handleSessionParticipants);
+
+    if (sessionId) {
+      console.log('📨 requesting session participants snapshot for', sessionId);
+      socket.emit('request-session-participants', sessionId);
+    }
+
+    return () => {
+      socket.off('session-participants', handleSessionParticipants);
+    };
+  }, [socket, session, sessionId]);
+
   // --- Initiate Offer if User Joins First as Initiator ---
   useEffect(() => {
-    // If we're the initiator, connected, and in the session, wait a bit then send offer
-    // This handles the case where the initiator joins first
     if (isInitiator && isConnected && sessionId && !hasInitiatedOfferRef.current) {
       console.log('Initiator connected first, waiting for responder...');
       // The offer will be sent when 'user-joined' event fires (see above)
     }
   }, [isInitiator, isConnected, sessionId]);
+
+  // --- Fallback: force initial offer once both participants are online ---
+  useEffect(() => {
+    if (
+      !isInitiator ||
+      !isConnected ||
+      !sessionId ||
+      hasInitiatedOfferRef.current ||
+      participants.length < 2
+    ) {
+      return;
+    }
+
+    const everyoneOnline = participants.every((p) => p.isOnline);
+    if (everyoneOnline) {
+      console.log('Both participants online; ensuring initial offer is sent.');
+      hasInitiatedOfferRef.current = true;
+      createOffer();
+    }
+  }, [participants, isInitiator, isConnected, sessionId, createOffer]);
 
   // --- Handle user interaction to enable audio ---
   useEffect(() => {
@@ -283,10 +353,9 @@ const LiveSession = () => {
       return;
     }
 
-    // Only show remote stream if User A is NOT sharing screen
-    const remoteHasVideo = !!(remoteStream && remoteStream.getVideoTracks().some(t => t.readyState === 'live'));
-    
-    if (remoteStream && remoteHasVideo) {
+    const remoteHasVideo = Boolean(remoteStream && hasRemoteVideo);
+
+    if (remoteHasVideo) {
       console.log('Displaying remote stream (with video) in main video');
       videoElement.srcObject = remoteStream;
       // Always mute the main video element - audio handled by separate element
@@ -299,7 +368,7 @@ const LiveSession = () => {
 
     // No video to display
     videoElement.srcObject = null;
-  }, [screenStream, remoteStream, isSharingScreen]);
+  }, [screenStream, remoteStream, isSharingScreen, hasRemoteVideo]);
 
   // --- CAMERA PREVIEW LOGIC ---
   useEffect(() => {
@@ -564,7 +633,7 @@ const LiveSession = () => {
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 flex items-center justify-center p-0 relative overflow-hidden">
+            <CardContent className="flex-1 overflow-y-auto p-0 relative overflow-hidden">
               {/* Main Video Element - Remote Stream (NOT MUTED) */}
               <video
                 ref={mainVideoRef}
@@ -574,7 +643,7 @@ const LiveSession = () => {
                 className="w-full h-full object-contain bg-black rounded"
               />
               {/* Placeholder for Main Video */}
-              {!remoteStream && !isSharingScreen && (
+              {(!remoteStream || !hasRemoteVideo) && !isSharingScreen && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-700/50">
                   <div className="text-center">
                     <div className="bg-gray-600 border-2 border-dashed rounded-xl w-20 h-20 mx-auto flex items-center justify-center mb-2">
@@ -644,24 +713,27 @@ const LiveSession = () => {
                   >
                     <div className="relative">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
-                        {participant.name.charAt(0)}
+                        {(participant.name || participant.role)?.charAt(0)?.toUpperCase()}
                       </div>
                       {/* Online status indicator */}
                       <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-800 ${
-                        isConnected ? 'bg-green-500' : 'bg-gray-500'
+                        participant.isOnline ? 'bg-green-500' : 'bg-gray-500'
                       }`}></div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white truncate">
-                        {participant.name}
+                        {participant.name || participant.role}
                       </p>
                       <p className="text-xs text-gray-400 truncate">
-                        {participant.email}
+                        {participant.email || participant.role}
                       </p>
                     </div>
-                    {participant._id === loggedInUserId && (
-                      <Badge variant="default" className="text-xs">
-                        You {isInitiator && '(Host)'}
+                    <Badge variant="secondary" className="text-xs capitalize">
+                      {participant._id === loggedInUserId ? 'You' : participant.role}
+                    </Badge>
+                    {participant._id === loggedInUserId && isInitiator && (
+                      <Badge variant="default" className="text-xs ml-1">
+                        Host
                       </Badge>
                     )}
                   </div>
