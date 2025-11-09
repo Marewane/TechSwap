@@ -341,18 +341,6 @@ const LiveSession = () => {
     const videoElement = mainVideoRef.current;
     if (!videoElement) return;
 
-    // CRITICAL FIX: When User A is sharing screen, ALWAYS show screen share (highest priority)
-    // This prevents remote stream changes (like when User B enables mic) from disrupting screen share
-    if (isSharingScreen && screenStream) {
-      console.log('🖥️ Displaying your screen share (priority - ignoring remote stream changes)');
-      videoElement.srcObject = screenStream;
-      videoElement.muted = true; // local content, no audio
-      videoElement.play().catch(err => {
-        console.warn('Failed to play screen share:', err);
-      });
-      return;
-    }
-
     const remoteHasVideo = Boolean(remoteStream && hasRemoteVideo);
 
     if (remoteHasVideo) {
@@ -362,6 +350,17 @@ const LiveSession = () => {
       videoElement.muted = true;
       videoElement.play().catch(err => {
         console.warn('Failed to play remote video:', err);
+      });
+      return;
+    }
+
+    // Fallback: show local screen share when remote video is unavailable
+    if (isSharingScreen && screenStream) {
+      console.log('🖥️ Displaying your screen share (remote video unavailable)');
+      videoElement.srcObject = screenStream;
+      videoElement.muted = true; // local content, no audio
+      videoElement.play().catch(err => {
+        console.warn('Failed to play screen share:', err);
       });
       return;
     }
