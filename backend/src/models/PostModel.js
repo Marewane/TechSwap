@@ -46,6 +46,16 @@ const postSchema = new mongoose.Schema({
         type: [String],
         default: []
     },
+    // Snapshot of author identity at creation time to ensure listings
+    // can render even if the user record is later removed or not populated.
+    authorName: {
+        type: String,
+        default: ""
+    },
+    authorAvatar: {
+        type: String,
+        default: ""
+    },
     expiresAt: {
         type: Date,
         default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days

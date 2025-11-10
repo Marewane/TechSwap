@@ -11,6 +11,54 @@ const broadcastPostEvent = (req, event, payload) => {
   }
 };
 
+const formatPostForResponse = (post) => {
+  if (!post) return post;
+
+  const plainPost = typeof post.toObject === 'function'
+    ? post.toObject({ getters: true })
+    : { ...post };
+
+  const user = plainPost.userId && typeof plainPost.userId === 'object' && plainPost.userId !== null
+    ? plainPost.userId
+    : null;
+
+  const fallbackName = user?.name || plainPost.authorName || 'Unknown User';
+  const fallbackAvatar = user?.avatar || plainPost.authorAvatar || '';
+  const fallbackRating = typeof user?.rating === 'number' ? user.rating : 0;
+  const fallbackSkillsToTeach = Array.isArray(user?.skillsToTeach) ? user.skillsToTeach : [];
+  const fallbackSkillsToLearn = Array.isArray(user?.skillsToLearn) ? user.skillsToLearn : [];
+  const fallbackTotalSession = typeof user?.totalSession === 'number' ? user.totalSession : 0;
+
+  plainPost.authorName = fallbackName;
+  plainPost.authorAvatar = fallbackAvatar;
+
+  if (user) {
+    plainPost.userId = {
+      _id: user._id,
+      name: user.name,
+      avatar: user.avatar,
+      skillsToTeach: fallbackSkillsToTeach,
+      skillsToLearn: fallbackSkillsToLearn,
+      rating: fallbackRating,
+      totalSession: fallbackTotalSession
+    };
+  } else if (plainPost.userId && typeof plainPost.userId === 'string') {
+    plainPost.userId = {
+      _id: plainPost.userId,
+      name: fallbackName,
+      avatar: fallbackAvatar,
+      skillsToTeach: [],
+      skillsToLearn: [],
+      rating: 0,
+      totalSession: 0
+    };
+  } else if (!plainPost.userId) {
+    plainPost.userId = null;
+  }
+
+  return plainPost;
+};
+
 // Helper function to generate time slots (time only, no day)
 const generateTimeSlots = (start, end, days) => {
     if (!start || !end || !days || days.length === 0) return [];
@@ -108,7 +156,9 @@ const createPost = async (req, res) => {
       skillsOffered: skillsOffered || [],
       skillsWanted: skillsWanted || [],
       availability: formattedAvailability,
-      timeSlotsAvailable
+      timeSlotsAvailable,
+      authorName: req.user?.name || "",
+      authorAvatar: req.user?.avatar || ""
     };
 
     console.log('📝 Final post data:', postData);
@@ -117,15 +167,16 @@ const createPost = async (req, res) => {
 
     // Populate user data in response
     await post.populate('userId', 'name avatar skillsToTeach skillsToLearn rating totalSession');
+    const formattedPost = formatPostForResponse(post);
 
     console.log('✅ Post created successfully:', post._id);
     console.log('=== CREATE POST COMPLETED ===');
 
-    broadcastPostEvent(req, 'post:created', { post });
+    broadcastPostEvent(req, 'post:created', { post: formattedPost });
 
     res.status(201).json({
       success: true,
-      data: post
+      data: formattedPost
     });
   } catch (err) {
     console.error('❌ ERROR in createPost:', err);
@@ -155,12 +206,14 @@ const getAllPosts = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
+    const formattedPosts = posts.map(formatPostForResponse);
+
     res.json({
       success: true,
       total: totalPosts,
       page,
       totalPages: Math.ceil(totalPosts / limit),
-      posts
+      posts: formattedPosts
     });
   } catch (err) {
     console.error('❌ ERROR in getAllPosts:', err);
@@ -186,7 +239,7 @@ const getPostById = async (req, res) => {
 
     res.json({
       success: true,
-      data: post
+      data: formatPostForResponse(post)
     });
   } catch (err) {
     console.error('❌ ERROR in getPostById:', err);
@@ -240,14 +293,42 @@ const updatePost = async (req, res) => {
 
     const updated = await post.save();
     const populated = await updated.populate('userId', 'name avatar skillsToTeach skillsToLearn rating totalSession');
+    const formattedPost = formatPostForResponse(populated);
 
-    broadcastPostEvent(req, 'post:updated', { postId: populated._id, post: populated });
+    broadcastPostEvent(req, 'post:updated', { postId: populated._id, post: formattedPost });
 
-    return res.json({ success: true, data: populated });
+    return res.json({ success: true, data: formattedPost });
   } catch (err) {
     console.error('❌ ERROR in updatePost:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-module.exports = { createPost, getAllPosts, getPostById, updatePost };
+// Delete an existing post (owner only)
+const deletePost = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user?._id;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
+
+    if (String(post.userId) !== String(userId)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this post' });
+    }
+
+    await Post.deleteOne({ _id: postId });
+
+    // Notify clients
+    broadcastPostEvent(req, 'post:deleted', { postId });
+
+    return res.json({ success: true, message: 'Post deleted', data: { _id: postId } });
+  } catch (err) {
+    console.error('❌ ERROR in deletePost:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { createPost, getAllPosts, getPostById, updatePost, deletePost };

@@ -1,11 +1,13 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import api from "@/services/api";
+import { fetchMyProfile } from "@/features/profile/profileSlice";
 
 export default function StepProfileInfo() {
   const [formData, setFormData] = useState({
@@ -17,6 +19,7 @@ export default function StepProfileInfo() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const handleChange = (e) => {
     setFormData(prev => ({
@@ -105,6 +108,8 @@ export default function StepProfileInfo() {
 
       if (response.data.success) {
         console.log("✅ Profile saved successfully");
+        // Refresh profile so Navbar immediately reflects the new avatar
+        await dispatch(fetchMyProfile());
         navigate("/home");
       } else {
         throw new Error(response.data.message || "Failed to save profile");
@@ -112,6 +117,8 @@ export default function StepProfileInfo() {
     } catch (error) {
       console.error("Error saving profile:", error);
       alert("Profile completed! You can update your avatar later.");
+      // Best-effort refresh to reflect whatever is saved
+      dispatch(fetchMyProfile());
       navigate("/home");
     } finally {
       setLoading(false);

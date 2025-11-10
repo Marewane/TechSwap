@@ -29,6 +29,20 @@ export const createPost = createAsyncThunk(
     }
 );
 
+export const deletePost = createAsyncThunk(
+    "posts/deletePost",
+    async (postId, { rejectWithValue }) => {
+        try {
+            const res = await api.delete(`/posts/${postId}`);
+            return res.data;
+        } catch (err) {
+            return rejectWithValue(
+                err.response?.data?.message || "Failed to delete post"
+            );
+        }
+    }
+);
+
 export const requestSwap = createAsyncThunk(
     "posts/requestSwap",
     async ({ postId, scheduledTime, duration }, { rejectWithValue }) => {
@@ -147,15 +161,44 @@ const postsSlice = createSlice({
             .addCase(createPost.fulfilled, (state, action) => {
                 state.loading = false;
                 const newPost = action.payload.data || action.payload;
-                if (newPost) {
-                    state.posts.unshift({
+                if (newPost && newPost._id) {
+                    const existingIndex = state.posts.findIndex((p) => p._id === newPost._id);
+                    const mergedPost = {
                         skillsOffered: [],
                         skillsWanted: [],
                         availability: { days: [] },
                         ...newPost
-                    });
+                    };
+                    if (existingIndex !== -1) {
+                        state.posts[existingIndex] = { ...state.posts[existingIndex], ...mergedPost };
+                    } else if (state.currentPage === 1) {
+                        state.posts.unshift(mergedPost);
+                        if (state.posts.length > state.limit) {
+                            state.posts.pop();
+                        }
+                    }
                 }
                 state.successMessage = "Post created successfully!";
+            })
+            // Delete post
+            .addCase(deletePost.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(deletePost.fulfilled, (state, action) => {
+                state.loading = false;
+                const deletedId = action.payload?.data?._id || action.meta.arg;
+                if (deletedId) {
+                    state.posts = state.posts.filter((p) => p._id !== deletedId);
+                    if (typeof state.total === "number" && state.total > 0) {
+                        state.total -= 1;
+                    }
+                }
+                state.successMessage = "Post deleted successfully!";
+            })
+            .addCase(deletePost.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
             })
             .addCase(createPost.rejected, (state, action) => {
                 state.loading = false;

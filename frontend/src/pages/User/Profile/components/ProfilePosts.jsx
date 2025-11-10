@@ -1,5 +1,8 @@
 // components/ProfilePosts.jsx
 import React from "react";
+import { useDispatch } from "react-redux";
+import { deletePost } from "@/features/posts/postsSlice";
+import { fetchMyProfile } from "@/features/profile/profileSlice";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,13 +31,29 @@ const ProfilePosts = ({ posts, requestingSwap, onOpenScheduler, isOwner = false,
         );
     }
 
+    const dispatch = useDispatch();
+
+    const handleDelete = async (postId) => {
+        if (!postId) return;
+        const ok = window.confirm("Are you sure you want to delete this post?");
+        if (!ok) return;
+        try {
+            await dispatch(deletePost(postId)).unwrap();
+            // Refresh profile to update posts list immediately
+            dispatch(fetchMyProfile());
+        } catch (err) {
+            console.error("Failed to delete post:", err);
+            alert(err || "Failed to delete post");
+        }
+    };
+
     return (
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => {
                 // Use current user data for owner's posts
-                const displayUser = isOwner ? currentUser : (post.userId || currentUser);
-                const userName = displayUser?.name || "User";
-                const userAvatar = displayUser?.avatar;
+                const displayUser = isOwner ? currentUser : (post.userId || null);
+                const userName = displayUser?.name || post?.authorName || "User";
+                const userAvatar = displayUser?.avatar || post?.authorAvatar;
                 const userRating = displayUser?.rating || 0;
 
                 // Get skills ONLY from the post itself
@@ -133,18 +152,26 @@ const ProfilePosts = ({ posts, requestingSwap, onOpenScheduler, isOwner = false,
                             )}
 
                             {/* Action Button */}
-                            <div className="mt-auto pt-3">
+                            <div className="mt-auto pt-3 flex gap-2">
                                 {isOwner ? (
-                                    <Button
-                                        variant="outline"
-                                        className="w-full"
-                                        onClick={() => {
-                                            // Dispatch a global event for edit (hook up a listener where you handle editing)
-                                            try { window.dispatchEvent(new CustomEvent('profile:edit-post', { detail: { postId: post?._id, post } })); } catch {}
-                                        }}
-                                    >
-                                        Edit Post
-                                    </Button>
+                                    <>
+                                        <Button
+                                            variant="outline"
+                                            className="flex-1"
+                                            onClick={() => {
+                                                // Dispatch a global event for edit (hook up a listener where you handle editing)
+                                                try { window.dispatchEvent(new CustomEvent('profile:edit-post', { detail: { postId: post?._id, post } })); } catch {}
+                                            }}
+                                        >
+                                            Edit Post
+                                        </Button>
+                                        <Button
+                                            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                                            onClick={() => handleDelete(post?._id)}
+                                        >
+                                            Delete
+                                        </Button>
+                                    </>
                                 ) : (
                                     <Button
                                         className="w-full bg-gray-700 text-white font-medium py-2.5"

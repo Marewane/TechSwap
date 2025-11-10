@@ -186,14 +186,14 @@ const PostsPage = () => {
                                 <CardContent className="p-5 flex flex-col flex-1">
                                     <div className="flex items-start gap-3 mb-4">
                                         <Avatar className="w-12 h-12 border-2 border-gray-100">
-                                            <AvatarImage src={post?.userId?.avatar || "/default-avatar.png"} alt={post?.userId?.name || "Unknown User"} />
+                                            <AvatarImage src={post?.userId?.avatar || post?.authorAvatar || "/default-avatar.png"} alt={post?.userId?.name || post?.authorName || "Unknown User"} />
                                             <AvatarFallback className="bg-gradient-to-br from-gray-500 to-gray-600 text-white text-sm font-medium">
-                                                {getInitials(post?.userId?.name)}
+                                                {getInitials(post?.userId?.name || post?.authorName)}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="flex-1 min-w-0">
                                             <h3 className="text-lg font-semibold text-gray-900 truncate">
-                                                {post?.userId?.name || "Unknown User"}
+                                                {post?.userId?.name || post?.authorName || "Unknown User"}
                                             </h3>
                                             <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
                                                 <div className="flex items-center gap-1">
@@ -339,7 +339,7 @@ const PostsPage = () => {
             {/* ✅ Pass availableDays from post.availability.days */}
             {schedulerPost && (
                 <SessionScheduler
-                    postOwnerName={schedulerPost.userId.name}
+                    postOwnerName={schedulerPost.userId?.name || schedulerPost.authorName || "Unknown User"}
                     skillsOffered={schedulerPost.skillsOffered}
                     skillsWanted={schedulerPost.skillsWanted}
                     timeSlotsAvailable={schedulerPost.timeSlotsAvailable}
