@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt')
+const Post = require('../models/PostModel');
 
 const userSchema = new mongoose.Schema(
     {
@@ -123,3 +124,14 @@ userSchema.methods.comparePassword = async function (candidatePassword){
 }
 
 module.exports = mongoose.model("User", userSchema);
+
+// Cascade delete related documents when a user is deleted via findOneAndDelete / findByIdAndDelete
+userSchema.post('findOneAndDelete', async function(doc) {
+    try {
+        if (!doc) return;
+        await Post.deleteMany({ userId: doc._id });
+    } catch (err) {
+        // Log and continue — avoid blocking user deletion because of related cleanup
+        console.error('Error cascading delete user posts:', err);
+    }
+});

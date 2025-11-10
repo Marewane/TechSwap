@@ -8,6 +8,7 @@ import { useSessions } from '../../hooks/useSessions';
 import { useSelector } from 'react-redux';
 import SessionCard from '../../components/Session/SessionCard';
 import api from '../../services/api';
+import Navbar from '../User/Navbar';
 
 const Events = () => {
   const navigate = useNavigate();
@@ -159,7 +160,9 @@ const Events = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-4">
+    <>
+    <Navbar />
+    <div className="min-h-screen bg-gray-50 py-4 pt-20">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
         {/* Page Header - Minimal spacing */}
         <div className="mb-3">
@@ -270,6 +273,7 @@ const Events = () => {
         </Card>
       </div>
     </div>
+    </>
   );
 };
 
