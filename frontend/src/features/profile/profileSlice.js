@@ -68,6 +68,19 @@ export const uploadAvatar = createAsyncThunk(
     }
 );
 
+// Create Stripe checkout session for wallet top-ups
+export const requestWalletTopupSession = createAsyncThunk(
+    'profile/requestWalletTopupSession',
+    async ({ coinsNumber }, { rejectWithValue }) => {
+        try {
+            const { data } = await api.post('/payments/buy-coins', { coinsNumber });
+            return data;
+        } catch (error) {
+            return rejectWithValue(error.response?.data?.error || error.message);
+        }
+    }
+);
+
 const profileSlice = createSlice({
     name: "profile",
     initialState: {
@@ -191,6 +204,14 @@ const profileSlice = createSlice({
             .addCase(uploadAvatar.rejected, (state, action) => {
                 state.uploading = false;
                 state.error = action.payload;
+            })
+
+            // Create Stripe checkout session for wallet top-ups
+            .addCase(requestWalletTopupSession.pending, (state) => {
+                state.error = null;
+            })
+            .addCase(requestWalletTopupSession.rejected, (state, action) => {
+                state.error = action.payload || 'Failed to create Stripe session';
             });
     },
 });

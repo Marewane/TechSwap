@@ -9,7 +9,8 @@ export const useWallet = () => {
   useEffect(() => {
     const fetchWallet = async () => {
       try {
-        const res = await api.get('/api/users/me/wallet');
+        // api baseURL already includes /api
+        const res = await api.get('/users/me/wallet');
         setBalance(res.data.balance || 0);
       } catch (error) {
         console.error('Failed to fetch wallet:', error);

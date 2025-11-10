@@ -29,13 +29,26 @@ const addUser = async (req,res)=>{
 
 const getMyWallet = async (req, res) => {
   try {
-    const wallet = await Wallet.findOne({ userId: req.user._id });
-    if (!wallet) {
-      return res.status(404).json({ success: false, message: 'Wallet not found' });
-    }
-    res.json({ success: true, balance: wallet.balance });
+    const userId = req.user._id;
+
+    // Find or create a wallet for this user with sensible defaults
+    const wallet = await Wallet.findOneAndUpdate(
+      { userId },
+      {
+        $setOnInsert: {
+          balance: 0,
+          totalEarned: 0,
+          totalSpent: 0,
+          currency: 'USD',
+          isPlatform: false
+        }
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    return res.status(200).json({ success: true, balance: wallet.balance });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

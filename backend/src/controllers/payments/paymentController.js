@@ -7,11 +7,23 @@ const Notification = require('../../models/NotificationModel');
 const { broadcastNotifications } = require('../../utils/notificationEmitter');
 
 const createPaymentIntent = async (req, res) => {
-  const { coinsNumber, userId } = req.body;
-  const dollarValuePerCoin = 0.1;
-  const amountInCents = coinsNumber * dollarValuePerCoin * 100;
-
   try {
+    const { coinsNumber } = req.body || {};
+    const authenticatedUserId = req.user?._id;
+    const parsedCoins = Number(coinsNumber);
+
+    if (!authenticatedUserId) {
+      return res.status(401).json({ error: "User authentication required" });
+    }
+
+    if (!parsedCoins || parsedCoins <= 0) {
+      return res.status(400).json({ error: "coinsNumber must be a positive number" });
+    }
+
+    const dollarValuePerCoin = 0.1;
+    const amountInCents = Math.round(parsedCoins * dollarValuePerCoin * 100);
+    const frontendBase = process.env.FRONTEND_URL || "http://localhost:5173";
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -19,21 +31,22 @@ const createPaymentIntent = async (req, res) => {
         {
           price_data: {
             currency: "usd",
-            product_data: { name: `Purchase ${coinsNumber} Coins` },
-            unit_amount: Math.round(amountInCents),
+            product_data: { name: `Purchase ${parsedCoins} Coins` },
+            unit_amount: amountInCents,
           },
           quantity: 1,
         },
       ],
       metadata: {
-        userId,
-        coinsNumber,
+        userId: authenticatedUserId.toString(),
+        coinsNumber: parsedCoins,
+        purpose: "wallet_topup",
       },
-      success_url: "http://localhost:5500/frontend/success.html",
-      cancel_url: "http://localhost:5500/frontend/cancel.html",
+      success_url: `${frontendBase}/profile?payment_success=true&coins=${parsedCoins}`,
+      cancel_url: `${frontendBase}/profile?payment_cancelled=true`,
     });
 
-    res.json({ id: session.id });
+    res.json({ id: session.id, url: session.url });
   } catch (error) {
     console.error("Stripe session error:", error.message);
     res.status(500).json({ error: error.message });

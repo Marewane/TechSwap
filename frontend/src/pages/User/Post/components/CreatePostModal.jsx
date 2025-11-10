@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchMyProfile } from "@/features/profile/profileSlice";
 import { createPost } from "@/features/posts/postsSlice";
 
-const CreatePostModal = () => {
+const CreatePostModal = ({ renderTrigger }) => {
     const dispatch = useDispatch();
     const { loading, error } = useSelector((state) => state.posts);
     const { user } = useSelector((state) => state.user); // fallback
@@ -29,6 +29,9 @@ const CreatePostModal = () => {
     const learnInputRef = useRef(null);
     const [teachInput, setTeachInput] = useState("");
     const [learnInput, setLearnInput] = useState("");
+
+    const openModal = () => setOpen(true);
+    const closeModal = () => setOpen(false);
 
     // Get user's actual skills from profile first, fallback to user slice
     const profileUser = myProfile?.user || user;
@@ -72,7 +75,7 @@ const CreatePostModal = () => {
     // Ensure we have fresh profile data when opening the modal so suggested tags appear
     useEffect(() => {
         if (open && !myProfile) {
-            dispatch(fetchMyProfile());
+            setOpen(false);
         }
     }, [open, myProfile, dispatch]);
 
@@ -318,7 +321,8 @@ const CreatePostModal = () => {
                 }
             });
             setTimeError("");
-            setOpen(false);
+            dispatch(fetchMyProfile());
+            closeModal();
         } catch (error) {
             console.error("❌ Failed to create post:", error);
             alert(error || "Failed to create post");
@@ -560,14 +564,22 @@ const CreatePostModal = () => {
         </div>
     );
 
-    return (
-        <>
+    const triggerElement = renderTrigger
+        ? renderTrigger({ openModal, closeModal, isOpen: open })
+        : (
             <button
-                onClick={() => setOpen(true)}
+                type="button"
+                onClick={openModal}
                 className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg bg-gray-600 hover:bg-gray-700 text-white z-50 flex items-center justify-center transition-colors"
+                aria-label="Create new post"
             >
                 <Plus className="h-6 w-6" />
             </button>
+        );
+
+    return (
+        <>
+            {triggerElement}
 
             {open && (
                 <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-lg">
@@ -582,7 +594,7 @@ const CreatePostModal = () => {
                                     <p className="text-gray-600 mt-1">Share your skills and find others to swap with</p>
                                 </div>
                                 <button
-                                    onClick={() => setOpen(false)}
+                                    onClick={closeModal}
                                     className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-full"
                                 >
                                     <X className="h-6 w-6" />
@@ -773,7 +785,7 @@ const CreatePostModal = () => {
                                 <div className="flex gap-3 pt-4">
                                     <button
                                         type="button"
-                                        onClick={() => setOpen(false)}
+                                        onClick={closeModal}
                                         className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
                                     >
                                         Cancel

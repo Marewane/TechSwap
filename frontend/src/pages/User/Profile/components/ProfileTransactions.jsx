@@ -19,6 +19,17 @@ const TypeBadge = ({ type }) => {
     return <span className={`${base} ${map[type] || 'bg-gray-50 text-gray-700 border border-gray-200'}`}>{type}</span>;
 };
 
+const formatAmount = (amount) => {
+    try {
+        return Number(amount || 0).toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+        });
+    } catch {
+        return amount;
+    }
+};
+
 const ProfileTransactions = ({ balance, transactions = [] }) => {
     return (
         <div className="space-y-6">

@@ -1,13 +1,27 @@
 // NotificationPage.jsx - FIXED VERSION WITH PERSISTENT STATE
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import api from "@/services/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Bell, Check, X, Clock, Mail, CheckCircle, CreditCard, Coins, AlertCircle, UserCheck, UserX, Loader2, Calendar, Video } from "lucide-react";
 import useSocket from "@/hooks/useSocket";
+
+const SESSION_COST_COINS = 50;
+const MIN_PURCHASE_COINS = 10;
+const PENDING_CHECKOUT_STORAGE_KEY = "techswap:pending_checkout";
 
 // Normalize avatar URLs (handles relative paths from backend)
 const resolveAvatarUrl = (url) => {
@@ -19,116 +33,141 @@ const resolveAvatarUrl = (url) => {
 };
 
 // Payment Confirmation Modal Component
-const PaymentConfirmationModal = ({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
+const PaymentConfirmationModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
   loading,
-  swapDetails 
+  swapDetails,
+  coinsToDeduct = 50,
+  prefaceMessage = ""
 }) => {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="max-w-md w-full p-6">
-        <div className="text-center">
-          <CreditCard className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">
-            Confirm Payment Validation
-          </h3>
-          <p className="text-gray-600 mb-4">
-            This will deduct <strong>50 coins</strong> from your wallet to validate the swap session.
-          </p>
-          {swapDetails && (
-            <div className="bg-gray-50 p-3 rounded-lg mb-4 text-sm">
-              <p><strong>Session:</strong> {swapDetails.title}</p>
-              <p><strong>Duration:</strong> {swapDetails.duration} minutes</p>
-              <p><strong>Scheduled:</strong> {new Date(swapDetails.scheduledTime).toLocaleString()}</p>
-            </div>
-          )}
-          <div className="flex gap-3 justify-center">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={onConfirm}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Confirm Payment"
-              )}
-            </Button>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirm Payment Validation</DialogTitle>
+          <DialogDescription>
+            This action will deduct <strong>{coinsToDeduct} coins</strong> from your wallet to validate the swap session.
+          </DialogDescription>
+        </DialogHeader>
+
+        {prefaceMessage && (
+          <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            {prefaceMessage}
           </div>
-        </div>
-      </Card>
-    </div>
+        )}
+
+        {swapDetails && (
+          <div className="mt-4 space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+            <p><strong>Session:</strong> {swapDetails.title}</p>
+            <p><strong>Duration:</strong> {swapDetails.duration} minutes</p>
+            <p><strong>Scheduled:</strong> {new Date(swapDetails.scheduledTime).toLocaleString()}</p>
+          </div>
+        )}
+
+        <DialogFooter className="gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              `Deduct ${coinsToDeduct} Coins`
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
 // Insufficient Coins Modal Component
-const InsufficientCoinsModal = ({ 
-  isOpen, 
-  onClose, 
-  onBuyCoins,
+const InsufficientCoinsModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
   loading,
   currentBalance,
   requiredCoins,
-  swapDetails 
+  swapDetails,
+  coinsToPurchase,
+  onCoinsChange,
+  errorMessage,
+  minimumCoins = 10
 }) => {
-  if (!isOpen) return null;
-
-  const coinsNeeded = requiredCoins - currentBalance;
+  const coinsNeeded = Math.max(requiredCoins - currentBalance, 0);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="max-w-md w-full p-6">
-        <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-orange-500 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">
-            Insufficient Coins
-          </h3>
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Coins className="w-5 h-5 text-orange-600" />
-              <span className="font-semibold text-orange-800">
-                Current Balance: {currentBalance} coins
-              </span>
-            </div>
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <CreditCard className="w-5 h-5 text-orange-600" />
-              <span className="font-semibold text-orange-800">
-                Required: {requiredCoins} coins
-              </span>
-            </div>
-            <p className="text-orange-700 text-sm">
-              You need <strong>{coinsNeeded} more coins</strong> to validate this session.
-            </p>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Insufficient Coins</DialogTitle>
+          <DialogDescription>
+            You need additional coins to validate this swap session.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
+          <div className="flex items-center justify-between text-sm font-semibold text-orange-800">
+            <span className="flex items-center gap-2"><Coins className="h-4 w-4" /> Current Balance</span>
+            <span>{currentBalance} coins</span>
           </div>
-          
-          {swapDetails && (
-            <div className="bg-gray-50 p-3 rounded-lg mb-4 text-sm">
-              <p><strong>Session:</strong> {swapDetails.title}</p>
-              <p><strong>Duration:</strong> {swapDetails.duration} minutes</p>
-              <p><strong>Scheduled:</strong> {new Date(swapDetails.scheduledTime).toLocaleString()}</p>
-            </div>
-          )}
-
-          <p className="text-gray-600 mb-4 text-sm">
-            Purchase coins to complete your payment and join the swap session.
+          <div className="mt-2 flex items-center justify-between text-sm font-semibold text-orange-800">
+            <span className="flex items-center gap-2"><CreditCard className="h-4 w-4" /> Required</span>
+            <span>{requiredCoins} coins</span>
+          </div>
+          <p className="mt-3 text-xs text-orange-700">
+            You need <strong>{coinsNeeded} more coins</strong> to validate this session.
           </p>
+        </div>
 
-          <div className="flex gap-3 justify-center">
+        {swapDetails && (
+          <div className="mt-4 space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+            <p><strong>Session:</strong> {swapDetails.title}</p>
+            <p><strong>Duration:</strong> {swapDetails.duration} minutes</p>
+            <p><strong>Scheduled:</strong> {new Date(swapDetails.scheduledTime).toLocaleString()}</p>
+          </div>
+        )}
+
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="coins-to-purchase">Coins to purchase</Label>
+            <Input
+              id="coins-to-purchase"
+              type="number"
+              min={minimumCoins}
+              step={10}
+              value={coinsToPurchase}
+              onChange={(event) => onCoinsChange(event.target.value)}
+              placeholder={`Enter at least ${minimumCoins}`}
+              required
+              disabled={loading}
+            />
+            <p className="text-xs text-gray-500">
+              Each coin costs $0.10. Minimum purchase is {minimumCoins} coins.
+            </p>
+            {errorMessage && (
+              <p className="text-sm text-red-600">{errorMessage}</p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
             <Button
+              type="button"
               variant="outline"
               onClick={onClose}
               disabled={loading}
@@ -136,21 +175,23 @@ const InsufficientCoinsModal = ({
               Cancel
             </Button>
             <Button
-              onClick={onBuyCoins}
+              type="submit"
               disabled={loading}
-              className="bg-orange-600 hover:bg-orange-700"
+              className="bg-orange-600 hover:bg-orange-700 text-white"
             >
               {loading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Redirecting…
+                </>
               ) : (
-                <Coins className="h-4 w-4 mr-2" />
+                  `Continue to Stripe`
               )}
-              {loading ? "Redirecting..." : `Buy ${coinsNeeded}+ Coins`}
             </Button>
-          </div>
-        </div>
-      </Card>
-    </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -282,14 +323,113 @@ const NotificationsPage = () => {
   const [selectedSwapRequest, setSelectedSwapRequest] = useState(null);
   const [selectedNotificationId, setSelectedNotificationId] = useState(null);
   const [swapDetails, setSwapDetails] = useState(null);
-  const [walletInfo, setWalletInfo] = useState({ currentBalance: 0, requiredCoins: 50 });
+  const [walletInfo, setWalletInfo] = useState({ currentBalance: 0, requiredCoins: SESSION_COST_COINS });
+  const [coinsToPurchase, setCoinsToPurchase] = useState(SESSION_COST_COINS.toString());
+  const [purchaseError, setPurchaseError] = useState("");
+  const [paymentPrefaceMessage, setPaymentPrefaceMessage] = useState("");
+  const [pendingCheckout, setPendingCheckout] = useState(null);
   const [actionFeedback, setActionFeedback] = useState({});
   const [processingActions, setProcessingActions] = useState({});
   const [unreadCount, setUnreadCount] = useState(0); // kept for compatibility, not shown in UI
+  const location = useLocation();
   const navigate = useNavigate();
+
   const { tokens } = useSelector((state) => state.user);
   const accessToken = tokens?.accessToken;
   const { socket, connect, disconnect } = useSocket(accessToken);
+
+  const clearProcessingForNotification = (notificationId) => {
+    if (!notificationId) return;
+    setProcessingActions((prev) => {
+      const updated = { ...prev };
+      delete updated[notificationId];
+      return updated;
+    });
+  };
+
+  // Restore any pending checkout persisted in localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(PENDING_CHECKOUT_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.swapRequestId) {
+          setPendingCheckout(parsed);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to restore pending checkout', err);
+    }
+  }, []);
+
+  // Handle Stripe redirect query params
+  useEffect(() => {
+    if (!location?.search) return;
+
+    const params = new URLSearchParams(location.search);
+    const paymentSuccess = params.get('payment_success') === 'true';
+    const paymentCancelled = params.get('payment_cancelled') === 'true';
+    const coinsParam = params.get('coins');
+
+    const cleanupQuery = () => {
+      navigate('/notifications', { replace: true });
+    };
+
+    if (paymentSuccess) {
+      const checkoutData = pendingCheckout || (() => {
+        try {
+          const stored = localStorage.getItem(PENDING_CHECKOUT_STORAGE_KEY);
+          return stored ? JSON.parse(stored) : null;
+        } catch {
+          return null;
+        }
+      })();
+
+      if (checkoutData?.swapRequestId) {
+        const { swapRequestId, notificationId, coinsPurchased } = checkoutData;
+        (async () => {
+          try {
+            const { data } = await api.get(`/swap-requests/${swapRequestId}/wallet-check`);
+            setWalletInfo({ currentBalance: data.currentBalance, requiredCoins: data.requiredCoins });
+            setSwapDetails(data.swapDetails);
+            setSelectedSwapRequest(swapRequestId);
+            setSelectedNotificationId(notificationId);
+            setShowInsufficientCoinsModal(false);
+
+            const purchased = Number(coinsParam || coinsPurchased || 0);
+            setPaymentPrefaceMessage(
+              purchased
+                ? `Your purchase of ${purchased} coins was successful. We'll now deduct ${SESSION_COST_COINS} coins to validate the session.`
+                : `Your coin purchase was successful. We'll now deduct ${SESSION_COST_COINS} coins to validate the session.`
+            );
+
+            if (data.hasSufficientCoins) {
+              setShowPaymentModal(true);
+            } else {
+              setPurchaseError('We are still updating your wallet balance. Please wait a moment and try again.');
+            }
+          } catch (err) {
+            console.error('Failed to verify wallet after Stripe checkout', err);
+            setPurchaseError(err.response?.data?.message || err.message || 'Failed to verify wallet after purchase.');
+          } finally {
+            setPendingCheckout(null);
+            try { localStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY); } catch {}
+          }
+        })();
+      } else {
+        // No pending checkout found; just clear stored state
+        setPendingCheckout(null);
+        try { localStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY); } catch {}
+      }
+
+      cleanupQuery();
+    } else if (paymentCancelled) {
+      setPurchaseError('Stripe checkout was cancelled. No coins were purchased.');
+      setPendingCheckout(null);
+      try { localStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY); } catch {}
+      cleanupQuery();
+    }
+  }, [location, navigate, pendingCheckout]);
 
   // Fetch notifications, then silently mark them as read
   const fetchNotifications = useCallback(async () => {
@@ -406,6 +546,8 @@ const NotificationsPage = () => {
     setSelectedSwapRequest(swapRequestId);
     setSelectedNotificationId(notificationId);
     setProcessingPayment(swapRequestId);
+    setPaymentPrefaceMessage("");
+    setPurchaseError("");
     
     // Set processing state for this notification
     if (notificationId) {
@@ -425,6 +567,8 @@ const NotificationsPage = () => {
       if (data.hasSufficientCoins) {
         // User has enough coins - show confirmation modal
         setSwapDetails(data.swapDetails);
+        setWalletInfo({ currentBalance: data.currentBalance, requiredCoins: data.requiredCoins });
+        setPaymentPrefaceMessage("");
         setShowPaymentModal(true);
       } else {
         // Insufficient coins - show modal with option to buy coins
@@ -433,21 +577,20 @@ const NotificationsPage = () => {
           requiredCoins: data.requiredCoins
         });
         setSwapDetails(data.swapDetails);
+        const needed = Math.max(data.requiredCoins - data.currentBalance, 0);
+        const suggestedPurchase = Math.max(needed, SESSION_COST_COINS);
+        setCoinsToPurchase(suggestedPurchase.toString());
         setShowInsufficientCoinsModal(true);
       }
+
+      clearProcessingForNotification(notificationId);
       
     } catch (error) {
       console.error('Payment validation check failed:', error);
       alert('Payment check failed: ' + (error.response?.data?.message || error.message));
       
       // Remove processing state on error
-      if (notificationId) {
-        setProcessingActions(prev => {
-          const newProcessing = { ...prev };
-          delete newProcessing[notificationId];
-          return newProcessing;
-        });
-      }
+      clearProcessingForNotification(notificationId);
     } finally {
       setProcessingPayment(null);
     }
@@ -469,6 +612,7 @@ const NotificationsPage = () => {
       
       // ✅ 1. CLOSE MODAL
       setShowPaymentModal(false);
+      setPaymentPrefaceMessage("");
       
       // ✅ 2. UPDATE NOTIFICATION LIST IMMEDIATELY - mark as read and update content
       setNotifications(prev => 
@@ -495,7 +639,7 @@ const NotificationsPage = () => {
         ...prev,
         [selectedNotificationId]: {
           type: "payment_success",
-          message: "You have successfully validated the payment! 50 coins deducted from your wallet.",
+          message: `You have successfully validated the payment! ${SESSION_COST_COINS} coins deducted from your wallet.`,
           sessionDetails: data.sessionCreated ? {
             scheduledTime: swapDetails?.scheduledTime,
             title: swapDetails?.title
@@ -545,48 +689,59 @@ const NotificationsPage = () => {
   };
 
   // Handle buy coins redirect
-  const handleBuyCoins = async () => {
-    if (!selectedSwapRequest || !selectedNotificationId) return;
-    
-    setProcessingPayment(selectedSwapRequest);
-    try {
-      console.log("Redirecting to Stripe for coin purchase");
-      
-      const coinsNeeded = walletInfo.requiredCoins - walletInfo.currentBalance;
-      const coinsToPurchase = Math.max(coinsNeeded, 50);
-      
-      const { data } = await api.post(`/swap-requests/${selectedSwapRequest}/stripe-payment`, {
-        requiredCoins: coinsToPurchase
-      });
-      
-      console.log("Stripe session created:", data);
+  const handleBuyCoins = async (event) => {
+    event?.preventDefault?.();
 
-      // Open Stripe in a new tab
-      if (data.url) {
-        window.open(data.url, '_blank');
-      } else if (data.id) {
-        const checkoutUrl = `https://checkout.stripe.com/c/pay/${data.id}`;
-        window.open(checkoutUrl, '_blank');
-      } else {
-        throw new Error('No Stripe session URL received');
+    if (!selectedSwapRequest || !selectedNotificationId) return;
+
+    const parsedCoins = Number(coinsToPurchase);
+    if (!parsedCoins || parsedCoins < MIN_PURCHASE_COINS) {
+      setPurchaseError(`Please enter at least ${MIN_PURCHASE_COINS} coins.`);
+      return;
+    }
+
+    setProcessingPayment(selectedSwapRequest);
+    setPurchaseError("");
+    if (selectedNotificationId) {
+      setProcessingActions(prev => ({
+        ...prev,
+        [selectedNotificationId]: 'payment_checkout'
+      }));
+    }
+
+    try {
+      console.log("Requesting Stripe session for coin purchase");
+
+      const { data } = await api.post(`/swap-requests/${selectedSwapRequest}/stripe-payment`, {
+        requiredCoins: parsedCoins
+      });
+
+      const sessionUrl = data.url || (data.id ? `https://checkout.stripe.com/c/pay/${data.id}` : null);
+      if (!sessionUrl) {
+        throw new Error('Stripe session information was not returned by the server.');
       }
 
-      // Close the insufficient coins modal
+      const pending = {
+        swapRequestId: selectedSwapRequest,
+        notificationId: selectedNotificationId,
+        coinsPurchased: parsedCoins,
+        createdAt: Date.now(),
+      };
+      setPendingCheckout(pending);
+      try {
+        localStorage.setItem(PENDING_CHECKOUT_STORAGE_KEY, JSON.stringify(pending));
+      } catch {}
+
       setShowInsufficientCoinsModal(false);
-      
-      // Show feedback
-      setActionFeedback(prev => ({
-        ...prev,
-        [selectedNotificationId]: {
-          type: "info",
-          message: "Coin purchase opened in new tab. After purchase, please refresh this page to validate payment."
-        }
-      }));
-      
+
+      window.open(sessionUrl, '_blank');
+
+      clearProcessingForNotification(selectedNotificationId);
+
     } catch (error) {
       console.error('Stripe session creation failed:', error);
-      alert('Failed to create payment session: ' + (error.response?.data?.message || error.message));
-      setShowInsufficientCoinsModal(false);
+      setPurchaseError(error.response?.data?.message || error.message || 'Failed to create payment session');
+      clearProcessingForNotification(selectedNotificationId);
     } finally {
       setProcessingPayment(null);
     }
@@ -918,6 +1073,7 @@ const NotificationsPage = () => {
         onConfirm={handleCoinPaymentConfirm}
         loading={processingPayment === selectedSwapRequest}
         swapDetails={swapDetails}
+        prefaceMessage={paymentPrefaceMessage}
       />
 
       {/* Insufficient Coins Modal */}
@@ -929,11 +1085,14 @@ const NotificationsPage = () => {
           setSelectedNotificationId(null);
           setSwapDetails(null);
         }}
-        onBuyCoins={handleBuyCoins}
+        onSubmit={handleBuyCoins}
         loading={processingPayment === selectedSwapRequest}
         currentBalance={walletInfo.currentBalance}
         requiredCoins={walletInfo.requiredCoins}
         swapDetails={swapDetails}
+        coinsToPurchase={coinsToPurchase}
+        onCoinsChange={setCoinsToPurchase}
+        errorMessage={purchaseError}
       />
 
       {/* Payment Success Modal */}

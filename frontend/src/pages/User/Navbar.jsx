@@ -11,7 +11,7 @@ import { logout as logoutAction } from "@/features/user/userSlice";
 import { useCallback, useEffect, useState } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import api from "@/services/api";
-import useSocket from "@/hooks/useSocket";
+import { useSocket } from "@/hooks/useSocket";
 
 // Resolve avatar to absolute URL if backend returns a relative path
 const resolveAvatarUrl = (url) => {
@@ -275,105 +275,119 @@ const Navbar = () => {
           </DropdownMenu>
         </div>
 
-        {/* Mobile Menu */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Menu className="h-5 w-5" />
+        {/* Mobile quick actions */}
+        <div className="flex items-center gap-2 md:hidden">
+          <Link to="/notifications" className="relative">
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-5 w-5 text-gray-600" />
+              {unreadCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs font-bold rounded-full"
+                >
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </Badge>
+              )}
             </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-            <div className="flex flex-col space-y-4 mt-8">
-              {navItems.map((item) => (
-                <SheetClose asChild key={item.path}>
+          </Link>
+
+          {/* Mobile Menu */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+              <div className="flex flex-col space-y-4 mt-8">
+                {navItems.map((item) => (
+                  <SheetClose asChild key={item.path}>
+                    <Link
+                      to={item.path}
+                      className={`text-lg font-medium py-3 px-4 rounded-lg transition-colors ${
+                        isActivePath(item.path)
+                          ? "text-indigo-600 bg-indigo-50"
+                          : "text-gray-700 hover:text-indigo-600"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  </SheetClose>
+                ))}
+
+                {/* Mobile Wallet Balance */}
+                <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center">
+                    <CircleDollarSign className="h-5 w-5 text-blue-600 mr-2" />
+                    <span className="font-semibold text-blue-700">Wallet Balance</span>
+                  </div>
+                  <span className="text-lg font-bold text-blue-800">
+                    {loadingWallet ? "..." : `${formatAmount(walletBalance)} Coins`}
+                  </span>
+                </div>
+
+                {/* Mobile Notification with badge */}
+                <SheetClose asChild>
                   <Link
-                    to={item.path}
-                    className={`text-lg font-medium py-3 px-4 rounded-lg transition-colors ${
-                      isActivePath(item.path)
-                        ? "text-indigo-600 bg-indigo-50"
-                        : "text-gray-700 hover:text-indigo-600"
-                    }`}
+                    to="/notifications"
+                    className="text-lg font-medium py-3 px-4 rounded-lg text-gray-700 hover:text-indigo-600 flex items-center gap-2 relative"
                   >
-                    {item.label}
+                    <Bell className="h-5 w-5" />
+                    Notifications
+                    {unreadCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="h-5 w-5 flex items-center justify-center p-0 text-xs font-bold rounded-full"
+                      >
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </Badge>
+                    )}
                   </Link>
                 </SheetClose>
-              ))}
 
-              {/* Mobile Wallet Balance */}
-              <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                <div className="flex items-center">
-                  <CircleDollarSign className="h-5 w-5 text-blue-600 mr-2" />
-                  <span className="font-semibold text-blue-700">Wallet Balance</span>
-                </div>
-                <span className="text-lg font-bold text-blue-800">
-                  {loadingWallet ? "..." : `${formatAmount(walletBalance)} Coins`}
-                </span>
-              </div>
-
-              {/* Mobile Notification with badge */}
-              <SheetClose asChild>
-                <Link
-                  to="/notifications"
-                  className="text-lg font-medium py-3 px-4 rounded-lg text-gray-700 hover:text-indigo-600 flex items-center gap-2 relative"
-                >
-                  <Bell className="h-5 w-5" />
-                  Notifications
-                  {unreadCount > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="h-5 w-5 flex items-center justify-center p-0 text-xs font-bold rounded-full"
+                {/* Mobile Profile Section */}
+                <div className="pt-4 border-t space-y-4">
+                  <SheetClose asChild>
+                    <Link
+                      to="/profile"
+                      className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </Badge>
-                  )}
-                </Link>
-              </SheetClose>
-
-              {/* Mobile Profile Section */}
-              <div className="pt-4 border-t space-y-4">
-                <div className="flex items-center space-x-3 p-2">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={resolveAvatarUrl(user?.avatar)} alt={user?.name || "User"} />
-                    <AvatarFallback className="bg-indigo-100 text-indigo-600">
-                      {getInitials(user?.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {user?.name || "User"}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {user?.email || "user@example.com"}
-                    </p>
-                    <p className="text-xs text-green-700 font-semibold mt-1">
-                      {loadingWallet ? "Loading coins..." : `${formatAmount(walletBalance)} Coins`}
-                    </p>
+                      <Avatar className="h-10 w-10 flex-shrink-0">
+                        <AvatarImage src={resolveAvatarUrl(user?.avatar)} alt={user?.name || "User"} />
+                        <AvatarFallback className="bg-indigo-100 text-indigo-600">
+                          {getInitials(user?.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {user?.name || "User"}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {user?.email || "user@example.com"}
+                        </p>
+                        <p className="text-xs text-green-700 font-semibold mt-1">
+                          {loadingWallet ? "Loading coins..." : `${formatAmount(walletBalance)} Coins`}
+                        </p>
+                      </div>
+                    </Link>
+                  </SheetClose>
+                  <div className="space-y-2">
+                    <SheetClose asChild>
+                      <Button
+                        onClick={handleLogout}
+                        variant="default"
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Logout
+                      </Button>
+                    </SheetClose>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <SheetClose asChild>
-                    <Button variant="outline" className="w-full justify-start" asChild>
-                      <Link to="/profile">
-                        <User className="mr-2 h-4 w-4" />
-                        Profile
-                      </Link>
-                    </Button>
-                  </SheetClose>
-                  <SheetClose asChild>
-                    <Button
-                      onClick={handleLogout}
-                      variant="default"
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Logout
-                    </Button>
-                  </SheetClose>
-                </div>
               </div>
-            </div>
-          </SheetContent>
-        </Sheet>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </nav>
   );

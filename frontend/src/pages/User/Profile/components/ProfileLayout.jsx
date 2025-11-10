@@ -7,7 +7,7 @@ import {
     CreditCard,
 } from "lucide-react";
 
-const ProfileLayout = ({ children, activeTab, onTabChange, profile, isOwner }) => {
+const ProfileLayout = ({ children, activeTab, onTabChange, profile, isOwner, onAddFundsClick }) => {
     const tabs = [
         { id: 'overview', label: 'Overview', icon: Wallet },
         { id: 'posts', label: 'Posts', icon: Calendar },
@@ -53,7 +53,12 @@ const ProfileLayout = ({ children, activeTab, onTabChange, profile, isOwner }) =
                                         {walletBalance !== undefined ? `${walletBalance} Coins` : '0'}
                                     </div>
                                     {isOwner && (
-                                        <Button variant="outline" className="w-full justify-start" size="sm">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-start"
+                                            size="sm"
+                                            onClick={onAddFundsClick}
+                                        >
                                             <CreditCard className="h-4 w-4 mr-2" />
                                             Add Funds (Stripe)
                                         </Button>
