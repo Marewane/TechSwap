@@ -205,8 +205,8 @@ const PaymentSuccessModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="max-w-md w-full p-6">
+    <div className="fixed inset-x-0 top-6 z-50 flex justify-center px-4 pointer-events-none">
+      <Card className="max-w-md w-full p-6 shadow-lg border border-green-100 pointer-events-auto">
         <div className="text-center">
           <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-gray-800 mb-2">
@@ -215,7 +215,7 @@ const PaymentSuccessModal = ({
           <p className="text-gray-600 mb-4">
             {message}
           </p>
-          
+
           {sessionDetails && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
               <div className="flex items-center gap-2 mb-2">
@@ -227,7 +227,7 @@ const PaymentSuccessModal = ({
               </p>
             </div>
           )}
-          
+
           <Button
             onClick={onClose}
             className="bg-green-600 hover:bg-green-700"
@@ -238,7 +238,8 @@ const PaymentSuccessModal = ({
       </Card>
     </div>
   );
-};
+}
+;
 
 // Action Feedback Component
 const ActionFeedback = ({ type, userName, message, sessionDetails }) => {
@@ -1027,11 +1028,16 @@ const NotificationsPage = () => {
                         </Button>
                       )}
 
-                      {/* Session Confirmed Button - Navigate to session */}
+                      {/* Session Confirmed Button - Navigate to Events page for launching session */}
                       {showSessionButton && (
                         <Button
                           onClick={() => {
-                            navigate(`/live-session/${n.relatedId}`);
+                            navigate(`/events`, {
+                              state: {
+                                highlightSessionId: n.relatedId,
+                                autoPromptStart: true
+                              }
+                            });
                           }}
                           className="bg-indigo-600 hover:bg-indigo-700 text-white"
                           size="sm"

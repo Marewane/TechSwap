@@ -29,6 +29,10 @@ const CreatePostModal = ({ renderTrigger }) => {
     const learnInputRef = useRef(null);
     const [teachInput, setTeachInput] = useState("");
     const [learnInput, setLearnInput] = useState("");
+    const [teachDropdownOpen, setTeachDropdownOpen] = useState(false);
+    const [learnDropdownOpen, setLearnDropdownOpen] = useState(false);
+    const teachDropdownRef = useRef(null);
+    const learnDropdownRef = useRef(null);
 
     const openModal = () => setOpen(true);
     const closeModal = () => setOpen(false);
@@ -78,6 +82,25 @@ const CreatePostModal = ({ renderTrigger }) => {
             setOpen(false);
         }
     }, [open, myProfile, dispatch]);
+
+    useEffect(() => {
+        const handleDropdownClickOutside = (event) => {
+            if (teachDropdownOpen && teachDropdownRef.current && !teachDropdownRef.current.contains(event.target)) {
+                setTeachDropdownOpen(false);
+            }
+            if (learnDropdownOpen && learnDropdownRef.current && !learnDropdownRef.current.contains(event.target)) {
+                setLearnDropdownOpen(false);
+            }
+        };
+
+        if (teachDropdownOpen || learnDropdownOpen) {
+            document.addEventListener("mousedown", handleDropdownClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener("mousedown", handleDropdownClickOutside);
+        };
+    }, [teachDropdownOpen, learnDropdownOpen]);
 
     // Generate time slots function
     const generateTimeSlots = (start, end, days) => {
@@ -300,12 +323,12 @@ const CreatePostModal = ({ renderTrigger }) => {
                 }
             };
 
-            console.log('📤 Sending post data to backend:', postDataToSend);
+            console.log('Sending post data to backend:', postDataToSend);
 
             // Dispatch the createPost action with properly formatted data
             const result = await dispatch(createPost(postDataToSend)).unwrap();
             
-            console.log("✅ Post created successfully:", result);
+            console.log("Post created successfully:", result);
             alert("Post created successfully!");
             
             // Reset form
@@ -324,7 +347,7 @@ const CreatePostModal = ({ renderTrigger }) => {
             dispatch(fetchMyProfile());
             closeModal();
         } catch (error) {
-            console.error("❌ Failed to create post:", error);
+            console.error("Failed to create post:", error);
             alert(error || "Failed to create post");
         }
     };
@@ -370,7 +393,7 @@ const CreatePostModal = ({ renderTrigger }) => {
                             key={`offered-${index}`}
                             className="inline-flex items-center gap-1 px-2 py-1 bg-gray-600 text-white rounded-full text-xs"
                         >
-                            📤 {skill}
+                            {skill}
                             <X
                                 className="h-3 w-3 cursor-pointer hover:text-gray-300 ml-1"
                                 onClick={() => toggleSkill(skill, "offered")}
@@ -386,26 +409,37 @@ const CreatePostModal = ({ renderTrigger }) => {
 
                 {/* Skills Grid - Offered */}
                 {userTeachingSkills.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-                        {userTeachingSkills.map((skill, index) => (
-                            <button
-                                key={index}
-                                type="button"
-                                onClick={() => toggleSkill(skill, "offered")}
-                                className={`p-2 rounded text-left transition-all text-xs ${
-                                    formData.skillsOffered.includes(skill)
-                                        ? "bg-gray-600 text-white"
-                                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                }`}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <span className="font-medium truncate">{skill}</span>
-                                    {formData.skillsOffered.includes(skill) && (
-                                        <Check className="h-3 w-3 ml-1 flex-shrink-0" />
-                                    )}
-                                </div>
-                            </button>
-                        ))}
+                    <div ref={teachDropdownRef} className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setTeachDropdownOpen((prev) => !prev)}
+                            className="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                        >
+                            <span>Select from profile ({userTeachingSkills.length})</span>
+                            <span className="text-xs text-gray-500">{teachDropdownOpen ? "Hide" : "Show"}</span>
+                        </button>
+                        {teachDropdownOpen && (
+                            <div className="absolute left-0 right-0 z-20 mt-2 max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                                {userTeachingSkills.map((skill, index) => {
+                                    const isSelected = formData.skillsOffered.includes(skill);
+                                    return (
+                                        <button
+                                            key={index}
+                                            type="button"
+                                            onClick={() => toggleSkill(skill, "offered")}
+                                            className={`flex w-full items-center justify-between px-3 py-2 text-sm transition ${
+                                                isSelected
+                                                    ? "bg-gray-600 text-white"
+                                                    : "text-gray-700 hover:bg-gray-100"
+                                            }`}
+                                        >
+                                            <span className="truncate">{skill}</span>
+                                            {isSelected && <Check className="h-4 w-4 flex-shrink-0" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -473,7 +507,7 @@ const CreatePostModal = ({ renderTrigger }) => {
                             key={`wanted-${index}`}
                             className="inline-flex items-center gap-1 px-2 py-1 border border-blue-400 bg-blue-50 text-blue-700 rounded-full text-xs"
                         >
-                            📥 {skill}
+                             {skill}
                             <X
                                 className="h-3 w-3 cursor-pointer hover:text-blue-500 ml-1"
                                 onClick={() => toggleSkill(skill, "wanted")}
@@ -489,26 +523,37 @@ const CreatePostModal = ({ renderTrigger }) => {
 
                 {/* Skills Grid - Wanted */}
                 {userLearningSkills.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-lg">
-                        {userLearningSkills.map((skill, index) => (
-                            <button
-                                key={index}
-                                type="button"
-                                onClick={() => toggleSkill(skill, "wanted")}
-                                className={`p-2 rounded text-left transition-all text-xs ${
-                                    formData.skillsWanted.includes(skill)
-                                        ? "bg-blue-500 text-white"
-                                        : "bg-blue-50 text-blue-700 hover:bg-blue-100"
-                                }`}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <span className="font-medium truncate">{skill}</span>
-                                    {formData.skillsWanted.includes(skill) && (
-                                        <Check className="h-3 w-3 ml-1 flex-shrink-0" />
-                                    )}
-                                </div>
-                            </button>
-                        ))}
+                    <div ref={learnDropdownRef} className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setLearnDropdownOpen((prev) => !prev)}
+                            className="flex w-full items-center justify-between rounded-md border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-700 shadow-sm hover:bg-blue-50"
+                        >
+                            <span>Select from profile ({userLearningSkills.length})</span>
+                            <span className="text-xs text-blue-500">{learnDropdownOpen ? "Hide" : "Show"}</span>
+                        </button>
+                        {learnDropdownOpen && (
+                            <div className="absolute left-0 right-0 z-20 mt-2 max-h-48 overflow-y-auto rounded-md border border-blue-200 bg-white shadow-lg">
+                                {userLearningSkills.map((skill, index) => {
+                                    const isSelected = formData.skillsWanted.includes(skill);
+                                    return (
+                                        <button
+                                            key={index}
+                                            type="button"
+                                            onClick={() => toggleSkill(skill, "wanted")}
+                                            className={`flex w-full items-center justify-between px-3 py-2 text-sm transition ${
+                                                isSelected
+                                                    ? "bg-blue-500 text-white"
+                                                    : "text-blue-700 hover:bg-blue-50"
+                                            }`}
+                                        >
+                                            <span className="truncate">{skill}</span>
+                                            {isSelected && <Check className="h-4 w-4 flex-shrink-0" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
 

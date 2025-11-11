@@ -1,6 +1,6 @@
 // src/pages/Events/Events.jsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
@@ -12,6 +12,9 @@ import Navbar from '../User/Navbar';
 
 const Events = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const highlightSessionId = location.state?.highlightSessionId || null;
+  const autoPromptStart = location.state?.autoPromptStart || false;
 
   const {
     filteredSessions,
@@ -27,6 +30,21 @@ const Events = () => {
   } = useSessions();
 
   const { user } = useSelector(state => state.user) || {};
+
+  useEffect(() => {
+    if (highlightSessionId && statusFilter !== 'all') {
+      setStatusFilter('all');
+    }
+  }, [highlightSessionId, statusFilter, setStatusFilter]);
+
+  useEffect(() => {
+    if (highlightSessionId) {
+      const timeout = setTimeout(() => {
+        navigate(location.pathname, { replace: true, state: {} });
+      }, 1500);
+      return () => clearTimeout(timeout);
+    }
+  }, [highlightSessionId, navigate, location.pathname]);
 
   const handleJoinSession = (session) => {
     console.log('Join session:', session._id);
@@ -265,6 +283,8 @@ const Events = () => {
                     onStartSession={handleStartSession}
                     onViewDetails={handleViewDetails}
                     onCancelSession={handleCancelSession} // Pass the new handler
+                    highlight={highlightSessionId === session._id}
+                    autoPromptStart={autoPromptStart && highlightSessionId === session._id}
                   />
                 ))
               )}

@@ -14,6 +14,17 @@ const daysOfWeek = [
   { value: "Sunday", label: "Sunday", short: "Sun" },
 ];
 
+const formatTime = (timeStr) => {
+  if (!timeStr) return "";
+  const [hour, minute] = timeStr.split(":").map(Number);
+  const date = new Date();
+  date.setHours(hour, minute, 0, 0);
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
 function generateTimeSlots(start, end) {
   if (!start || !end) return [];
   const slots = [];
@@ -29,7 +40,9 @@ function generateTimeSlots(start, end) {
     const sM = String(slotStartMinutes % 60).padStart(2, "0");
     const eH = String(Math.floor(slotEndMinutes / 60)).padStart(2, "0");
     const eM = String(slotEndMinutes % 60).padStart(2, "0");
-    slots.push(`${sH}:${sM} - ${eH}:${eM}`);
+    const rawStart = `${sH}:${sM}`;
+    const rawEnd = `${eH}:${eM}`;
+    slots.push(`${formatTime(rawStart)} - ${formatTime(rawEnd)}`);
     currentMinutes += intervalMinutes;
   }
   return slots;
@@ -199,6 +212,11 @@ export default function EditPostModal({ open, post, onClose }) {
                         onChange={(e) => updateAvailabilityTime("startTime", e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
                       />
+                      {formData.availability.startTime && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          {formatTime(formData.availability.startTime)}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
@@ -213,6 +231,11 @@ export default function EditPostModal({ open, post, onClose }) {
                             : "border-gray-300 focus:ring-gray-600"
                         }`}
                       />
+                      {formData.availability.endTime && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          {formatTime(formData.availability.endTime)}
+                        </p>
+                      )}
                     </div>
                   </div>
 

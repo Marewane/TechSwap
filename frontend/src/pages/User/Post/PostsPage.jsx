@@ -11,6 +11,17 @@ import CreatePostModal from "./components/CreatePostModal";
 import SessionScheduler from "@/components/SessionScheduler";
 import useSocket from "@/hooks/useSocket";
 
+const formatTime = (timeStr) => {
+    if (!timeStr) return "";
+    const [hour, minute] = timeStr.split(":").map(Number);
+    const date = new Date();
+    date.setHours(hour, minute, 0, 0);
+    return date.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+    });
+};
+
 const PostsPage = () => {
     const dispatch = useDispatch();
     const {
@@ -24,7 +35,7 @@ const PostsPage = () => {
         swapError,
         swapSuccess
     } = useSelector((state) => state.posts);
-    const { tokens } = useSelector((state) => state.user);
+    const { tokens, user } = useSelector((state) => state.user);
 
     const accessToken = tokens?.accessToken;
     const { socket, connect, disconnect } = useSocket(accessToken);
@@ -117,6 +128,32 @@ const PostsPage = () => {
             ?.toUpperCase() || "U";
     };
 
+    const currentUserId = user?._id ? String(user._id) : null;
+
+    const getPostOwnerId = (post) => {
+        if (!post) return null;
+        const { userId, authorId } = post;
+
+        if (typeof userId === "string") return userId;
+        if (userId && typeof userId === "object" && userId._id) return userId._id;
+
+        if (typeof authorId === "string") return authorId;
+        if (authorId && typeof authorId === "object" && authorId._id) return authorId._id;
+
+        return null;
+    };
+
+    const filteredPosts = posts?.filter((post) => {
+        if (!currentUserId) return true;
+        const ownerId = getPostOwnerId(post);
+        if (!ownerId) return true;
+        return String(ownerId) !== currentUserId;
+    });
+
+    const hasAvailablePosts = filteredPosts && filteredPosts.length > 0;
+    const originalPostsCount = posts?.length || 0;
+    const showNoOtherPostsMessage = !loading && originalPostsCount > 0 && !hasAvailablePosts;
+
     return (
         <div className="min-h-screen p-6">
             <div className="mx-auto">
@@ -168,7 +205,7 @@ const PostsPage = () => {
                         <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-gray-400" />
                         <p className="text-gray-500">Loading posts...</p>
                     </div>
-                ) : posts?.length === 0 ? (
+                ) : originalPostsCount === 0 ? (
                     <div className="text-center py-12">
                         <div className="bg-white rounded-lg shadow-sm p-8 max-w-md mx-auto">
                             <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -176,9 +213,17 @@ const PostsPage = () => {
                             <p className="text-gray-600 mb-4">Be the first to create a post and start swapping skills!</p>
                         </div>
                     </div>
+                ) : showNoOtherPostsMessage ? (
+                    <div className="text-center py-12">
+                        <div className="bg-white rounded-lg shadow-sm p-8 max-w-md mx-auto">
+                            <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">No posts from other users</h3>
+                            <p className="text-gray-600 mb-4">Check back later to find new swap opportunities.</p>
+                        </div>
+                    </div>
                 ) : (
                     <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {posts?.map((post) => (
+                        {filteredPosts?.map((post) => (
                             <Card
                                 key={post?._id}
                                 className="overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-200 flex flex-col h-full"
@@ -270,7 +315,7 @@ const PostsPage = () => {
                                             </p>
                                             {post.availability.startTime && post.availability.endTime && (
                                                 <p className="text-xs text-gray-600">
-                                                    {post.availability.startTime} - {post.availability.endTime}
+                                                    {formatTime(post.availability.startTime)} - {formatTime(post.availability.endTime)}
                                                 </p>
                                             )}
                                             {post?.timeSlotsAvailable && post.timeSlotsAvailable.length > 0 && (
@@ -303,7 +348,7 @@ const PostsPage = () => {
                     </div>
                 )}
 
-                {!loading && posts?.length > 0 && (
+                {!loading && hasAvailablePosts && (
                     <div className="flex items-center justify-between mt-12 px-4 w-1/2 mx-auto">
                         <Button
                             onClick={handlePrev}
@@ -320,7 +365,7 @@ const PostsPage = () => {
                             </span>
                             <span className="text-sm text-gray-400">•</span>
                             <span className="text-sm text-gray-500">
-                                {posts.length} posts
+                                {filteredPosts.length} posts
                             </span>
                         </div>
                         <Button

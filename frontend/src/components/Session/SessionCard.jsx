@@ -1,5 +1,5 @@
 // src/components/Session/SessionCard.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -23,9 +23,21 @@ const SessionCard = ({
   onJoinSession,
   onStartSession,
   onViewDetails,
-  onCancelSession // New prop for cancel functionality
+  onCancelSession, // New prop for cancel functionality
+  highlight = false,
+  autoPromptStart = false
 }) => {
   const [showPopup, setShowPopup] = useState(false);
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    if (highlight && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (autoPromptStart) {
+        setShowPopup(true);
+      }
+    }
+  }, [highlight, autoPromptStart]);
 
   // Determine user's role and other participant
   const isHost = currentUser && session.hostId._id === currentUser._id;
@@ -148,9 +160,16 @@ const SessionCard = ({
   };
 
   return (
-    <Card className={`hover:shadow-md transition-shadow ${
-      isSoon && session.status === 'scheduled' ? 'border-2 border-yellow-400' : ''
-    }`}>
+    <Card
+      ref={cardRef}
+      className={`hover:shadow-md transition-shadow ${
+        highlight
+          ? 'border-2 border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50/50'
+          : isSoon && session.status === 'scheduled'
+            ? 'border-2 border-yellow-400'
+            : ''
+      }`}
+    >
       <CardContent className="p-6">
         <div className="flex justify-between items-start">
           <div className="flex-1">
@@ -159,6 +178,11 @@ const SessionCard = ({
               <Badge variant={session.status === 'in-progress' ? 'default' : 'outline'}>
                 {session.status}
               </Badge>
+              {highlight && (
+                <Badge variant="default" className="bg-indigo-600 text-white">
+                  Recently scheduled
+                </Badge>
+              )}
             </div>
             
             <p className="text-gray-600 text-sm mb-3">{session.description}</p>

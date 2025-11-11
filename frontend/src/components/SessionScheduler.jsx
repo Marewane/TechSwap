@@ -40,6 +40,21 @@ export default function SessionScheduler({
     return { start, end };
   };
 
+  const formatTime = (timeStr) => {
+    const [hour, minute] = timeStr.split(":").map(Number);
+    const date = new Date();
+    date.setHours(hour, minute, 0, 0);
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
+  const formatTimeSlot = (slot) => {
+    const { start, end } = parseTimeSlot(slot);
+    return `${formatTime(start)} - ${formatTime(end)}`;
+  };
+
   const handleConfirm = () => {
     if (!selectedTimeSlot) {
       alert("Please select a time slot.");
@@ -199,7 +214,7 @@ export default function SessionScheduler({
                       : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  {slot}
+                  {formatTimeSlot(slot)}
                 </button>
               ))}
             </div>
@@ -227,7 +242,7 @@ export default function SessionScheduler({
               </p>
               <p>
                 <span className="font-medium text-gray-700"> Time Slot: </span>
-                {selectedTimeSlot}
+                {formatTimeSlot(selectedTimeSlot)}
               </p>
               <p>
                 <span className="font-medium text-gray-700"> Duration: </span>
