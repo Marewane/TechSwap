@@ -21,6 +21,7 @@ export const useWebRTC = (sessionId, socketFunctions) => {
   const iceCandidateQueueRef = useRef([]);
   const hasRemoteDescriptionRef = useRef(false);
   const isNegotiatingRef = useRef(false); // Prevent duplicate renegotiations
+  const pendingRenegotiationRef = useRef(false);
   const remoteVideoMuteTimerRef = useRef(null);
 
   // --- Configuration ---
@@ -46,36 +47,90 @@ export const useWebRTC = (sessionId, socketFunctions) => {
     return senders.find(sender => sender.track && sender.track.kind === 'audio');
   }, []);
 
+  const waitForStableSignaling = useCallback((pc, timeout = 3000) => {
+    if (!pc) {
+      return Promise.reject(new Error('No peer connection'));
+    }
+
+    if (pc.signalingState === 'stable') {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+
+      const cleanup = () => {
+        if (settled) return;
+        settled = true;
+        pc.removeEventListener('signalingstatechange', onStateChange);
+        clearTimeout(timer);
+      };
+
+      const onStateChange = () => {
+        if (pc.signalingState === 'stable') {
+          cleanup();
+          resolve();
+        } else if (pc.signalingState === 'closed') {
+          cleanup();
+          reject(new Error('Peer connection closed while waiting for stable state'));
+        }
+      };
+
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error('Timed out waiting for stable signaling state'));
+      }, timeout);
+
+      pc.addEventListener('signalingstatechange', onStateChange);
+    });
+  }, []);
+
   // --- Renegotiation Helper (CRITICAL FOR SCREEN SHARE) ---
-  // FIXED: Both initiator and responder can now trigger renegotiation
+  // FIXED: Both initiator and responder can now trigger renegotiation without collisions
   const renegotiate = useCallback(async () => {
+    const pc = peerConnectionRef.current;
+    if (!pc) {
+      console.log('❌ No peer connection for renegotiation');
+      return;
+    }
+
+    if (!hasRemoteDescriptionRef.current) {
+      console.log('⏭️ Skipping renegotiation (no remote description yet); will retry later.');
+      pendingRenegotiationRef.current = true;
+      return;
+    }
+
+    if (isNegotiatingRef.current) {
+      console.log('⏳ Already negotiating, queueing another attempt');
+      pendingRenegotiationRef.current = true;
+      return;
+    }
+
+    isNegotiatingRef.current = true;
+
     try {
-      const pc = peerConnectionRef.current;
-      if (!pc) {
-        console.log('❌ No peer connection for renegotiation');
-        return;
-      }
-
-      // Prevent duplicate renegotiations
-      if (isNegotiatingRef.current) {
-        console.log('⏳ Already negotiating, skipping...');
-        return;
-      }
-
-      // Check if we're already negotiating
       if (pc.signalingState !== 'stable') {
-        console.log('⏳ Signaling state not stable, waiting...', pc.signalingState);
-        return;
+        console.log('⏳ Signaling state not stable, waiting before renegotiation...', pc.signalingState);
+        await waitForStableSignaling(pc);
       }
-
-      isNegotiatingRef.current = true;
 
       console.log(`🔄 Starting renegotiation (${isInitiator ? 'INITIATOR' : 'RESPONDER'})...`);
-      
-      // Both peers can create offers during renegotiation
-      const offer = await pc.createOffer();
+
+      let offer;
+      try {
+        offer = await pc.createOffer();
+      } catch (offerError) {
+        if (offerError.name === 'InvalidStateError' || /signaling state/i.test(offerError.message || '')) {
+          console.warn('⚠️ createOffer failed due to signaling state, retrying after stability...');
+          await waitForStableSignaling(pc);
+          offer = await pc.createOffer();
+        } else {
+          throw offerError;
+        }
+      }
+
       await pc.setLocalDescription(offer);
-      
+
       if (socketFunctions?.sendOffer) {
         socketFunctions.sendOffer({
           offer: pc.localDescription,
@@ -85,13 +140,17 @@ export const useWebRTC = (sessionId, socketFunctions) => {
       }
     } catch (error) {
       console.error('❌ Renegotiation failed:', error);
+      throw error;
     } finally {
-      // Reset negotiation lock after a short delay
       setTimeout(() => {
         isNegotiatingRef.current = false;
-      }, 1000);
+        if (pendingRenegotiationRef.current) {
+          pendingRenegotiationRef.current = false;
+          renegotiate();
+        }
+      }, 100);
     }
-  }, [sessionId, socketFunctions, isInitiator]);
+  }, [sessionId, socketFunctions, isInitiator, waitForStableSignaling]);
 
   // --- Initialize Peer Connection ---
   const initializePeerConnection = useCallback(() => {
@@ -288,79 +347,82 @@ export const useWebRTC = (sessionId, socketFunctions) => {
 
   // --- Toggle Audio ---
   const toggleAudio = useCallback(async () => {
-    const stream = localStreamRef.current;
+    let stream = localStreamRef.current;
     if (!stream) {
-      console.warn('No local camera stream available for audio toggle');
-      return;
+      console.warn('No local stream found; creating placeholder for audio toggle');
+      stream = new MediaStream();
+      localStreamRef.current = stream;
     }
 
     const audioTracks = stream.getAudioTracks();
+    const pc = peerConnectionRef.current;
+    const existingSender = pc ? findAudioSender(pc) : null;
+
     if (audioTracks.length > 0) {
-      // TURN OFF
-      audioTracks.forEach(track => {
-        track.stop();
-        stream.removeTrack(track);
-      });
+      const [audioTrack] = audioTracks;
 
-      const pc = peerConnectionRef.current;
-      if (pc) {
-        const audioSender = findAudioSender(pc);
-        if (audioSender) {
-          // Prefer disabling via replaceTrack(null) to keep transceiver alive
-          try {
-            await audioSender.replaceTrack(null);
-            console.log('🎤 Audio track replaced with null');
-          } catch (e) {
-            console.warn('Failed to replace audio track with null, removing sender instead');
-            try { pc.removeTrack(audioSender); } catch {}
-          }
-        }
-      }
-
-      setIsAudioEnabled(false);
-      const newStream = new MediaStream(stream.getTracks());
-      setLocalStream(newStream);
-      localStreamRef.current = newStream;
-    } else {
-      // TURN ON
-      try {
-        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const [newAudioTrack] = audioStream.getAudioTracks();
-        stream.addTrack(newAudioTrack);
-
-        const pc = peerConnectionRef.current;
-        if (pc) {
-          const existingSender = findAudioSender(pc);
-          if (existingSender) {
-            try {
-              await existingSender.replaceTrack(newAudioTrack);
-              console.log('🎤 Audio track replaced with new track (preserving video/screen track)');
-            } catch (e) {
-              console.warn('Failed to replace existing audio track, adding new sender');
-              pc.addTrack(newAudioTrack, stream);
-            }
-          } else {
-            console.log('🎤 Adding new audio track to peer connection (preserving video/screen track)');
-            pc.addTrack(newAudioTrack, stream);
-          }
-          
-          // CRITICAL FIX: Only renegotiate audio - don't disrupt video/screen tracks
-          // The renegotiation will update the SDP to include audio, but won't affect existing video tracks
-          console.log('🎤 Audio track added/replaced, triggering renegotiation (video/screen safe)');
-          
-          // Small delay to ensure track is properly set before renegotiation
-          await new Promise(resolve => setTimeout(resolve, 100));
-          await renegotiate();
-        }
-
+      if (audioTrack.enabled) {
+        console.log('🎤 Muting local audio track');
+        audioTrack.enabled = false;
+        setIsAudioEnabled(false);
+      } else {
+        console.log('🎤 Unmuting local audio track');
+        audioTrack.enabled = true;
         setIsAudioEnabled(true);
-        const newStream = new MediaStream(stream.getTracks());
-        setLocalStream(newStream);
-        localStreamRef.current = newStream;
-      } catch (error) {
-        console.error('Error restarting audio:', error);
-        alert('Could not access microphone. Please check permissions.');
+
+        if (pc && !existingSender) {
+          console.log('🎤 Audio sender missing, re-adding track to peer connection');
+          pc.addTrack(audioTrack, stream);
+          // Ensure SDP reflects the restored audio sender
+          await new Promise(resolve => setTimeout(resolve, 50));
+          try {
+            await renegotiate();
+          } catch (renegotiateError) {
+            console.error('Renegotiation after unmuting audio failed:', renegotiateError);
+          }
+        }
       }
+
+      setLocalStream(new MediaStream(stream.getTracks()));
+      return;
+    }
+
+    try {
+      console.log('🎤 Requesting microphone access...');
+      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const [newAudioTrack] = audioStream.getAudioTracks();
+
+      if (!newAudioTrack) {
+        throw new Error('No audio track returned from getUserMedia');
+      }
+
+      stream.addTrack(newAudioTrack);
+
+      if (pc) {
+        if (existingSender) {
+          await existingSender.replaceTrack(newAudioTrack);
+          console.log('🎤 Replaced existing audio sender with new microphone track');
+        } else {
+          pc.addTrack(newAudioTrack, stream);
+          console.log('🎤 Added new audio sender to peer connection');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+        try {
+          await renegotiate();
+        } catch (renegotiateError) {
+          console.error('Renegotiation after enabling microphone failed:', renegotiateError);
+        }
+      }
+
+      setIsAudioEnabled(true);
+      setLocalStream(new MediaStream(stream.getTracks()));
+    } catch (error) {
+      console.error('Error restarting audio:', error);
+      const message = error?.name === 'NotAllowedError'
+        ? 'Microphone access was blocked. Please allow mic permissions in your browser settings and try again.'
+        : 'Could not access microphone. Please check permissions.';
+      alert(message);
     }
   }, [renegotiate, findAudioSender]);
 
@@ -639,6 +701,12 @@ export const useWebRTC = (sessionId, socketFunctions) => {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
       }
 
+      if (pendingRenegotiationRef.current) {
+        console.log('🔁 Executing pending renegotiation after receiving offer');
+        pendingRenegotiationRef.current = false;
+        await renegotiate();
+      }
+
       // Create and send answer
       await createAnswer();
     } catch (error) {
@@ -665,6 +733,12 @@ export const useWebRTC = (sessionId, socketFunctions) => {
       while (iceCandidateQueueRef.current.length > 0) {
         const candidate = iceCandidateQueueRef.current.shift();
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+
+      if (pendingRenegotiationRef.current) {
+        console.log('🔁 Executing pending renegotiation after receiving answer');
+        pendingRenegotiationRef.current = false;
+        await renegotiate();
       }
     } catch (error) {
       console.error('Error handling answer:', error);
@@ -697,6 +771,34 @@ export const useWebRTC = (sessionId, socketFunctions) => {
   const setInitiatorStatus = useCallback((status) => {
     console.log('Setting initiator status:', status);
     setIsInitiator(status);
+  }, []);
+
+  // --- Handle page refresh/reconnection ---
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Cleanup will be handled by the cleanup useEffect
+      console.log('🔄 Page unloading, WebRTC cleanup will occur');
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // --- Monitor connection state and attempt recovery ---
+  useEffect(() => {
+    if (!peerConnectionRef.current) return;
+
+    const checkConnection = setInterval(() => {
+      const pc = peerConnectionRef.current;
+      if (!pc) return;
+
+      // If connection fails, log it (recovery will be handled by manual renegotiation)
+      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+        console.warn('⚠️ WebRTC connection state:', pc.connectionState);
+      }
+    }, 5000);
+
+    return () => clearInterval(checkConnection);
   }, []);
 
   // --- Initialize Camera Media ---

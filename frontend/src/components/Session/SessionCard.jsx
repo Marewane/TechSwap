@@ -28,6 +28,7 @@ const SessionCard = ({
   autoPromptStart = false
 }) => {
   const [showPopup, setShowPopup] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const cardRef = useRef(null);
 
   useEffect(() => {
@@ -39,6 +40,17 @@ const SessionCard = ({
     }
   }, [highlight, autoPromptStart]);
 
+  useEffect(() => {
+    const shouldTick = session?.status === 'scheduled' || session?.status === 'ready';
+    if (!shouldTick) return;
+
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [session?.status]);
+
   // Determine user's role and other participant
   const isHost = currentUser && session.hostId._id === currentUser._id;
   const isLearner = currentUser && session.learnerId._id === currentUser._id;
@@ -48,7 +60,7 @@ const SessionCard = ({
   // Format date and time
   const scheduledDate = new Date(session.scheduledTime);
   const formattedDateTime = scheduledDate.toLocaleString();
-  const timeUntil = scheduledDate - new Date();
+  const timeUntil = scheduledDate - currentTime;
   const hoursUntil = Math.floor(timeUntil / (1000 * 60 * 60));
   const minutesUntil = Math.floor(timeUntil / (1000 * 60));
   const isSoon = timeUntil > 0 && timeUntil <= 1000 * 60 * 60 * 2; // Within 2 hours

@@ -132,6 +132,24 @@ const LiveSession = () => {
     }
   }, [sessionId, user, setInitiatorStatus]);
 
+  // --- Handle page refresh/visibility changes ---
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isConnected && sessionId) {
+        console.log('🔄 Page became visible, verifying connection...');
+        // Rejoin session room to ensure connection
+        if (socket?.id && lastJoinedSocketIdRef.current !== socket.id) {
+          console.log('Socket ID changed after refresh, rejoining session');
+          joinSession(sessionId);
+          lastJoinedSocketIdRef.current = socket.id;
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isConnected, sessionId, joinSession, socket]);
+
   // --- Connect to Socket.IO when component mounts and token is available ---
   useEffect(() => {
     if (token) {
@@ -306,6 +324,28 @@ const LiveSession = () => {
       createOffer();
     }
   }, [participants, isInitiator, isConnected, sessionId, createOffer]);
+
+  // --- Handle reconnection after page refresh ---
+  useEffect(() => {
+    // If connection status is disconnected or failed, but socket is connected,
+    // it means we need to re-establish the WebRTC connection (likely after a refresh)
+    if (isConnected && sessionId && (connectionStatus === 'disconnected' || connectionStatus === 'failed')) {
+      console.log('🔄 Detected disconnected WebRTC after socket reconnect. Re-establishing...');
+      
+      // Wait a bit for the other peer to also reconnect
+      const timer = setTimeout(() => {
+        console.log('🔄 Attempting to re-establish WebRTC connection');
+        if (isInitiator) {
+          // Host sends a new offer
+          hasInitiatedOfferRef.current = false;
+          setTimeout(() => createOffer(), 1000);
+        }
+        // Responder will receive the offer and respond
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isConnected, sessionId, connectionStatus, isInitiator, createOffer]);
 
   // --- Handle user interaction to enable audio ---
   useEffect(() => {
@@ -639,6 +679,7 @@ const LiveSession = () => {
                 autoPlay
                 playsInline
                 muted={true} // Always muted - audio handled by separate element
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
                 className="w-full h-full object-contain bg-black rounded"
               />
               {/* Placeholder for Main Video */}
@@ -672,6 +713,7 @@ const LiveSession = () => {
                   autoPlay
                   muted
                   playsInline
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
                   className="w-full h-full object-cover"
                 />
                 {/* "Camera Off" Placeholder */}

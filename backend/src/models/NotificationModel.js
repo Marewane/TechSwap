@@ -13,7 +13,7 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['session', 'message', 'review', 'payment', 'system', 'swap_request','swap_accepted', 'swap_rejected'],
+        enum: ['session', 'session_join', 'message', 'review', 'payment', 'system', 'swap_request','swap_accepted', 'swap_rejected'],
         required: [true, 'Notification type is required']
     },
     title: {

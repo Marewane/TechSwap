@@ -6,7 +6,10 @@ const cors = require('cors');
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const Session = require('./models/SessionModel');
+const Notification = require('./models/NotificationModel');
+const User = require('./models/UserModel');
 const { registerSocketServer } = require('./utils/socketRegistry');
+const { broadcastNotifications } = require('./utils/notificationEmitter');
 
 // Load environment variables
 dotenv.config();
@@ -177,11 +180,40 @@ io.on('connection', (socket) => {
       joinedSessions.add(normalizedSessionId);
       console.log(`User ${socket.userId} joined session ${normalizedSessionId}`);
       
-      // Notify other users in the room
+      // Notify other users in the room via socket
       socket.to(roomName).emit('user-joined', {
         userId: socket.userId,
         timestamp: new Date()
       });
+
+      // Create notification for the other participant
+      try {
+        const joiningUser = await User.findById(socket.userId).select('name');
+        const otherParticipantId = session.hostId.toString() === socket.userId.toString() 
+          ? session.learnerId 
+          : session.hostId;
+        
+        // Populate session with full details for better notification content
+        const populatedSession = await Session.findById(normalizedSessionId)
+          .populate('hostId', 'name')
+          .populate('learnerId', 'name');
+
+        const notification = await Notification.create({
+          userId: otherParticipantId,
+          senderId: socket.userId,
+          type: 'session_join',
+          title: 'Session Partner Joined!',
+          content: `${joiningUser?.name || 'Your session partner'} has joined the session. Join now to start your swap!`,
+          relatedId: normalizedSessionId,
+          relatedModel: 'Session'
+        });
+
+        await broadcastNotifications(notification);
+        console.log(`✅ Created notification for user ${otherParticipantId} about ${joiningUser?.name} joining session`);
+      } catch (notifError) {
+        console.error('Error creating session join notification:', notifError);
+        // Don't block the session join if notification fails
+      }
 
       await emitSessionParticipants(normalizedSessionId, session);
 

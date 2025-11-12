@@ -205,8 +205,13 @@ const PaymentSuccessModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-x-0 top-6 z-50 flex justify-center px-4 pointer-events-none">
-      <Card className="max-w-md w-full p-6 shadow-lg border border-green-100 pointer-events-auto">
+    <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-16">
+      <div
+        className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm"
+        aria-hidden="true"
+        onClick={onClose}
+      />
+      <Card className="relative max-w-md w-full p-6 shadow-lg border border-green-100">
         <div className="text-center">
           <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-gray-800 mb-2">
