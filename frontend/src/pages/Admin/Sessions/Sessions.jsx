@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +76,7 @@ const Sessions = () => {
                 endDate: endDate
             };
 
-            const response = await axios.get("http://localhost:5000/admin/sessions", { params });
+            const response = await api.get("/admin/sessions", { params });
 
             if (response.data.success) {
                 setSessions(response.data.data.sessions);
@@ -93,8 +93,8 @@ const Sessions = () => {
     // Handle session status update
     const handleStatusUpdate = async (sessionId, newStatus) => {
         try {
-            const response = await axios.patch(
-                `http://localhost:5000/admin/sessions/${sessionId}/status`,
+            const response = await api.patch(
+                `/admin/sessions/${sessionId}/status`,
                 { status: newStatus }
             );
 
@@ -529,12 +529,6 @@ const Sessions = () => {
                                         <label className="text-sm font-medium text-gray-500">Session Type</label>
                                         <p className="text-sm text-gray-900 mt-1">
                                             {selectedSession.sessionType || 'skillExchange'}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Cost</label>
-                                        <p className="text-sm text-gray-900 mt-1">
-                                            ${selectedSession.cost || 0}
                                         </p>
                                     </div>
                                     <div>

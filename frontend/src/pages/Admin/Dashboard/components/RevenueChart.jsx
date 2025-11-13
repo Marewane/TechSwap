@@ -2,9 +2,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 
-const RevenueChart = ({ monthlyRevenue}) => {
+const RevenueChart = ({ monthlyRevenue }) => {
     // Transform the data to match the chart format
-    const chartData = monthlyRevenue.map(item => ({
+    const chartData = (monthlyRevenue ?? []).map(item => ({
         month: item.month,
         revenue: item.revenue
     }));
@@ -13,7 +13,7 @@ const RevenueChart = ({ monthlyRevenue}) => {
     const chartConfig = {
         revenue: {
             label: "Revenue",
-            color: "hsl(221, 83%, 60%)", // Blue color matching your design
+            color: "rgba(109, 122, 255, 0.95)",
         },
     };
 
@@ -22,51 +22,51 @@ const RevenueChart = ({ monthlyRevenue}) => {
         return `$${value}`;
     };
     return (
-        <Card className={`h-full flex flex-col`}>
-            <CardHeader>
-                <CardTitle>Monthly Revenue</CardTitle>
-                <CardDescription>
-                    Revenue performance over the last 6 months.
+        <Card className="flex h-full flex-col border border-border/60 bg-card/95 p-0 shadow-[0_32px_100px_rgba(46,47,70,0.18)]">
+            <CardHeader className="border-b border-border/40">
+                <CardTitle className="text-lg font-semibold text-foreground">Monthly Revenue</CardTitle>
+                <CardDescription className="text-xs font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                    Coin bundle performance over the last six months
                 </CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
+            <CardContent className="flex flex-1 flex-col p-6">
                 <ChartContainer config={chartConfig} className="h-full w-full">
                     <LineChart
                         data={chartData}
                         margin={{ top : 5, right : 10, left : 10, bottom : 5 }}
                     >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(46,47,70,0.08)" />
                         <XAxis
                             dataKey="month"
                             tickLine={false}
                             axisLine={false}
                             tickMargin={8}
-                            tick={{ fill: '#888', fontSize: 12 }}
+                            tick={{ fill: "rgba(15,23,42,0.55)", fontSize: 12, fontWeight: 500 }}
                         />
                         <YAxis
                             tickLine={false}
                             axisLine={false}
                             tickMargin={8}
                             tickFormatter={formatCurrency}
-                            tick={{ fill: '#888', fontSize: 12 }}
+                            tick={{ fill: "rgba(15,23,42,0.55)", fontSize: 12, fontWeight: 500 }}
                         />
                         <ChartTooltip
                             content={<ChartTooltipContent />}
-                            cursor={{ stroke: '#ddd', strokeWidth : 1 }}
+                            cursor={{ stroke: "rgba(109,122,255,0.35)", strokeWidth : 1.4 }}
                         />
                         <Line
                             type="monotone"
                             dataKey="revenue"
-                            stroke="hsl(221, 83%, 53%)"
+                            stroke="rgba(109, 122, 255, 0.95)"
                             strokeWidth={2}
                             dot={{
-                                fill: "hsl(221, 83%, 53%)",
+                                fill: "rgba(56, 249, 215, 0.9)",
                                 strokeWidth : 2,
                                 r: 4,
                             }}
                             activeDot={{
                                 r: 6,
-                                fill: "hsl(221, 83%, 53%)",
+                                fill: "rgba(56, 249, 215, 0.9)",
                             }}
                         />
                     </LineChart>

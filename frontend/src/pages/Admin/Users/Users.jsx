@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,7 +68,7 @@ const Users = () => {
                 status: statusFilter
             };
 
-            const response = await axios.get("http://localhost:5000/admin/users", { params });
+            const response = await api.get("/admin/users", { params });
 
             if (response.data.success) {
                 setUsers(response.data.data.users);
@@ -85,8 +85,8 @@ const Users = () => {
     // Handle status update
     const handleStatusUpdate = async (userId, newStatus) => {
         try {
-            const response = await axios.patch(
-                `http://localhost:5000/admin/users/${userId}/status`,
+            const response = await api.patch(
+                `/admin/users/${userId}/status`,
                 { status: newStatus }
             );
 

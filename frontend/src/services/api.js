@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000/api";
+const ROOT_BASE = API_BASE.replace(/\/?api\/?$/i, "");
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -22,6 +23,13 @@ api.interceptors.request.use((config) => {
       console.error("Error parsing auth data:", e);
     }
   }
+
+  if (config.url?.startsWith("/admin")) {
+    config.baseURL = ROOT_BASE;
+  } else {
+    config.baseURL = API_BASE;
+  }
+
   return config;
 }, (err) => Promise.reject(err));
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "@/services/api";
 import DashboardStats from "./components/DashboardStats";
 import RevenueChart from "./components/RevenueChart";
 import RecentTransactions from "./components/RecentTransactions";
@@ -13,8 +13,8 @@ const DashboardPage = () => {
     useEffect(() => {
         const fetchDashboard = async () => {
             try {
-                const res = await axios.get("http://localhost:5000/admin/dashboard");
-                setData(res.data);
+                const res = await api.get("/admin/dashboard");
+                setData(res.data?.data || res.data);
                 setError(null);
             } catch (err) {
                 console.error("Error fetching dashboard:", err);

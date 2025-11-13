@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import axios from "axios"
+import api from "@/services/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -60,7 +60,7 @@ const ReportsPage = () => {
                 status: statusFilter,
             }
 
-            const response = await axios.get("http://localhost:5000/admin/reports", { params })
+            const response = await api.get("/admin/reports", { params })
 
             if (response.data.success) {
                 setReports(response.data.data.reports)
@@ -77,7 +77,7 @@ const ReportsPage = () => {
     // Handle status update
     const handleStatusUpdate = async (reportId, newStatus) => {
         try {
-            const response = await axios.patch(`http://localhost:5000/admin/reports/${reportId}/status`, {
+            const response = await api.patch(`/admin/reports/${reportId}/status`, {
                 status: newStatus,
             })
 
@@ -96,7 +96,7 @@ const ReportsPage = () => {
     // Handle view details
     const handleViewDetails = async (reportId) => {
         try {
-            const response = await axios.get(`http://localhost:5000/admin/reports/${reportId}`)
+            const response = await api.get(`/admin/reports/${reportId}`)
             console.log("report detail response:", response.data)
             if (response.data.success) {
                 const payload = response.data.data?.report || response.data.data || response.data

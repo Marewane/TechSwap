@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import axios from "axios"
+import api from "@/services/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,7 +49,7 @@ const TransactionPage = () => {
                 type: typeFilter,
             }
 
-            const response = await axios.get("http://localhost:5000/admin/transactions", { params })
+            const response = await api.get("/admin/transactions", { params })
 
             if (response.data.success) {
                 setTransactions(response.data.data.transactions)
@@ -171,7 +171,6 @@ const TransactionPage = () => {
                                             <TableHead>Description</TableHead>
                                             <TableHead>Type</TableHead>
                                             <TableHead className="text-right">Amount</TableHead>
-                                            <TableHead className="text-right">Platform Share</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -190,7 +189,6 @@ const TransactionPage = () => {
                                                     <TableCell className="text-sm max-w-xs truncate">{t.description || "N/A"}</TableCell>
                                                     <TableCell>{getTypeBadge(t.type)}</TableCell>
                                                     <TableCell className="text-right font-medium text-sm">{formatCurrency(t.amount)}</TableCell>
-                                                    <TableCell className="text-right font-medium text-purple-600 text-sm">{formatCurrency(t.platformShare)}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
