@@ -88,40 +88,98 @@ const TransactionPage = () => {
     // Badge for transaction type
     const getTypeBadge = (type) => {
         const typeConfig = {
-            credit: "bg-green-100 text-green-800",
-            debit: "bg-red-100 text-red-800",
+            credit: "border border-accent/40 bg-accent/15 text-accent-foreground",
+            debit: "border border-destructive/40 bg-destructive/10 text-destructive",
         }
         return (
-            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${typeConfig[type] || "bg-gray-100 text-gray-800"}`}>
+            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${typeConfig[type] || "border border-border/50 bg-white/70 text-foreground/70"}`}>
                 {type}
             </span>
         )
     }
 
+    const creditCount = transactions.filter((t) => t.type === "credit").length
+    const debitCount = transactions.filter((t) => t.type === "debit").length
+    const totalVolume = transactions.reduce((sum, t) => sum + (t.amount || 0), 0)
+    const averagePlatformShare = transactions.length
+        ? transactions.reduce((sum, t) => sum + (t.platformShare || 0), 0) / transactions.length
+        : 0
+
+    const summaryCards = [
+        {
+            label: "Total transactions",
+            value: pagination.totalTransactions,
+            accent: "from-secondary/20 via-white to-[#6d7aff22]",
+        },
+        {
+            label: "Credits",
+            value: creditCount,
+            accent: "from-accent/20 via-white to-[#38f9d720]",
+        },
+        {
+            label: "Debits",
+            value: debitCount,
+            accent: "from-[#fda4af33] via-white to-[#fee2e240]",
+        },
+        {
+            label: "Avg platform share",
+            value: `$${averagePlatformShare.toFixed(2)}`,
+            accent: "from-primary/15 via-white to-[#2e2f4620]",
+        },
+    ]
+
     return (
-        <div className="p-6 space-y-8 min-h-screen">
+        <div className="space-y-8">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Transactions</h1>
-                    <p className="text-gray-600 mt-1">View, filter, and manage all user transactions</p>
+            <section className="rounded-[var(--radius)] border border-border/60 bg-white/80 p-6 shadow-[0_32px_100px_rgba(46,47,70,0.18)] backdrop-blur-xl">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p className="font-mono text-xs uppercase tracking-[0.28em] text-secondary">
+                            Revenue & coin economy
+                        </p>
+                        <h1 className="text-3xl font-semibold text-foreground">Transactions</h1>
+                        <p className="mt-2 max-w-xl text-sm text-foreground/70">
+                            Track coin flows, platform share, and premium swap purchases powering TechSwap’s growth.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-xs font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                        <span className="rounded-full border border-border/50 bg-white/80 px-4 py-2">
+                            Volume (page) · ${totalVolume.toFixed(2)}
+                        </span>
+                    </div>
                 </div>
-            </div>
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {summaryCards.map((card) => (
+                        <div
+                            key={card.label}
+                            className="relative overflow-hidden rounded-[calc(var(--radius)/1.4)] border border-border/50 bg-white/85 p-5 shadow-[0_18px_70px_rgba(46,47,70,0.16)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_26px_90px_rgba(46,47,70,0.22)]"
+                        >
+                            <div className={`absolute inset-0 bg-gradient-to-br ${card.accent} opacity-90`} />
+                            <div className="relative">
+                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
+                                    {card.label}
+                                </p>
+                                <p className="mt-3 text-2xl font-semibold text-foreground">{card.value ?? 0}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
 
             {/* Table Filters */}
-            <Card>
-                <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <CardTitle>Transactions List</CardTitle>
-                        <div className="flex flex-col sm:flex-row gap-3">
+            <Card className="border border-border/60 bg-card/95 p-0 shadow-[0_32px_100px_rgba(46,47,70,0.18)]">
+                <CardHeader className="border-b border-border/40">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <CardTitle className="text-xl font-semibold text-foreground">Transactions list</CardTitle>
+                        <div className="flex flex-col gap-3 sm:flex-row">
                             {/* Search */}
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/35" />
                                 <Input
                                     placeholder="Search transactions..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10 w-full sm:w-64"
+                                    className="w-full pl-10 sm:w-64"
                                 />
                             </div>
 
@@ -155,9 +213,9 @@ const TransactionPage = () => {
 
                 <CardContent>
                     {loading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                            <span className="ml-2 text-gray-600">Loading transactions...</span>
+                        <div className="flex items-center justify-center py-16">
+                            <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+                            <span className="ml-3 text-sm text-muted-foreground">Loading transactions…</span>
                         </div>
                     ) : (
                         <>
@@ -177,25 +235,25 @@ const TransactionPage = () => {
                                     <TableBody>
                                         {transactions.length > 0 ? (
                                             transactions.map((t) => (
-                                                <TableRow key={t._id}>
-                                                    <TableCell className="py-3 text-sm text-gray-600">{formatDate(t.createdAt)}</TableCell>
+                                                <TableRow key={t._id} className="transition-colors hover:bg-secondary/10">
+                                                    <TableCell className="py-3 text-sm text-foreground/70">{formatDate(t.createdAt)}</TableCell>
                                                     <TableCell className="text-sm">
-                                                        <p className="font-medium">{t.fromUserId?.name || "N/A"}</p>
-                                                        <p className="text-xs text-gray-500">{t.fromUserId?.email || ""}</p>
+                                                        <p className="text-sm font-semibold text-foreground">{t.fromUserId?.name || "N/A"}</p>
+                                                        <p className="text-xs text-foreground/60">{t.fromUserId?.email || ""}</p>
                                                     </TableCell>
                                                     <TableCell className="text-sm">
-                                                        <p className="font-medium">{t.toUserId?.name || "N/A"}</p>
-                                                        <p className="text-xs text-gray-500">{t.toUserId?.email || ""}</p>
+                                                        <p className="text-sm font-semibold text-foreground">{t.toUserId?.name || "N/A"}</p>
+                                                        <p className="text-xs text-foreground/60">{t.toUserId?.email || ""}</p>
                                                     </TableCell>
-                                                    <TableCell className="text-sm max-w-xs truncate">{t.description || "N/A"}</TableCell>
+                                                    <TableCell className="max-w-xs text-sm text-foreground/70">{t.description || "N/A"}</TableCell>
                                                     <TableCell>{getTypeBadge(t.type)}</TableCell>
-                                                    <TableCell className="text-right font-medium text-sm">{formatCurrency(t.amount)}</TableCell>
-                                                    <TableCell className="text-right font-medium text-purple-600 text-sm">{formatCurrency(t.platformShare)}</TableCell>
+                                                    <TableCell className="text-right text-sm font-semibold text-foreground">{formatCurrency(t.amount)}</TableCell>
+                                                    <TableCell className="text-right text-sm font-semibold text-secondary">{formatCurrency(t.platformShare)}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan="7" className="py-8 text-center text-gray-500">
+                                                <TableCell colSpan="7" className="py-10 text-center text-muted-foreground">
                                                     No transactions found
                                                 </TableCell>
                                             </TableRow>
@@ -206,8 +264,8 @@ const TransactionPage = () => {
 
                             {/* Pagination */}
                             {transactions.length > 0 && (
-                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-                                    <div className="text-sm text-gray-600">
+                                <div className="mt-6 flex flex-col items-center justify-between gap-4 sm:flex-row">
+                                    <div className="text-xs font-mono uppercase tracking-[0.18em] text-muted-foreground">
                                         Showing page {pagination.currentPage} of {pagination.totalPages} ({pagination.totalTransactions} total)
                                     </div>
 
@@ -243,11 +301,7 @@ const TransactionPage = () => {
                                                         </Button>
                                                     )
                                                 } else if (pageNumber === currentPage - 2 || pageNumber === currentPage + 2) {
-                                                    return (
-                                                        <span key={pageNumber} className="px-2">
-                                                            ...
-                                                        </span>
-                                                    )
+                                                    return <span key={pageNumber} className="px-2 text-muted-foreground">…</span>
                                                 }
                                                 return null
                                             })}

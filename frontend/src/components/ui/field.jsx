@@ -31,9 +31,9 @@ function FieldLegend({
       data-slot="field-legend"
       data-variant={variant}
       className={cn(
-        "mb-3 font-medium",
-        "data-[variant=legend]:text-base",
-        "data-[variant=label]:text-sm",
+        "mb-4 font-semibold text-xl text-foreground",
+        "data-[variant=legend]:text-2xl",
+        "data-[variant=label]:text-sm uppercase tracking-[0.18em] font-mono text-muted-foreground/80",
         className
       )}
       {...props} />
@@ -112,7 +112,7 @@ function FieldLabel({
       data-slot="field-label"
       className={cn(
         "group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50",
-        "has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-md has-[>[data-slot=field]]:border [&>*]:data-[slot=field]:p-4",
+        "has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-[var(--radius)] has-[>[data-slot=field]]:border has-[>[data-slot=field]]:border-border/60 [&>*]:data-[slot=field]:p-5 [&>*]:data-[slot=field]:shadow-[0_16px_45px_rgba(46,47,70,0.12)]",
         "has-data-[state=checked]:bg-primary/5 has-data-[state=checked]:border-primary dark:has-data-[state=checked]:bg-primary/10",
         className
       )}
@@ -143,7 +143,7 @@ function FieldDescription({
     <p
       data-slot="field-description"
       className={cn(
-        "text-muted-foreground text-sm leading-normal font-normal group-has-[[data-orientation=horizontal]]/field:text-balance",
+        "text-muted-foreground text-base leading-relaxed font-normal group-has-[[data-orientation=horizontal]]/field:text-balance",
         "last:mt-0 nth-last-2:-mt-1 [[data-variant=legend]+&]:-mt-1.5",
         "[&>a:hover]:text-primary [&>a]:underline [&>a]:underline-offset-4",
         className
@@ -169,7 +169,7 @@ function FieldSeparator({
       <Separator className="absolute inset-0 top-1/2" />
       {children && (
         <span
-          className="bg-background text-muted-foreground relative mx-auto block w-fit px-2"
+          className="bg-background text-muted-foreground relative mx-auto block w-fit px-3 py-0.5 rounded-full text-xs font-mono uppercase tracking-[0.2em]"
           data-slot="field-separator-content">
           {children}
         </span>

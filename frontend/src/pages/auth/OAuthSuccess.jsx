@@ -71,11 +71,13 @@ export default function OAuthSuccess() {
   }, [searchParams, navigate, dispatch]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <h2 className="text-2xl font-semibold mb-2">Completing login...</h2>
-        <p className="text-gray-600">Please wait while we redirect you.</p>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#f9fafb] via-white to-[#eef1ff] px-4 py-12">
+      <div className="absolute left-0 top-0 h-72 w-72 rounded-full bg-secondary/20 blur-[160px]" />
+      <div className="absolute right-0 bottom-0 h-72 w-72 rounded-full bg-accent/20 blur-[160px]" />
+      <div className="relative z-10 text-center">
+        <div className="mx-auto mb-6 h-14 w-14 animate-spin rounded-full border-2 border-secondary border-t-transparent" />
+        <h2 className="text-2xl font-semibold text-foreground">Completing login…</h2>
+        <p className="mt-2 text-sm text-foreground/65">Please wait while we finalize your TechSwap authentication.</p>
       </div>
     </div>
   );

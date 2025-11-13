@@ -31,45 +31,61 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md p-6 shadow-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-semibold">Reset Password</CardTitle>
-          <CardDescription>
-            Enter your email and we'll send you a reset link
-          </CardDescription>
-        </CardHeader>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#f9fafb] via-white to-[#eef1ff] px-4 py-12 sm:px-6 lg:px-8">
+      <div className="absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-secondary/20 blur-[160px]" />
+      <div className="relative z-10 w-full max-w-[520px]">
+        <Card className="border border-border/50 bg-card/95 p-0 shadow-[0_30px_110px_rgba(46,47,70,0.22)]">
+          <CardHeader className="space-y-2 text-center">
+            <CardTitle className="text-3xl font-semibold text-foreground">Reset your password</CardTitle>
+            <CardDescription className="text-sm text-foreground/70">
+              Enter the email linked to your account and we&apos;ll send a secure reset link.
+            </CardDescription>
+          </CardHeader>
 
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-1.5 text-left">
+                <Label htmlFor="email">Email address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
 
-            {error && <p className="text-sm text-red-500">{error}</p>}
-            {message && <p className="text-sm text-green-500">{message}</p>}
+              {error && (
+                <div className="rounded-[calc(var(--radius)/1.8)] border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+              {message && (
+                <div className="rounded-[calc(var(--radius)/1.8)] border border-secondary/40 bg-secondary/15 px-4 py-3 text-sm text-secondary-foreground/80">
+                  {message}
+                </div>
+              )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Sending..." : "Send Reset Link"}
-            </Button>
-          </form>
-        </CardContent>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Sending…" : "Send reset link"}
+              </Button>
+            </form>
+          </CardContent>
 
-        <CardFooter className="text-sm text-center text-gray-600">
-          Remember your password?{" "}
-          <Link to="/login" className="text-blue-600 hover:underline ml-1">
-            Back to login
-          </Link>
-        </CardFooter>
-      </Card>
+          <CardFooter className="flex flex-col gap-3 text-center text-sm text-foreground/60">
+            <span>
+              Remember your password?
+              <Link to="/login" className="ml-2 font-semibold text-secondary transition hover:text-secondary/80">
+                Back to login
+              </Link>
+            </span>
+            <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground">
+              Need help? support@techswap.io
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   );
 }

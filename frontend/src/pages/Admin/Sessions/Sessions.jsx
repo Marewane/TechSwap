@@ -130,19 +130,19 @@ const Sessions = () => {
     // Get status badge
     const getStatusBadge = (status) => {
         const statusConfig = {
-            scheduled: { color: "bg-yellow-100 text-yellow-800", icon: Calendar },
-            completed: { color: "bg-green-100 text-green-800", icon: Square },
-            cancelled: { color: "bg-red-100 text-red-800", icon: X },
-            "in-progress": { color: "bg-blue-100 text-blue-800", icon: Play },
+            scheduled: { color: "border border-[#ffb86b66] bg-[#ffb86b1f] text-[#c26b11]", icon: Calendar },
+            completed: { color: "border border-accent/40 bg-accent/15 text-accent-foreground", icon: Square },
+            cancelled: { color: "border border-destructive/40 bg-destructive/10 text-destructive", icon: X },
+            "in-progress": { color: "border border-secondary/40 bg-secondary/15 text-secondary", icon: Play },
         };
 
         const config = statusConfig[status] || statusConfig.scheduled;
         const Icon = config.icon;
 
         return (
-            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
-                <Icon className="h-3 w-3" />
-                {status}
+            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${config.color}`}>
+                <Icon className="h-3.5 w-3.5" />
+                {status.replace("-", " ")}
             </span>
         );
     };
@@ -157,38 +157,100 @@ const Sessions = () => {
             .slice(0, 2);
         
         return (
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-secondary/40 bg-secondary/15 text-xs font-semibold text-secondary shadow-[0_12px_35px_rgba(109,122,255,0.22)]">
                 {initials}
             </div>
         );
     };
 
-    return (
-        <div className="p-6 space-y-6 bg-white min-h-screen">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Sessions</h1>
-                    <p className="text-gray-600 mt-1">Manage active, ended, and pending user sessions</p>
-                </div>
-            </div>
+    const statusHighlights = [
+        {
+            label: "Total sessions",
+            value: counts.total,
+            icon: UsersIcon,
+            accent: "from-secondary/20 via-white to-[#6d7aff22]",
+        },
+        {
+            label: "In progress",
+            value: counts["in-progress"],
+            icon: Play,
+            accent: "from-accent/20 via-white to-[#38f9d720]",
+        },
+        {
+            label: "Completed",
+            value: counts.completed,
+            icon: Square,
+            accent: "from-primary/15 via-white to-[#2e2f4620]",
+        },
+        {
+            label: "Cancelled",
+            value: counts.cancelled,
+            icon: X,
+            accent: "from-[#fda4af33] via-white to-[#fee2e240]",
+        },
+    ];
 
+
+    return (
+        <div className="space-y-8">
+            {/* Header */}
+            <section className="rounded-[var(--radius)] border border-border/60 bg-white/80 p-6 shadow-[0_32px_100px_rgba(46,47,70,0.18)] backdrop-blur-xl">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p className="font-mono text-xs uppercase tracking-[0.28em] text-secondary">
+                            Swap governance dashboard
+                        </p>
+                        <h1 className="text-3xl font-semibold text-foreground">Sessions</h1>
+                        <p className="mt-2 max-w-xl text-sm text-foreground/70">
+                            Manage live and historical swap sessions, enforce quality, and keep the TechSwap ecosystem flowing.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                        <span className="rounded-full border border-border/50 bg-white/80 px-4 py-2">
+                            Coins circulating · {counts.total * 50 || 0}
+                        </span>
+                    </div>
+                </div>
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {statusHighlights.map((item) => (
+                        <div
+                            key={item.label}
+                            className="relative overflow-hidden rounded-[calc(var(--radius)/1.4)] border border-border/50 bg-white/85 p-5 shadow-[0_18px_70px_rgba(46,47,70,0.16)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_26px_90px_rgba(46,47,70,0.22)]"
+                        >
+                            <div className={`absolute inset-0 bg-gradient-to-br ${item.accent} opacity-90`} />
+                            <div className="relative flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/60">
+                                        {item.label}
+                                    </p>
+                                    <p className="mt-3 text-2xl font-semibold text-foreground">
+                                        {item.value ?? 0}
+                                    </p>
+                                </div>
+                                <div className="rounded-full border border-border/40 bg-white/80 p-3 text-primary shadow-[0_14px_45px_rgba(46,47,70,0.16)]">
+                                    <item.icon className="h-5 w-5" />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
 
             {/* Sessions Table */}
-            <Card>
-                <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <CardTitle>Current Sessions</CardTitle>
+            <Card className="border border-border/60 bg-card/95 p-0 shadow-[0_32px_100px_rgba(46,47,70,0.18)]">
+                <CardHeader className="border-b border-border/40">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <CardTitle className="text-xl font-semibold text-foreground">Current sessions</CardTitle>
 
                         {/* Filters */}
-                        <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex flex-col gap-3 sm:flex-row">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/35" />
                                 <Input
                                     placeholder="Search sessions by title, participants..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10 w-full sm:w-64"
+                                    className="w-full pl-10 sm:w-64"
                                 />
                             </div>
 
@@ -250,9 +312,9 @@ const Sessions = () => {
 
                 <CardContent>
                     {loading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                            <span className="ml-2 text-gray-600">Loading sessions...</span>
+                        <div className="flex items-center justify-center py-16">
+                            <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+                            <span className="ml-3 text-sm text-muted-foreground">Loading sessions…</span>
                         </div>
                     ) : (
                         <>
@@ -270,7 +332,7 @@ const Sessions = () => {
                                     <TableBody>
                                         {sessions.length > 0 ? (
                                             sessions.map((session) => (
-                                                <TableRow key={session._id}>
+                                                <TableRow key={session._id} className="transition-colors hover:bg-secondary/10">
                                                     <TableCell>
                                                         <div className="flex items-center">
                                                             <TooltipProvider>
@@ -300,8 +362,8 @@ const Sessions = () => {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>{getStatusBadge(session.status || 'scheduled')}</TableCell>
-                                                    <TableCell>{formatDate(session.createdAt)}</TableCell>
-                                                    <TableCell>{session.endedAt ? formatDate(session.endedAt) : "N/A"}</TableCell>
+                                                    <TableCell className="text-sm text-foreground/70">{formatDate(session.createdAt)}</TableCell>
+                                                    <TableCell className="text-sm text-foreground/70">{session.endedAt ? formatDate(session.endedAt) : "N/A"}</TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex items-center justify-end gap-2">
                                                             {session.status === "in-progress" && (
@@ -328,7 +390,7 @@ const Sessions = () => {
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan="5" className="py-8 text-center text-gray-500">
+                                                <TableCell colSpan="5" className="py-10 text-center text-muted-foreground">
                                                     No sessions found
                                                 </TableCell>
                                             </TableRow>
@@ -338,8 +400,8 @@ const Sessions = () => {
                             </div>
 
                             {sessions.length > 0 && (
-                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-                                    <div className="text-sm text-gray-600">
+                                <div className="mt-6 flex flex-col items-center justify-between gap-4 sm:flex-row">
+                                    <div className="text-xs font-mono uppercase tracking-[0.18em] text-muted-foreground">
                                         Showing page {pagination.currentPage} of {pagination.totalPages}
                                         ({pagination.totalSessions} total sessions)
                                     </div>
@@ -379,7 +441,7 @@ const Sessions = () => {
                                                     pageNumber === currentPage - 2 ||
                                                     pageNumber === currentPage + 2
                                                 ) {
-                                                    return <span key={pageNumber} className="px-2">...</span>;
+                                                    return <span key={pageNumber} className="px-2 text-muted-foreground">…</span>;
                                                 }
                                                 return null;
                                             })}
@@ -404,137 +466,162 @@ const Sessions = () => {
 
             {/* Session Details Modal */}
             {isModalOpen && selectedSession && (
-                <div 
-                    className="fixed inset-0 flex items-center justify-center z-50 bg-white/80 backdrop-blur-sm"
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]/60 px-4 py-10 backdrop-blur-lg"
                     onClick={() => {
                         setIsModalOpen(false);
                         setSelectedSession(null);
                     }}
                 >
-                    <div 
-                        className="bg-white rounded-lg shadow-2xl border border-gray-200 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+                    <div
+                        className="w-full max-w-2xl overflow-hidden rounded-[var(--radius)] border border-border/60 bg-card/95 shadow-[0_45px_140px_rgba(15,23,42,0.35)]"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="p-6">
-                            {/* Modal Header */}
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-2xl font-bold text-gray-900">Session Details</h2>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        setIsModalOpen(false);
-                                        setSelectedSession(null);
-                                    }}
-                                    className="hover:bg-gray-100"
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
+                        <div className="flex items-center justify-between border-b border-border/40 px-6 py-4">
+                            <div>
+                                <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-secondary">
+                                    Premium session detail
+                                </p>
+                                <h2 className="mt-2 text-xl font-semibold text-foreground">Session insights</h2>
                             </div>
-
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                    setIsModalOpen(false);
+                                    setSelectedSession(null);
+                                }}
+                                className="rounded-full border border-border/50 bg-white/70 text-foreground/70 hover:text-secondary"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <div className="max-h-[75vh] overflow-y-auto px-6 py-6">
                             {/* Session Info */}
                             <div className="space-y-6">
                                 {/* Basic Info */}
-                                <div>
-                                    <h3 className="text-xl font-semibold mb-2">{selectedSession.title}</h3>
-                                    <p className="text-gray-600">{selectedSession.description}</p>
+                                <div className="rounded-[calc(var(--radius)/1.6)] border border-border/50 bg-white/75 p-5 shadow-[0_16px_55px_rgba(46,47,70,0.14)]">
+                                    <h3 className="text-lg font-semibold text-foreground">{selectedSession.title}</h3>
+                                    <p className="mt-2 text-sm text-foreground/70">{selectedSession.description}</p>
                                 </div>
 
                                 {/* Participants */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Host</label>
-                                        <div className="flex items-center gap-3 mt-1">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div className="rounded-[calc(var(--radius)/1.8)] border border-border/50 bg-white/70 p-4">
+                                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                            Host
+                                        </label>
+                                        <div className="mt-3 flex items-center gap-3">
                                             {getUserAvatar(selectedSession.hostId?.name || "Host")}
                                             <div>
-                                                <p className="font-medium">{selectedSession.hostId?.name || "Host"}</p>
-                                                <p className="text-sm text-gray-500">{selectedSession.hostId?.email || ""}</p>
+                                                <p className="text-sm font-semibold text-foreground">
+                                                    {selectedSession.hostId?.name || "Host"}
+                                                </p>
+                                                <p className="text-xs text-foreground/60">{selectedSession.hostId?.email || ""}</p>
                                             </div>
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Learner</label>
-                                        <div className="flex items-center gap-3 mt-1">
+                                    <div className="rounded-[calc(var(--radius)/1.8)] border border-border/50 bg-white/70 p-4">
+                                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                            Learner
+                                        </label>
+                                        <div className="mt-3 flex items-center gap-3">
                                             {getUserAvatar(selectedSession.learnerId?.name || "Learner")}
                                             <div>
-                                                <p className="font-medium">{selectedSession.learnerId?.name || "Learner"}</p>
-                                                <p className="text-sm text-gray-500">{selectedSession.learnerId?.email || ""}</p>
+                                                <p className="text-sm font-semibold text-foreground">
+                                                    {selectedSession.learnerId?.name || "Learner"}
+                                                </p>
+                                                <p className="text-xs text-foreground/60">{selectedSession.learnerId?.email || ""}</p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Session Details */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Status</label>
-                                        <div className="mt-1">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div className="rounded-[calc(var(--radius)/1.8)] border border-border/50 bg-white/70 p-4">
+                                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                            Status
+                                        </label>
+                                        <div className="mt-3">
                                             {getStatusBadge(selectedSession.status || 'scheduled')}
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Session Type</label>
-                                        <p className="text-sm text-gray-900 mt-1">
+                                    <div className="rounded-[calc(var(--radius)/1.8)] border border-border/50 bg-white/70 p-4">
+                                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                            Session type
+                                        </label>
+                                        <p className="mt-3 text-sm font-semibold text-foreground">
                                             {selectedSession.sessionType || 'skillExchange'}
                                         </p>
                                     </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Cost</label>
-                                        <p className="text-sm text-gray-900 mt-1">
+                                    <div className="rounded-[calc(var(--radius)/1.8)] border border-border/50 bg-white/70 p-4">
+                                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                            Cost
+                                        </label>
+                                        <p className="mt-3 text-sm font-semibold text-foreground">
                                             ${selectedSession.cost || 0}
                                         </p>
                                     </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Duration</label>
-                                        <p className="text-sm text-gray-900 mt-1">
+                                    <div className="rounded-[calc(var(--radius)/1.8)] border border-border/50 bg-white/70 p-4">
+                                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                            Duration
+                                        </label>
+                                        <p className="mt-3 text-sm font-semibold text-foreground">
                                             {selectedSession.duration || 0} minutes
                                         </p>
                                     </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Scheduled Time</label>
-                                        <p className="text-sm text-gray-900 mt-1">
+                                    <div className="rounded-[calc(var(--radius)/1.8)] border border-border/50 bg-white/70 p-4">
+                                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                            Scheduled time
+                                        </label>
+                                        <p className="mt-3 text-sm text-foreground/70">
                                             {formatDate(selectedSession.scheduledTime)}
                                         </p>
                                     </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Started At</label>
-                                        <p className="text-sm text-gray-900 mt-1">
+                                    <div className="rounded-[calc(var(--radius)/1.8)] border border-border/50 bg-white/70 p-4">
+                                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                            Started at
+                                        </label>
+                                        <p className="mt-3 text-sm text-foreground/70">
                                             {selectedSession.startedAt ? formatDate(selectedSession.startedAt) : 'Not started'}
                                         </p>
                                     </div>
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Ended At</label>
-                                        <p className="text-sm text-gray-900 mt-1">
+                                    <div className="rounded-[calc(var(--radius)/1.8)] border border-border/50 bg-white/70 p-4">
+                                        <label className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                                            Ended at
+                                        </label>
+                                        <p className="mt-3 text-sm text-foreground/70">
                                             {selectedSession.endedAt ? formatDate(selectedSession.endedAt) : 'Not ended'}
                                         </p>
                                     </div>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Modal Footer */}
-                            <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+                        {/* Modal Footer */}
+                        <div className="flex items-center justify-end gap-3 border-t border-border/40 px-6 py-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setIsModalOpen(false);
+                                    setSelectedSession(null);
+                                }}
+                            >
+                                Close
+                            </Button>
+                            {selectedSession.status === "in-progress" && (
                                 <Button
-                                    variant="outline"
+                                    variant="destructive"
                                     onClick={() => {
+                                        handleStatusUpdate(selectedSession._id, "completed");
                                         setIsModalOpen(false);
                                         setSelectedSession(null);
                                     }}
                                 >
-                                    Close
+                                    Force end session
                                 </Button>
-                                {selectedSession.status === "in-progress" && (
-                                    <Button
-                                        variant="destructive"
-                                        onClick={() => {
-                                            handleStatusUpdate(selectedSession._id, "completed");
-                                            setIsModalOpen(false);
-                                            setSelectedSession(null);
-                                        }}
-                                    >
-                                        Force End Session
-                                    </Button>
-                                )}
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>

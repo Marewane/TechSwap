@@ -62,17 +62,20 @@ const PostsPage = () => {
     };
 
     return (
-        <div className="min-h-screen p-6">
-            <div className="mx-auto">
+        <div className="min-h-screen bg-gradient-to-b from-[#f9fafb] via-white to-[#eef1ff] px-4 py-10 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[1280px]">
                 {/* Header */}
-                <div className="mb-8 text-center">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Skill Swap Community</h1>
-                    <p className="text-gray-600">Connect with others to exchange skills and knowledge</p>
+                <div className="mb-12 text-center">
+                    <p className="font-mono text-xs uppercase tracking-[0.28em] text-secondary">Marketplace</p>
+                    <h1 className="mt-4 text-4xl font-semibold text-foreground">Skill Swap Community</h1>
+                    <p className="mt-3 text-base text-foreground/70">
+                        Discover premium peers, exchange knowledge, and spend coins where it matters most.
+                    </p>
                 </div>
 
                 {/* Error Alert */}
                 {error && (
-                    <Alert variant="destructive" className="mb-6">
+                    <Alert variant="destructive" className="mb-6 border border-destructive/40 bg-destructive/10 backdrop-blur">
                         <AlertDescription className="flex items-center justify-between">
                             {error}
                             <Button
@@ -88,7 +91,7 @@ const PostsPage = () => {
 
                 {/* Swap Error Alert */}
                 {swapError && (
-                    <Alert variant="destructive" className="mb-6">
+                    <Alert variant="destructive" className="mb-6 border border-destructive/40 bg-destructive/10 backdrop-blur">
                         <AlertDescription className="flex items-center justify-between">
                             {swapError}
                             <Button
@@ -104,131 +107,135 @@ const PostsPage = () => {
 
                 {/* Success Alert */}
                 {swapSuccess && (
-                    <Alert className="mb-6 border-green-500 bg-green-50">
-                        <AlertDescription className="text-green-700">
+                    <Alert className="mb-6 border border-secondary/40 bg-secondary/15">
+                        <AlertDescription className="text-secondary-foreground/80">
                             {swapSuccess}
                         </AlertDescription>
                     </Alert>
                 )}
 
                 {loading ? (
-                    <div className="text-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-gray-400" />
-                        <p className="text-gray-500">Loading posts...</p>
+                    <div className="py-16 text-center">
+                        <Loader2 className="mx-auto mb-4 size-10 animate-spin text-secondary" />
+                        <p className="text-sm text-foreground/60">Loading premium swap posts…</p>
                     </div>
                 ) : posts?.length === 0 ? (
-                    <div className="text-center py-12">
-                        <div className="bg-white rounded-lg shadow-sm p-8 max-w-md mx-auto">
-                            <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">No posts yet</h3>
-                            <p className="text-gray-600 mb-4">Be the first to create a post and start swapping skills!</p>
-                        </div>
+                    <div className="py-16 text-center">
+                        <Card className="mx-auto max-w-md border border-border/50 bg-white/80 p-0 shadow-[0_22px_70px_rgba(46,47,70,0.16)]">
+                            <CardContent className="p-10">
+                                <Calendar className="mx-auto mb-6 size-12 text-secondary" />
+                                <h3 className="text-2xl font-semibold text-foreground">No posts yet</h3>
+                                <p className="mt-2 text-sm text-foreground/65">
+                                    Be the first to create a premium swap post and unlock 50-coin sessions.
+                                </p>
+                            </CardContent>
+                        </Card>
                     </div>
                 ) : (
                     <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {posts?.map((post) => (
                             <Card
                                 key={post?._id}
-                                className="overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-200 flex flex-col h-full"
+                                className="flex h-full flex-col overflow-hidden border border-border/50 bg-card/95 p-0 shadow-[0_20px_70px_rgba(46,47,70,0.18)] transition-all duration-300 hover:-translate-y-2"
                             >
-                                <CardContent className="p-5 flex flex-col flex-1">
+                                <CardContent className="flex flex-1 flex-col p-6">
                                     {/* User Info Header */}
-                                    <div className="flex items-start gap-3 mb-4">
-                                        <Avatar className="w-12 h-12 border-2 border-gray-100">
+                                    <div className="mb-5 flex items-start gap-4">
+                                        <Avatar className="size-12 border-2 border-secondary/30">
                                             <AvatarImage src={post?.userId?.avatar || "/default-avatar.png"} alt={post?.userId?.name || "Unknown User"} />
-                                            <AvatarFallback className="bg-gradient-to-br from-gray-500 to-gray-600 text-white text-sm font-medium">
+                                            <AvatarFallback className="bg-gradient-to-br from-secondary/40 to-primary/40 text-sm font-semibold text-primary-foreground">
                                                 {getInitials(post?.userId?.name)}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="text-lg font-semibold text-gray-900 truncate">
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="truncate text-lg font-semibold text-foreground">
                                                 {post?.userId?.name || "Unknown User"}
                                             </h3>
-                                            <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                                                <div className="flex items-center gap-1">
-                                                    <Star className="w-4 h-4 fill-current text-yellow-500" />
-                                                    <span className="font-medium">{post?.userId?.rating || "0"}</span>
+                                            <div className="mt-1 flex items-center gap-2 text-sm text-foreground/60">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Star className="size-4 fill-secondary text-secondary" />
+                                                    <span className="font-semibold">{post?.userId?.rating || "0"}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Title */}
-                                    <h4 className="text-base font-semibold text-gray-900 mb-3 line-clamp-2 leading-tight">
+                                    <h4 className="line-clamp-2 text-base font-semibold leading-tight text-foreground">
                                         {post?.title || "Untitled Post"}
                                     </h4>
 
                                     {/* Description */}
-                                    <p className="text-gray-700 mb-4 leading-relaxed text-sm line-clamp-3 flex-1">
+                                    <p className="mt-3 flex-1 text-sm leading-relaxed text-foreground/70 line-clamp-3">
                                         {post?.content || "No description provided"}
                                     </p>
 
                                     {/* Skills Offered */}
-                                    <div className="mb-3">
-                                        <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Offering</p>
-                                        <div className="flex flex-wrap gap-1.5">
+                                    <div className="mt-5">
+                                        <p className="text-xs font-mono uppercase tracking-[0.2em] text-secondary">Offering</p>
+                                        <div className="mt-2 flex flex-wrap gap-2">
                                             {post?.skillsOffered?.slice(0, 3).map((skill, idx) => (
                                                 <Badge
                                                     key={idx}
                                                     variant="secondary"
-                                                    className="bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:from-gray-700 hover:to-gray-800 text-xs px-2 py-1"
+                                                    className="rounded-full px-3 py-1 text-xs"
                                                 >
                                                     {skill}
                                                 </Badge>
                                             ))}
                                             {post?.skillsOffered?.length > 3 && (
-                                                <Badge variant="outline" className="text-xs px-2 py-1">
+                                                <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
                                                     +{post.skillsOffered.length - 3}
                                                 </Badge>
                                             )}
                                             {(!post?.skillsOffered || post.skillsOffered.length === 0) && (
-                                                <span className="text-xs text-gray-500 italic">No skills offered</span>
+                                                <span className="text-xs italic text-foreground/50">No skills offered</span>
                                             )}
                                         </div>
                                     </div>
 
                                     {/* Skills Wanted */}
-                                    <div className="mb-4">
-                                        <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Wanting</p>
-                                        <div className="flex flex-wrap gap-1.5">
+                                    <div className="mt-4">
+                                        <p className="text-xs font-mono uppercase tracking-[0.2em] text-secondary">Wanting</p>
+                                        <div className="mt-2 flex flex-wrap gap-2">
                                             {post?.skillsWanted?.slice(0, 3).map((skill, idx) => (
                                                 <Badge
                                                     key={idx}
                                                     variant="outline"
-                                                    className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs px-2 py-1"
+                                                    className="rounded-full border-secondary/40 bg-secondary/10 px-3 py-1 text-xs text-secondary"
                                                 >
                                                     {skill}
                                                 </Badge>
                                             ))}
                                             {post?.skillsWanted?.length > 3 && (
-                                                <Badge variant="outline" className="text-xs px-2 py-1">
+                                                <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
                                                     +{post.skillsWanted.length - 3}
                                                 </Badge>
                                             )}
                                             {(!post?.skillsWanted || post.skillsWanted.length === 0) && (
-                                                <span className="text-xs text-gray-500 italic">No skills wanted</span>
+                                                <span className="text-xs italic text-foreground/50">No skills wanted</span>
                                             )}
                                         </div>
                                     </div>
 
                                     {/* Availability */}
                                     {post?.availability?.days && post.availability.days.length > 0 && (
-                                        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Clock className="w-4 h-4 text-gray-600" />
-                                                <p className="text-sm font-semibold text-gray-900">Availability</p>
+                                        <div className="mt-5 rounded-[calc(var(--radius)/1.6)] border border-border/40 bg-white/70 p-4">
+                                            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                                                <Clock className="size-4 text-secondary" />
+                                                Availability
                                             </div>
-                                            <p className="text-xs text-gray-700 mb-1">
+                                            <p className="text-xs text-foreground/70">
                                                 <span className="font-medium">{post.availability.days.slice(0, 2).join(", ")}</span>
                                                 {post.availability.days.length > 2 && ` +${post.availability.days.length - 2} more`}
                                             </p>
                                             {post.availability.startTime && post.availability.endTime && (
-                                                <p className="text-xs text-gray-600">
+                                                <p className="mt-1 text-xs text-foreground/60">
                                                     {post.availability.startTime} - {post.availability.endTime}
                                                 </p>
                                             )}
                                             {post?.timeSlotsAvailable && post.timeSlotsAvailable.length > 0 && (
-                                                <p className="text-xs text-blue-600 font-medium mt-1">
+                                                <p className="mt-1 text-xs font-semibold text-secondary">
                                                     {post.timeSlotsAvailable.length} slots available
                                                 </p>
                                             )}
@@ -236,19 +243,19 @@ const PostsPage = () => {
                                     )}
 
                                     {/* Request Button */}
-                                    <div className="mt-auto pt-3">
+                                    <div className="mt-auto pt-4">
                                         <Button
-                                            className="w-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-medium py-2.5 transition-all duration-200"
+                                            className="w-full"
                                             onClick={() => handleRequestSwap(post?._id)}
                                             disabled={requestingSwap === post?._id}
                                         >
                                             {requestingSwap === post?._id ? (
                                                 <>
-                                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                    <Loader2 className="mr-2 size-4 animate-spin" />
                                                     Requesting...
                                                 </>
                                             ) : (
-                                                'Request Swap'
+                                                "Request Swap"
                                             )}
                                         </Button>
                                     </div>
@@ -260,22 +267,21 @@ const PostsPage = () => {
 
                 {/* Pagination */}
                 {!loading && posts?.length > 0 && (
-                    <div className="flex items-center justify-between mt-12 px-4 w-1/2 mx-auto">
+                    <div className="mx-auto mt-14 flex w-full max-w-xl items-center justify-between rounded-[var(--radius)] border border-border/50 bg-white/80 px-6 py-4 shadow-[0_18px_55px_rgba(46,47,70,0.16)]">
                         <Button
                             onClick={handlePrev}
                             disabled={currentPage === 1}
                             variant="outline"
-                            className="flex items-center gap-2 border-gray-300 hover:bg-gray-50"
+                            className="flex items-center gap-2"
                         >
-                            <ChevronLeft className="w-4 h-4" />
+                            <ChevronLeft className="size-4" />
                             Previous
                         </Button>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600 font-medium">
+                        <div className="flex flex-col items-center gap-1 text-xs font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                            <span>
                                 Page {currentPage} of {totalPages}
                             </span>
-                            <span className="text-sm text-gray-400">•</span>
-                            <span className="text-sm text-gray-500">
+                            <span className="text-[10px] text-foreground/50">
                                 {posts.length} posts
                             </span>
                         </div>
@@ -283,10 +289,10 @@ const PostsPage = () => {
                             onClick={handleNext}
                             disabled={currentPage === totalPages}
                             variant="outline"
-                            className="flex items-center gap-2 border-gray-300 hover:bg-gray-50"
+                            className="flex items-center gap-2"
                         >
                             Next
-                            <ChevronRight className="w-4 h-4" />
+                            <ChevronRight className="size-4" />
                         </Button>
                     </div>
                 )}

@@ -2,6 +2,11 @@ import { useState, useRef, useEffect } from "react";
 import { Plus, X, Loader2, Calendar } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { createPost } from "@/features/posts/postsSlice";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 const CreatePostModal = () => {
     const dispatch = useDispatch();
@@ -279,314 +284,257 @@ const generateTimeSlots = (start, end, days) => {
 
     return (
         <>
-            <button
+            <Button
                 onClick={() => setOpen(true)}
-                className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-lg bg-gray-600 hover:bg-gray-700 text-white z-50 flex items-center justify-center transition-colors"
+                size="lg"
+                className="fixed bottom-8 right-8 z-50 flex h-16 w-16 items-center justify-center rounded-full shadow-[0_28px_70px_rgba(46,47,70,0.32)]"
             >
-                <Plus className="h-6 w-6" />
-            </button>
+                <Plus className="size-6" />
+            </Button>
 
             {open && (
-                <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-lg">
-                    <div 
-                        ref={modalRef}
-                        className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-                    >
-                        <div className="p-6">
-                            <div className="flex justify-between items-start mb-6">
-                                <div>
-                                    <h2 className="text-2xl font-bold text-gray-900">Create New Post</h2>
-                                    <p className="text-gray-600 mt-1">Share your skills and find others to swap with</p>
-                                </div>
-                                <button
-                                    onClick={() => setOpen(false)}
-                                    className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-full"
-                                >
-                                    <X className="h-6 w-6" />
-                                </button>
-                            </div>
-
-                            <div className="space-y-6">
-                                {/* Title */}
-                                <div className="space-y-2">
-                                    <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-                                        Title *
-                                    </label>
-                                    <input
-                                        id="title"
-                                        name="title"
-                                        type="text"
-                                        value={formData.title}
-                                        onChange={handleInputChange}
-                                        placeholder="e.g., Teach Python, Learn React"
-                                        maxLength={100}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
-                                    />
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.65)] px-4 py-8 backdrop-blur-xl">
+                    <div ref={modalRef} className="w-full max-w-3xl">
+                        <Card className="border border-border/60 bg-card/95 p-0 shadow-[0_45px_140px_rgba(46,47,70,0.36)]">
+                            <CardContent className="p-8">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <p className="font-mono text-xs uppercase tracking-[0.3em] text-secondary">Create post</p>
+                                        <h2 className="mt-3 text-3xl font-semibold text-foreground">Launch a premium swap listing</h2>
+                                        <p className="mt-2 text-sm text-foreground/70">
+                                            Showcase what you can teach, what you want to learn, and when you are available.
+                                        </p>
+                                    </div>
+                                    <Button variant="ghost" size="icon" onClick={() => setOpen(false)} className="text-foreground/60 hover:text-secondary">
+                                        <X className="size-5" />
+                                    </Button>
                                 </div>
 
-                                {/* Content */}
-                                <div className="space-y-2">
-                                    <label htmlFor="content" className="block text-sm font-medium text-gray-700">
-                                        Description *
-                                    </label>
-                                    <textarea
-                                        id="content"
-                                        name="content"
-                                        value={formData.content}
-                                        onChange={handleInputChange}
-                                        placeholder="Describe what you can offer and what you're looking for..."
-                                        rows={4}
-                                        maxLength={1000}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
-                                    />
-                                </div>
-
-                                {/* Skills Offered */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">Skills Offered</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={skillInput.offered}
-                                            onChange={(e) => setSkillInput({ ...skillInput, offered: e.target.value })}
-                                            placeholder="e.g., Python"
-                                            onKeyPress={(e) => {
-                                                if (e.key === "Enter") {
-                                                    e.preventDefault();
-                                                    addSkill("offered");
-                                                }
-                                            }}
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => addSkill("offered")}
-                                            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                        {formData.skillsOffered.map((skill, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="inline-flex items-center gap-1 px-3 py-1 bg-gray-600 text-white rounded-full text-sm"
-                                            >
-                                                {skill}
-                                                <X
-                                                    className="h-3 w-3 cursor-pointer hover:text-gray-300"
-                                                    onClick={() => removeSkill("skillsOffered", skill)}
-                                                />
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Skills Wanted */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">Skills Wanted</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={skillInput.wanted}
-                                            onChange={(e) => setSkillInput({ ...skillInput, wanted: e.target.value })}
-                                            placeholder="e.g., React"
-                                            onKeyPress={(e) => {
-                                                if (e.key === "Enter") {
-                                                    e.preventDefault();
-                                                    addSkill("wanted");
-                                                }
-                                            }}
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => addSkill("wanted")}
-                                            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                                        >
-                                            Add
-                                        </button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                        {formData.skillsWanted.map((skill, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="inline-flex items-center gap-1 px-3 py-1 border border-gray-400 rounded-full text-sm"
-                                            >
-                                                {skill}
-                                                <X
-                                                    className="h-3 w-3 cursor-pointer hover:text-gray-500"
-                                                    onClick={() => removeSkill("skillsWanted", skill)}
-                                                />
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Availability Section */}
-                                <div className="space-y-4">
-                                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                                        <Calendar className="w-4 h-4" />
-                                        Availability (Optional)
-                                    </label>
-                                    <p className="text-sm text-gray-600">
-                                        All sessions are 2 hours long. Select days and set your time range to see available slots.
-                                    </p>
-
-                                    <div className="flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={selectWeekdays}
-                                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
-                                        >
-                                            Select Weekdays
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={selectWeekends}
-                                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
-                                        >
-                                            Select Weekends
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={clearDays}
-                                            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 text-red-600"
-                                        >
-                                            Clear All
-                                        </button>
-                                    </div>
-
-                                    <div className="border border-gray-300 rounded-lg p-4">
-                                        <label className="block text-sm font-medium text-gray-700 mb-3">
-                                            Select Days
+                                <div className="mt-8 space-y-6">
+                                    {/* Title */}
+                                    <div className="space-y-2">
+                                        <label htmlFor="title" className="text-sm font-semibold text-foreground/80">
+                                            Title *
                                         </label>
+                                        <Input
+                                            id="title"
+                                            name="title"
+                                            type="text"
+                                            value={formData.title}
+                                            onChange={handleInputChange}
+                                            placeholder="Teach Python, Master React, Ship a CI/CD pipeline..."
+                                            maxLength={100}
+                                        />
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="space-y-2">
+                                        <label htmlFor="content" className="text-sm font-semibold text-foreground/80">
+                                            Description *
+                                        </label>
+                                        <Textarea
+                                            id="content"
+                                            name="content"
+                                            value={formData.content}
+                                            onChange={handleInputChange}
+                                            placeholder="Describe what you can offer, what you want to learn, and the impact of your expertise."
+                                            rows={5}
+                                            maxLength={1000}
+                                        />
+                                    </div>
+
+                                    {/* Skills Offered */}
+                                    <div className="space-y-3">
+                                        <label className="text-sm font-semibold text-foreground/80">Skills Offered</label>
+                                        <div className="flex flex-col gap-3 sm:flex-row">
+                                            <Input
+                                                type="text"
+                                                value={skillInput.offered}
+                                                onChange={(e) => setSkillInput({ ...skillInput, offered: e.target.value })}
+                                                placeholder="e.g., Python"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault();
+                                                        addSkill("offered");
+                                                    }
+                                                }}
+                                            />
+                                            <Button type="button" variant="outline" onClick={() => addSkill("offered")} className="sm:w-[160px]">
+                                                Add skill
+                                            </Button>
+                                        </div>
                                         <div className="flex flex-wrap gap-2">
-                                            {daysOfWeek.map((day) => (
-                                                <button
-                                                    key={day.value}
-                                                    type="button"
-                                                    onClick={() => toggleDay(day.value)}
-                                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                                                        formData.availability.days.includes(day.value)
-                                                            ? "bg-gray-600 text-white hover:bg-gray-700"
-                                                            : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                                                    }`}
-                                                >
-                                                    {day.short}
-                                                </button>
+                                            {formData.skillsOffered.map((skill, idx) => (
+                                                <Badge key={idx} variant="secondary" className="gap-1 rounded-full px-3 py-1 text-xs">
+                                                    {skill}
+                                                    <button type="button" onClick={() => removeSkill("skillsOffered", skill)} className="transition hover:text-primary-foreground/70">
+                                                        <X className="size-3" />
+                                                    </button>
+                                                </Badge>
                                             ))}
                                         </div>
-                                        
+                                    </div>
+
+                                    {/* Skills Wanted */}
+                                    <div className="space-y-3">
+                                        <label className="text-sm font-semibold text-foreground/80">Skills Wanted</label>
+                                        <div className="flex flex-col gap-3 sm:flex-row">
+                                            <Input
+                                                type="text"
+                                                value={skillInput.wanted}
+                                                onChange={(e) => setSkillInput({ ...skillInput, wanted: e.target.value })}
+                                                placeholder="e.g., React, Growth analytics"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault();
+                                                        addSkill("wanted");
+                                                    }
+                                                }}
+                                            />
+                                            <Button type="button" variant="outline" onClick={() => addSkill("wanted")} className="sm:w-[160px]">
+                                                Add skill
+                                            </Button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {formData.skillsWanted.map((skill, idx) => (
+                                                <Badge key={idx} variant="outline" className="gap-1 rounded-full border-secondary/40 px-3 py-1 text-xs text-secondary">
+                                                    {skill}
+                                                    <button type="button" onClick={() => removeSkill("skillsWanted", skill)} className="transition hover:text-secondary/70">
+                                                        <X className="size-3" />
+                                                    </button>
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Availability Section */}
+                                    <div className="space-y-4 rounded-[var(--radius)] border border-border/50 bg-white/60 p-6 shadow-[0_18px_60px_rgba(46,47,70,0.12)]">
+                                        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                            <Calendar className="size-4 text-secondary" />
+                                            Availability (Optional)
+                                        </div>
+                                        <p className="text-sm text-foreground/65">
+                                            Every swap session runs 2 hours (50 coins per person). Choose days and a time window to auto-generate eligible slots.
+                                        </p>
+
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button type="button" variant="outline" size="sm" onClick={selectWeekdays}>
+                                                Weekdays
+                                            </Button>
+                                            <Button type="button" variant="outline" size="sm" onClick={selectWeekends}>
+                                                Weekends
+                                            </Button>
+                                            <Button type="button" variant="ghost" size="sm" onClick={clearDays} className="text-destructive">
+                                                Clear selection
+                                            </Button>
+                                        </div>
+
+                                        <div className="rounded-[calc(var(--radius)/1.6)] border border-border/50 bg-white/70 p-4">
+                                            <p className="text-sm font-semibold text-foreground/80">Select days</p>
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                {daysOfWeek.map((day) => {
+                                                    const isSelected = formData.availability.days.includes(day.value);
+                                                    return (
+                                                        <Button
+                                                            key={day.value}
+                                                            type="button"
+                                                            variant={isSelected ? "default" : "outline"}
+                                                            size="sm"
+                                                            onClick={() => toggleDay(day.value)}
+                                                            className="min-w-[60px]"
+                                                        >
+                                                            {day.short}
+                                                        </Button>
+                                                    );
+                                                })}
+                                            </div>
+                                            {formData.availability.days.length > 0 && (
+                                                <p className="mt-3 text-xs font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                                                    {formData.availability.days.join(" · ")}
+                                                </p>
+                                            )}
+                                        </div>
+
                                         {formData.availability.days.length > 0 && (
-                                            <div className="mt-3 text-sm text-gray-600">
-                                                Selected: {formData.availability.days.join(", ")}
+                                            <div className="space-y-4">
+                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-xs font-semibold text-foreground/70">Start Time</label>
+                                                        <Input
+                                                            type="time"
+                                                            value={formData.availability.startTime}
+                                                            onChange={(e) => updateAvailabilityTime("startTime", e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-xs font-semibold text-foreground/70">End Time</label>
+                                                        <Input
+                                                            type="time"
+                                                            value={formData.availability.endTime}
+                                                            onChange={(e) => updateAvailabilityTime("endTime", e.target.value)}
+                                                            disabled={isEndTimeDisabled}
+                                                            className={isEndTimeDisabled ? "opacity-50" : ""}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {timeError && (
+                                                    <div className="rounded-[calc(var(--radius)/1.8)] border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                                                        {timeError}
+                                                    </div>
+                                                )}
+
+                                                {availableSlots.length > 0 && (
+                                                    <div className="rounded-[calc(var(--radius)/1.8)] border border-border/50 bg-white/70 p-4">
+                                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Eligible 2-hour slots</p>
+                                                        <div className="mt-3 flex max-h-32 flex-wrap gap-2 overflow-y-auto">
+                                                            {availableSlots.map((time, i) => (
+                                                                <Badge key={i} variant="outline" className="rounded-full border-secondary/30 px-3 py-1 text-xs text-secondary">
+                                                                    {time}
+                                                                </Badge>
+                                                            ))}
+                                                        </div>
+                                                        <p className="mt-2 text-xs text-foreground/50">
+                                                            {availableSlots.length} time slots generated
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                {formData.availability.startTime &&
+                                                    formData.availability.endTime &&
+                                                    !timeError &&
+                                                    availableSlots.length === 0 && (
+                                                        <div className="rounded-[calc(var(--radius)/1.8)] border border-accent/40 bg-accent/15 px-4 py-3 text-xs text-foreground/70">
+                                                            No 2-hour slots available in this window. Extend your range to unlock swappable slots.
+                                                        </div>
+                                                    )}
                                             </div>
                                         )}
                                     </div>
 
-                                    {formData.availability.days.length > 0 && (
-                                        <div className="space-y-3">
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Start Time
-                                                    </label>
-                                                    <input
-                                                        type="time"
-                                                        value={formData.availability.startTime}
-                                                        onChange={(e) => updateAvailabilityTime('startTime', e.target.value)}
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-600"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        End Time
-                                                    </label>
-                                                    <input
-                                                        type="time"
-                                                        value={formData.availability.endTime}
-                                                        onChange={(e) => updateAvailabilityTime('endTime', e.target.value)}
-                                                        disabled={isEndTimeDisabled}
-                                                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                                                            isEndTimeDisabled 
-                                                                ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' 
-                                                                : 'border-gray-300 focus:ring-gray-600'
-                                                        }`}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Time Validation Error */}
-                                            {timeError && (
-                                                <div className="text-red-600 text-sm font-medium">
-                                                    {timeError}
-                                                </div>
+                                    <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
+                                        <Button type="button" variant="ghost" className="sm:flex-1" onClick={() => setOpen(false)}>
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            className="sm:flex-1"
+                                            onClick={handleSubmit}
+                                            disabled={loading || (formData.availability.days.length > 0 && timeError)}
+                                        >
+                                            {loading ? (
+                                                <>
+                                                    <Loader2 className="size-4 animate-spin" />
+                                                    Creating…
+                                                </>
+                                            ) : (
+                                                "Create post"
                                             )}
-
-                                            {/* Available Time Slots Preview */}
-                                            {availableSlots.length > 0 && (
-                                                <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
-                                                    <p className="text-xs font-medium text-gray-700 mb-2">
-                                                        Available time slots (2-hour sessions):
-                                                    </p>
-                                                    <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                                                        {availableSlots.map((time, i) => (
-                                                            <span 
-                                                                key={i} 
-                                                                className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono"
-                                                            >
-                                                                {time}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                    <p className="text-xs text-gray-500 mt-2">
-                                                        Found {availableSlots.length} available slots
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {formData.availability.startTime && 
-                                             formData.availability.endTime && 
-                                             !timeError && 
-                                             availableSlots.length === 0 && (
-                                                <div className="bg-yellow-50 p-3 rounded-md border border-yellow-200">
-                                                    <p className="text-xs text-yellow-700">
-                                                        No 2-hour slots available in this time range. 
-                                                        Try extending your end time.
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                        </Button>
+                                    </div>
                                 </div>
-
-                                <div className="flex gap-3 pt-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => setOpen(false)}
-                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleSubmit}
-                                        disabled={loading || (formData.availability.days.length > 0 && timeError)}
-                                        className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                Creating...
-                                            </>
-                                        ) : (
-                                            "Create Post"
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
             )}

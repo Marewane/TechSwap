@@ -68,73 +68,75 @@ const handleContinue = async () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-semibold">What do you want to learn?</CardTitle>
-          <CardDescription>
-            Select the skills you're interested in learning. This helps us match you with the right teachers.
-          </CardDescription>
-        </CardHeader>
+    <Card className="border border-border/50 bg-card/95 p-0 shadow-[0_26px_90px_rgba(46,47,70,0.18)]">
+      <CardHeader className="space-y-2 text-center">
+        <CardTitle className="text-2xl font-semibold text-foreground">What do you want to learn?</CardTitle>
+        <CardDescription className="text-sm text-foreground/70">
+          Select the skills you want to master. We&apos;ll match you with the mentors who can deliver premium swap sessions.
+        </CardDescription>
+      </CardHeader>
 
-        <CardContent className="space-y-6">
-          {/* Custom Skill Input */}
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add a custom skill..."
-              value={customSkill}
-              onChange={(e) => setCustomSkill(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && addCustomSkill()}
-            />
-            <Button onClick={addCustomSkill}>Add</Button>
-          </div>
+      <CardContent className="space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Input
+            placeholder="Add a custom skill…"
+            value={customSkill}
+            onChange={(e) => setCustomSkill(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomSkill())}
+          />
+          <Button type="button" onClick={addCustomSkill} className="sm:w-[140px]">
+            Add skill
+          </Button>
+        </div>
 
-          {/* Selected Skills */}
-          {selectedSkills.length > 0 && (
-            <div>
-              <h3 className="font-semibold mb-2">Your selected skills:</h3>
-              <div className="flex flex-wrap gap-2">
-                {selectedSkills.map(skill => (
-                  <Badge 
-                    key={skill} 
-                    variant="secondary"
-                    className="cursor-pointer"
-                    onClick={() => toggleSkill(skill)}
-                  >
-                    {skill} ×
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Popular Skills */}
-          <div>
-            <h3 className="font-semibold mb-2">Popular Skills:</h3>
+        {selectedSkills.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground/80">Your selected skills</h3>
             <div className="flex flex-wrap gap-2">
-              {popularSkills.map(skill => (
+              {selectedSkills.map((skill) => (
                 <Badge
                   key={skill}
-                  variant={selectedSkills.includes(skill) ? "default" : "outline"}
-                  className="cursor-pointer"
+                  variant="secondary"
+                  className="cursor-pointer rounded-full px-3 py-1 text-xs"
                   onClick={() => toggleSkill(skill)}
                 >
-                  {skill}
+                  {skill} ×
                 </Badge>
               ))}
             </div>
           </div>
-        </CardContent>
+        )}
 
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleSkip}>
-            Skip for now
-          </Button>
-          <Button onClick={handleContinue} disabled={loading}>
-            {loading ? "Saving..." : "Continue"}
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground/80">Popular skills</h3>
+          <div className="flex flex-wrap gap-2">
+            {popularSkills.map((skill) => {
+              const isSelected = selectedSkills.includes(skill);
+              return (
+                <Badge
+                  key={skill}
+                  variant={isSelected ? "default" : "outline"}
+                  className={`cursor-pointer rounded-full px-3 py-1 text-xs ${
+                    isSelected ? "shadow-[0_16px_45px_rgba(109,122,255,0.25)]" : ""
+                  }`}
+                  onClick={() => toggleSkill(skill)}
+                >
+                  {skill}
+                </Badge>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+
+      <CardFooter className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+        <Button variant="outline" onClick={handleSkip} className="sm:w-[160px]">
+          Skip for now
+        </Button>
+        <Button onClick={handleContinue} disabled={loading} className="sm:w-[160px]">
+          {loading ? "Saving…" : "Continue"}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }

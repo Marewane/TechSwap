@@ -104,71 +104,73 @@ export default function EmailVerification() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-semibold">Verify Your Email</CardTitle>
-          <CardDescription>
-            We sent a verification code to {userInfo.email}
-          </CardDescription>
-        </CardHeader>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#f9fafb] via-white to-[#eef1ff] px-4 py-12 sm:px-6 lg:px-8">
+      <div className="absolute left-0 top-0 h-80 w-80 rounded-full bg-secondary/25 blur-[180px]" />
+      <div className="absolute right-0 bottom-0 h-[420px] w-[420px] rounded-full bg-accent/25 blur-[200px]" />
+      <div className="relative z-10 w-full max-w-[560px]">
+        <Card className="border border-border/50 bg-card/95 p-0 shadow-[0_30px_110px_rgba(46,47,70,0.22)]">
+          <CardHeader className="space-y-2 text-center">
+            <CardTitle className="text-3xl font-semibold text-foreground">Verify your email</CardTitle>
+            <CardDescription className="text-sm text-foreground/70">
+              We sent a six-digit code to <span className="font-semibold text-secondary">{userInfo.email}</span>. Enter it below to unlock your TechSwap profile.
+            </CardDescription>
+          </CardHeader>
 
-        <CardContent>
-          <form onSubmit={handleVerify} className="space-y-4">
-            <div>
-              <Label htmlFor="verificationCode">Verification Code</Label>
-              <Input
-                id="verificationCode"
-                name="verificationCode"
-                placeholder="Enter 6-digit code"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                required
-                maxLength={6}
-              />
-            </div>
-
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-600 text-center">{error}</p>
+          <CardContent>
+            <form onSubmit={handleVerify} className="space-y-5">
+              <div className="space-y-1.5">
+                <Label htmlFor="verificationCode">Verification code</Label>
+                <Input
+                  id="verificationCode"
+                  name="verificationCode"
+                  placeholder="Enter 6-digit code"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  required
+                  maxLength={6}
+                />
               </div>
-            )}
 
-            {success && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                <p className="text-sm text-green-600 text-center">{success}</p>
-              </div>
-            )}
+              {error && (
+                <div className="rounded-[calc(var(--radius)/1.8)] border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Verifying..." : "Verify Email"}
-            </Button>
-          </form>
+              {success && (
+                <div className="rounded-[calc(var(--radius)/1.8)] border border-secondary/40 bg-secondary/15 px-4 py-3 text-sm text-secondary-foreground/80">
+                  {success}
+                </div>
+              )}
 
-          <div className="mt-4 text-center">
-            <p className="text-sm text-gray-600">
-              Didn't receive the code?{" "}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Verifying…" : "Verify email"}
+              </Button>
+            </form>
+
+            <div className="mt-5 text-center text-sm text-foreground/65">
+              Didn&apos;t receive the code?
               <button
                 type="button"
                 onClick={handleResendCode}
                 disabled={resendLoading}
-                className="text-blue-600 hover:underline font-medium"
+                className="ml-2 font-semibold text-secondary transition hover:text-secondary/80 disabled:opacity-50"
               >
-                {resendLoading ? "Sending..." : "Resend Code"}
+                {resendLoading ? "Sending…" : "Resend code"}
               </button>
-            </p>
-          </div>
-        </CardContent>
+            </div>
+          </CardContent>
 
-        <CardFooter className="flex justify-center">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate("/register")}
-          >
-            Back to Register
-          </Button>
-        </CardFooter>
-      </Card>
+          <CardFooter className="flex flex-col gap-3 text-center text-sm text-foreground/60">
+            <Button variant="outline" onClick={() => navigate("/register")} className="mx-auto w-full sm:w-auto">
+              Back to register
+            </Button>
+            <p className="text-xs font-mono uppercase tracking-[0.2em] text-muted-foreground">
+              Verification grants 25 bonus coins instantly
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   );
 }

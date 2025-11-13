@@ -127,97 +127,82 @@ export default function StepProfileInfo() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-semibold">Complete Your Profile</CardTitle>
-          <CardDescription>
-            Add some personal information to help others get to know you (optional)
-          </CardDescription>
-        </CardHeader>
+    <Card className="border border-border/50 bg-card/95 p-0 shadow-[0_26px_90px_rgba(46,47,70,0.18)]">
+      <CardHeader className="space-y-2 text-center">
+        <CardTitle className="text-2xl font-semibold text-foreground">Complete your profile</CardTitle>
+        <CardDescription className="text-sm text-foreground/70">
+          Add a bio and avatar so peers can instantly trust your expertise.
+        </CardDescription>
+      </CardHeader>
 
-        <CardContent className="space-y-6">
-          {/* Avatar Upload */}
-          <div className="flex flex-col items-center">
-            <div 
-              className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center mb-4 overflow-hidden cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors"
-              onClick={triggerFileInput}
-            >
-              {tempAvatar ? (
-                <img 
-                  src={tempAvatar} 
-                  alt="Avatar Preview" 
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    // If image fails to load, show placeholder
-                    e.target.style.display = 'none';
-                  }}
-                />
-              ) : formData.avatar ? (
-                <img 
-                  src={formData.avatar} 
-                  alt="Avatar" 
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-gray-400 text-sm text-center">Click to upload</span>
-              )}
-            </div>
-            
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-            
-            <Button 
-              variant="outline" 
-              onClick={triggerFileInput}
-              disabled={uploading}
-              className="mb-2"
-            >
-              {uploading ? "Uploading..." : "Choose Image"}
-            </Button>
-            
-            {uploading && <p className="text-sm text-blue-600">Uploading image...</p>}
-            <p className="text-sm text-gray-500 text-center">
-              {formData.avatar && formData.avatar.includes('cloudinary') 
-                ? "✅ Image saved to Cloudinary" 
-                : tempAvatar 
-                ? "🔼 Image ready to upload" 
-                : "No image selected"}
-            </p>
+      <CardContent className="space-y-6">
+        <div className="flex flex-col items-center">
+          <div
+            className="relative mb-4 flex h-28 w-28 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-secondary/40 bg-secondary/10 transition hover:border-secondary"
+            onClick={triggerFileInput}
+          >
+            {tempAvatar ? (
+              <img
+                src={tempAvatar}
+                alt="Avatar Preview"
+                className="h-full w-full object-cover"
+              />
+            ) : formData.avatar ? (
+              <img
+                src={formData.avatar}
+                alt="Avatar"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="px-4 text-center text-xs text-foreground/60">Tap to upload your avatar</span>
+            )}
           </div>
 
-          {/* Bio */}
-          <div>
-            <Label htmlFor="bio">Bio</Label>
-            <Textarea
-              id="bio"
-              name="bio"
-              placeholder="Tell us about yourself, your interests, and what you hope to achieve..."
-              value={formData.bio}
-              onChange={handleChange}
-              rows={4}
-              maxLength={500}
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              {formData.bio.length}/500 characters
-            </p>
-          </div>
-        </CardContent>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
 
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleSkip}>
-            Skip Profile Setup
+          <Button variant="outline" onClick={triggerFileInput} disabled={uploading} className="mb-2">
+            {uploading ? "Uploading…" : "Choose image"}
           </Button>
-          <Button onClick={handleComplete} disabled={loading || uploading}>
-            {loading ? "Saving..." : uploading ? "Uploading..." : "Complete Setup"}
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
+
+          {uploading && <p className="text-xs text-secondary">Uploading image…</p>}
+          <p className="text-xs text-foreground/60">
+            {formData.avatar && formData.avatar.includes("cloudinary")
+              ? "✅ Image saved to Cloudinary"
+              : tempAvatar
+              ? "🔄 Preview ready"
+              : "No image selected"}
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="bio">Bio</Label>
+          <Textarea
+            id="bio"
+            name="bio"
+            placeholder="Tell the community about your experience, focus areas, and what you love teaching."
+            value={formData.bio}
+            onChange={handleChange}
+            rows={5}
+            maxLength={500}
+          />
+          <p className="text-xs text-foreground/60">{formData.bio.length}/500 characters</p>
+        </div>
+      </CardContent>
+
+      <CardFooter className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+        <Button variant="outline" onClick={handleSkip}>
+          Skip profile setup
+        </Button>
+        <Button onClick={handleComplete} disabled={loading || uploading}>
+          {loading ? "Saving…" : uploading ? "Uploading…" : "Complete setup"}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }
