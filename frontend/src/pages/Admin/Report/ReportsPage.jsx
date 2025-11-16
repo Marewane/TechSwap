@@ -95,6 +95,17 @@ const ReportsPage = () => {
 
     // Handle view details
     const handleViewDetails = async (reportId) => {
+        // Prefer using the already-fetched report from the list so we
+        // reuse the same populated reporterId / reportedUserId data.
+        const existing = reports.find((r) => r._id === reportId)
+        if (existing) {
+            setSelectedReport(existing)
+            setIsModalOpen(true)
+            return
+        }
+
+        // Fallback: if for some reason the report is not in the current page,
+        // fetch full details from the backend.
         try {
             const response = await api.get(`/admin/reports/${reportId}`)
             console.log("report detail response:", response.data)

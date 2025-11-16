@@ -1,6 +1,6 @@
 // frontend/src/pages/User/Navbar.jsx
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, User, LogOut, CircleDollarSign, Bell } from "lucide-react";
+import { Menu, User, LogOut, CircleDollarSign, Bell, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -261,11 +261,20 @@ const Navbar = () => {
                 </Avatar>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/profile")}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
+              {user?.role === "admin" && (
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => navigate("/admin/dashboard")}
+                >
+                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  <span>Admin Dashboard</span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem className="cursor-pointer" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
@@ -371,6 +380,19 @@ const Navbar = () => {
                       </div>
                     </Link>
                   </SheetClose>
+
+                  {user?.role === "admin" && (
+                    <SheetClose asChild>
+                      <Link
+                        to="/admin/dashboard"
+                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <LayoutDashboard className="h-5 w-5 text-indigo-600" />
+                        <span className="text-sm font-medium">Admin Dashboard</span>
+                      </Link>
+                    </SheetClose>
+                  )}
+
                   <div className="space-y-2">
                     <SheetClose asChild>
                       <Button

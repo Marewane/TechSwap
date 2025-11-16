@@ -25,6 +25,16 @@ const ReportDetailModal = ({ report, isOpen, onClose }) => {
         return colors[status] || colors.pending;
     };
 
+    const getUserDisplay = (user) => {
+        if (!user || !user.name) {
+            return { name: "N/A", email: "N/A" };
+        }
+        return { name: user.name, email: user.email || "N/A" };
+    };
+
+    const reporter = getUserDisplay(report?.reporterId);
+    const reportedUser = getUserDisplay(report?.reportedUserId);
+
     return (
         <Dialog open={Boolean(isOpen)} onOpenChange={(open) => { if (!open) onClose(); }}>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -53,13 +63,13 @@ const ReportDetailModal = ({ report, isOpen, onClose }) => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
                                 <p className="text-sm text-gray-500">Name</p>
-                                <p className="font-medium">{report?.reporterId?.name || "N/A"}</p>
+                                <p className="font-medium">{reporter.name}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500">Email</p>
                                 <p className="font-medium flex items-center gap-2">
                                     <Mail className="h-4 w-4" />
-                                    {report?.reporterId?.email || "N/A"}
+                                    {reporter.email}
                                 </p>
                             </div>
                             {report?.reporterId?.phone && (
@@ -80,13 +90,13 @@ const ReportDetailModal = ({ report, isOpen, onClose }) => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
                                 <p className="text-sm text-gray-500">Name</p>
-                                <p className="font-medium">{report?.reportedUserId?.name || "N/A"}</p>
+                                <p className="font-medium">{reportedUser.name}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500">Email</p>
                                 <p className="font-medium flex items-center gap-2">
                                     <Mail className="h-4 w-4" />
-                                    {report?.reportedUserId?.email || "N/A"}
+                                    {reportedUser.email}
                                 </p>
                             </div>
                             {report?.reportedUserId?.phone && (

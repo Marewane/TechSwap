@@ -2,12 +2,16 @@ import { User, LogOut ,LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Link } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { Link, useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import api from "@/services/api";
+import { logout as logoutAction } from "@/features/user/userSlice";
 
 const ProfileDropdown = () => {
     // Get user data from user slice (this is where your login data is stored)
-    const { user } = useSelector((state) => state.user); // ← Change to state.user
+    const { user } = useSelector((state) => state.user);
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
     
     // Get initials for avatar fallback
     const getInitials = (name) => {
@@ -18,6 +22,14 @@ const ProfileDropdown = () => {
             .join('')
             .toUpperCase()
             .slice(0, 2);
+    };
+
+    const handleLogout = async () => {
+        try {
+            api.post("/auth/logout").catch(() => {});
+        } catch (_) {}
+        dispatch(logoutAction());
+        navigate("/login");
     };
 
     return (
@@ -59,7 +71,10 @@ const ProfileDropdown = () => {
                 </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                <DropdownMenuItem
+                    className="cursor-pointer text-red-600 focus:text-red-600"
+                    onClick={handleLogout}
+                >
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Log out</span>
                 </DropdownMenuItem>

@@ -56,50 +56,7 @@ const DashboardPage = () => {
         );
     }
 
-    const topUsers = [
-        {
-            _id: "user001",
-            name: "Sarah Johnson",
-            email: "sarah.j@example.com",
-            avatar: "https://i.pravatar.cc/150?img=1",
-            totalRevenue: 1250.75,
-            transactionCount: 28
-        },
-        {
-            _id: "user002",
-            name: "Michael Chen",
-            email: "mike.chen@example.com",
-            avatar: "https://i.pravatar.cc/150?img=12",
-            totalRevenue: 980.50,
-            transactionCount: 22
-        },
-        {
-            _id: "user003",
-            name: "Emma Wilson",
-            email: "emma.w@example.com",
-            avatar: "https://i.pravatar.cc/150?img=5",
-            totalRevenue: 875.25,
-            transactionCount: 19
-        },
-        {
-            _id: "user004",
-            name: "David Rodriguez",
-            email: "david.r@example.com",
-            avatar: "https://i.pravatar.cc/150?img=8",
-            totalRevenue: 720.00,
-            transactionCount: 15
-        },
-        {
-            _id: "user005",
-            name: "Jennifer Lee",
-            email: "jennifer.l@example.com",
-            avatar: "https://i.pravatar.cc/150?img=9",
-            totalRevenue: 645.50,
-            transactionCount: 12
-        }
-    ]
-
-    const { stats, monthlyRevenue, recentTransactions, reportsPerMonth, userGrowth ,  } = data;
+    const { stats, monthlyRevenue, recentTransactions, reportsPerMonth, userGrowth, topUsers } = data;
 
     return (
         <div className="p-6 space-y-8 min-h-screen">
