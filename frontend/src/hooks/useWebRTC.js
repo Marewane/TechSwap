@@ -256,8 +256,10 @@ export const useWebRTC = (sessionId, socketFunctions) => {
       setConnectionStatus(pc.connectionState);
 
       if (pc.connectionState === 'failed') {
-        console.error('Connection failed, attempting ICE restart');
-        pc.restartIce();
+        // This often happens when the other participant closes their
+        // browser or leaves the live session. Treat it as a normal
+        // end-of-call condition instead of spamming ICE restarts.
+        console.warn('WebRTC connection failed (this is expected if the other participant left the session).');
       }
     };
 
@@ -563,6 +565,8 @@ export const useWebRTC = (sessionId, socketFunctions) => {
         alert('Screen sharing permission denied or cancelled.');
       } else if (error.name === 'NotFoundError') {
         alert('No suitable source found for screen sharing.');
+      } else if (error.name === 'NotReadableError') {
+        alert('Your browser could not start screen capture. Close other screen-sharing or recording tools and try again.');
       } else {
         alert('An error occurred while starting screen sharing.');
       }

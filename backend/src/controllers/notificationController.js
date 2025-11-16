@@ -8,9 +8,32 @@ getMyNotifications = async (req, res) => {
       .sort({ createdAt: -1 })
       .populate('senderId', 'name avatar');
 
+    // Deduplicate "session_join" notifications for the same partner + session
+    // so the user does not see multiple "Session Partner Joined!" cards
+    const seenSessionJoinKeys = new Set();
+    const filteredNotifications = [];
+
+    for (const n of notifications) {
+      if (n.type === 'session_join') {
+        const key = [
+          n.userId?.toString(),
+          n.senderId?._id?.toString() || n.senderId?.toString() || '',
+          n.type,
+          n.relatedId?.toString() || ''
+        ].join(':');
+
+        if (seenSessionJoinKeys.has(key)) {
+          continue;
+        }
+        seenSessionJoinKeys.add(key);
+      }
+
+      filteredNotifications.push(n);
+    }
+
     // Map senderId into a "sender" field and enrich with swap request meta
     const shaped = await Promise.all(
-      notifications.map(async (n) => {
+      filteredNotifications.map(async (n) => {
         const json = n.toObject();
         let swapMeta = null;
         try {

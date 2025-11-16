@@ -186,41 +186,37 @@ io.on('connection', (socket) => {
         timestamp: new Date()
       });
 
-      // Create notification for the other participant
+      // Create/update notification for the other participant (idempotent)
       try {
         const joiningUser = await User.findById(socket.userId).select('name');
-        const otherParticipantId = session.hostId.toString() === socket.userId.toString() 
-          ? session.learnerId 
+        const otherParticipantId = session.hostId.toString() === socket.userId.toString()
+          ? session.learnerId
           : session.hostId;
 
-        // Populate session with full details for better notification content
-        const populatedSession = await Session.findById(normalizedSessionId)
-          .populate('hostId', 'name')
-          .populate('learnerId', 'name');
+        const message = `${joiningUser?.name || 'Your session partner'} has joined the session. Join now to start your swap!`;
 
-        const existingNotification = await Notification.findOne({
-          userId: otherParticipantId,
-          senderId: socket.userId,
-          type: 'session_join',
-          relatedId: normalizedSessionId,
-        }).sort({ createdAt: -1 });
-
-        let notification = existingNotification;
-
-        if (!notification) {
-          notification = await Notification.create({
+        const notification = await Notification.findOneAndUpdate(
+          {
             userId: otherParticipantId,
             senderId: socket.userId,
             type: 'session_join',
-            title: 'Session Partner Joined!',
-            content: `${joiningUser?.name || 'Your session partner'} has joined the session. Join now to start your swap!`,
             relatedId: normalizedSessionId,
-            relatedModel: 'Session'
-          });
-          console.log(`✅ Created notification for user ${otherParticipantId} about ${joiningUser?.name} joining session`);
-        } else {
-          console.log(`ℹ️ Using existing session_join notification for user ${otherParticipantId} in session ${normalizedSessionId}`);
-        }
+          },
+          {
+            $set: {
+              title: 'Session Partner Joined!',
+              content: message,
+              relatedModel: 'Session',
+            },
+          },
+          {
+            new: true,
+            upsert: true,
+            setDefaultsOnInsert: true,
+          }
+        );
+
+        console.log(`🔔 session_join notification upserted for user ${otherParticipantId} about ${joiningUser?.name} joining session ${normalizedSessionId}`);
 
         await broadcastNotifications(notification);
       } catch (notifError) {

@@ -165,10 +165,13 @@ const LiveSession = () => {
     }
 
     return () => {
-      console.log("LiveSession unmounting, disconnecting Socket.IO...");
+      console.log("LiveSession unmounting, leaving session & disconnecting Socket.IO...");
+      if (sessionId) {
+        leaveSession(sessionId);
+      }
       disconnect();
     };
-  }, [token, connect, disconnect]);
+  }, [token, connect, disconnect, sessionId, leaveSession]);
 
   // --- Join the session room once connected ---
   useEffect(() => {
@@ -231,6 +234,17 @@ const LiveSession = () => {
     // Handle user left
     const onUserLeft = (data) => {
       console.log('User left session:', data.userId);
+
+      // Optimistically mark that participant as offline locally so the
+      // green circle turns gray immediately, even before the next
+      // session-participants snapshot arrives from the server.
+      setParticipants((prev) =>
+        prev.map((p) =>
+          String(p._id) === String(data.userId)
+            ? { ...p, isOnline: false }
+            : p
+        )
+      );
     };
 
     // Register listeners
@@ -558,17 +572,40 @@ const LiveSession = () => {
 
   // --- Connection Status Display ---
   const getConnectionStatusBadge = () => {
+    const peerName = otherUser?.name || 'Participant';
+
     switch (connectionStatus) {
       case 'connected':
-        return <Badge variant="default" className="bg-green-600">Connected</Badge>;
+        return (
+          <Badge variant="default" className="bg-green-600 text-xs flex items-center">
+            <span className="font-semibold mr-1">Live link:</span>
+            <span>{`You ↔ ${peerName}`}</span>
+          </Badge>
+        );
       case 'connecting':
-        return <Badge variant="secondary">Connecting...</Badge>;
+        return (
+          <Badge variant="secondary" className="text-xs">
+            {`Connecting to ${peerName}...`}
+          </Badge>
+        );
       case 'disconnected':
-        return <Badge variant="outline">Disconnected</Badge>;
+        return (
+          <Badge variant="outline" className="text-xs">
+            {`Live link to ${peerName} lost`}
+          </Badge>
+        );
       case 'failed':
-        return <Badge variant="destructive">Connection Failed</Badge>;
+        return (
+          <Badge variant="destructive" className="text-xs">
+            {`Connection to ${peerName} failed`}
+          </Badge>
+        );
       default:
-        return <Badge variant="outline">{connectionStatus}</Badge>;
+        return (
+          <Badge variant="outline" className="text-xs">
+            {connectionStatus}
+          </Badge>
+        );
     }
   };
 
@@ -670,7 +707,7 @@ const LiveSession = () => {
               className="text-xs flex items-center"
             >
               <div className={`w-2 h-2 rounded-full mr-1 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              {isConnected ? 'Connected' : 'Disconnected'}
+              {isConnected ? 'Server: Connected' : 'Server: Disconnected'}
             </Badge>
 
             {/* WebRTC Connection Status */}
