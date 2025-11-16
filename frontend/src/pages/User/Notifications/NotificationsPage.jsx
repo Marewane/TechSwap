@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Bell, Check, X, Clock, Mail, CheckCircle, CreditCard, Coins, AlertCircle, UserCheck, UserX, Loader2, Calendar, Video } from "lucide-react";
+import { Bell, Check, X, Clock, Mail, CheckCircle, CreditCard, Coins, AlertCircle, UserCheck, UserX, Loader2, Calendar, Video, Trash2 } from "lucide-react";
 import useSocket from "@/hooks/useSocket";
 
 const SESSION_COST_COINS = 50;
@@ -337,6 +337,8 @@ const NotificationsPage = () => {
   const [actionFeedback, setActionFeedback] = useState({});
   const [processingActions, setProcessingActions] = useState({});
   const [unreadCount, setUnreadCount] = useState(0); // kept for compatibility, not shown in UI
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -769,6 +771,35 @@ const NotificationsPage = () => {
     }
   };
 
+  const handleDeleteNotification = async (id) => {
+    try {
+      setProcessingActions(prev => ({
+        ...prev,
+        [id]: 'delete'
+      }));
+
+      await api.delete(`/notifications/${id}`);
+
+      setNotifications(prev => {
+        const updated = prev.filter((n) => n._id !== id);
+        const unread = updated.filter((n) => !n.isRead).length;
+        setUnreadCount(unread);
+        window.dispatchEvent(new CustomEvent('notifications:updated', { detail: { unreadCount: unread } }));
+        return updated;
+      });
+    } catch (err) {
+      console.error('Failed to delete notification', err);
+    } finally {
+      setProcessingActions(prev => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      });
+      setShowDeleteDialog(false);
+      setDeleteTarget(null);
+    }
+  };
+
   const handleAction = async (notificationId, action, userName, notificationDbId) => {
     try {
       // Set processing state for this specific action
@@ -949,9 +980,27 @@ const NotificationsPage = () => {
                             {n.title || "New Notification"}
                           </p>
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {new Date(n.createdAt).toLocaleString()}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">
+                            {new Date(n.createdAt).toLocaleString()}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-gray-400 hover:text-red-500"
+                            onClick={() => {
+                              setDeleteTarget(n);
+                              setShowDeleteDialog(true);
+                            }}
+                            disabled={isProcessing === 'delete'}
+                          >
+                            {isProcessing === 'delete' ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
 
                       <p className="text-gray-600 text-sm mb-3">{n.content}</p>
@@ -964,6 +1013,7 @@ const NotificationsPage = () => {
                             isProcessing === "accept" ? "Accepting request..." :
                             isProcessing === "reject" ? "Rejecting request..." :
                             isProcessing === "payment_processing" ? "Processing payment validation..." :
+                            isProcessing === "delete" ? "Deleting notification..." :
                             "Processing..."
                           }
                         />
@@ -1119,6 +1169,47 @@ const NotificationsPage = () => {
           title: swapDetails.title
         } : null}
       />
+
+      <Dialog open={showDeleteDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowDeleteDialog(false);
+          setDeleteTarget(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete notification</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. Are you sure you want to remove this notification?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 text-sm text-gray-600">
+            <p className="font-medium text-gray-800">{deleteTarget?.title || 'Notification'}</p>
+            <p className="mt-1">{deleteTarget?.content}</p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setDeleteTarget(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteTarget && handleDeleteNotification(deleteTarget._id)}
+              disabled={deleteTarget ? processingActions[deleteTarget._id] === 'delete' : false}
+            >
+              {deleteTarget && processingActions[deleteTarget._id] === 'delete' ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

@@ -23,6 +23,8 @@ import {
   Video,
   ScreenShare,
   Square,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 
 const LiveSession = () => {
@@ -82,12 +84,14 @@ const LiveSession = () => {
   });
 
   // --- Refs for video elements ---
+  const videoContainerRef = useRef(null);
   const mainVideoRef = useRef(null);
   
   const cameraPreviewRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // --- Fetch session data from API ---
   useEffect(() => {
@@ -495,11 +499,48 @@ const LiveSession = () => {
     }
   }, [remoteStream, hasUserInteracted]);
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!videoContainerRef.current) {
+        setIsFullscreen(false);
+        return;
+      }
+
+      const isFull = document.fullscreenElement === videoContainerRef.current;
+      setIsFullscreen(isFull);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   const handleEndCall = () => {
     if (window.confirm('Are you sure you want to end this session?')) {
       console.log("Ending session...");
       leaveSession(sessionId);
       navigate('/events');
+    }
+  };
+
+  const handleToggleFullscreen = () => {
+    const container = videoContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const isCurrentlyFullscreen = document.fullscreenElement === container;
+
+    if (!isCurrentlyFullscreen) {
+      container.requestFullscreen?.().catch((err) => {
+        console.error('Error attempting to enable fullscreen:', err);
+      });
+    } else {
+      document.exitFullscreen?.().catch((err) => {
+        console.error('Error attempting to exit fullscreen:', err);
+      });
     }
   };
 
@@ -672,7 +713,19 @@ const LiveSession = () => {
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-0 relative overflow-hidden">
+            <CardContent ref={videoContainerRef} className="flex-1 overflow-y-auto p-0 relative overflow-hidden">
+              <Button
+                onClick={handleToggleFullscreen}
+                variant="secondary"
+                size="sm"
+                className="absolute top-3 right-3 z-10 bg-black/60 hover:bg-black/80 border border-white/20 text-white rounded-full"
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="w-4 h-4" />
+                ) : (
+                  <Maximize2 className="w-4 h-4" />
+                )}
+              </Button>
               {/* Main Video Element - Remote Stream (NOT MUTED) */}
               <video
                 ref={mainVideoRef}

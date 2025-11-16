@@ -192,24 +192,37 @@ io.on('connection', (socket) => {
         const otherParticipantId = session.hostId.toString() === socket.userId.toString() 
           ? session.learnerId 
           : session.hostId;
-        
+
         // Populate session with full details for better notification content
         const populatedSession = await Session.findById(normalizedSessionId)
           .populate('hostId', 'name')
           .populate('learnerId', 'name');
 
-        const notification = await Notification.create({
+        const existingNotification = await Notification.findOne({
           userId: otherParticipantId,
           senderId: socket.userId,
           type: 'session_join',
-          title: 'Session Partner Joined!',
-          content: `${joiningUser?.name || 'Your session partner'} has joined the session. Join now to start your swap!`,
           relatedId: normalizedSessionId,
-          relatedModel: 'Session'
-        });
+        }).sort({ createdAt: -1 });
+
+        let notification = existingNotification;
+
+        if (!notification) {
+          notification = await Notification.create({
+            userId: otherParticipantId,
+            senderId: socket.userId,
+            type: 'session_join',
+            title: 'Session Partner Joined!',
+            content: `${joiningUser?.name || 'Your session partner'} has joined the session. Join now to start your swap!`,
+            relatedId: normalizedSessionId,
+            relatedModel: 'Session'
+          });
+          console.log(`✅ Created notification for user ${otherParticipantId} about ${joiningUser?.name} joining session`);
+        } else {
+          console.log(`ℹ️ Using existing session_join notification for user ${otherParticipantId} in session ${normalizedSessionId}`);
+        }
 
         await broadcastNotifications(notification);
-        console.log(`✅ Created notification for user ${otherParticipantId} about ${joiningUser?.name} joining session`);
       } catch (notifError) {
         console.error('Error creating session join notification:', notifError);
         // Don't block the session join if notification fails
