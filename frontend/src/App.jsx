@@ -23,6 +23,7 @@ import StepProfileInfo from "./pages/profile-setup/StepProfileInfo";
 
 // Other Pages
 import Home from "./pages/Home";
+import About from "./pages/About";
 import Events from './pages/Events/Events'; // Add this import
 import LiveSession from './pages/LiveSession/LiveSession'; // Add this import
 import SimpleVideoCall from "./components/Session/SimpleVideoCall";
@@ -38,6 +39,7 @@ function App() {
 
       {/* Public Routes */}
       <Route path="/landing-page" element={<Home />} />
+      <Route path="/about" element={<About />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/events" element={<Events />} />

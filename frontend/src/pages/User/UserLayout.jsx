@@ -1,7 +1,15 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, Navigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import Navbar from "@/pages/User/Navbar";
 
 const UserLayout = () => {
+    const { user, tokens } = useSelector((state) => state.user || {});
+
+    // If not authenticated, redirect to login page
+    if (!tokens || !user) {
+        return <Navigate to="/login" replace />;
+    }
+
     return (
         <div className="min-h-screen flex flex-col">
             <Navbar />

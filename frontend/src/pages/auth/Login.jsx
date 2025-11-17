@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Github, Mail } from "lucide-react";
+import { Github, Mail, ArrowLeft } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 
 export default function Login() {
@@ -56,7 +56,15 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="relative flex min-h-screen items-center justify-center bg-gray-50">
+      <Link
+        to="/landing-page"
+        className="absolute left-6 top-6 inline-flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-gray-800"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        <span>Back to landing page</span>
+      </Link>
+
       <Card className="w-full max-w-md p-6 shadow-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-semibold">Welcome back</CardTitle>

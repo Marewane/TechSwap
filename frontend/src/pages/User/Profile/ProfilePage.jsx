@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +34,7 @@ import CreatePostModal from '../Post/components/CreatePostModal';
 
 const ProfilePage = () => {
     const dispatch = useDispatch();
+    const location = useLocation();
     const { userId } = useParams();
     const { myProfile, userProfile, loading, error, successMessage, isOwner } = useSelector((state) => state.profile);
     const [activeTab, setActiveTab] = useState('overview');
@@ -50,6 +51,22 @@ const ProfilePage = () => {
             dispatch(fetchMyProfile());
         }
     }, [dispatch, userId]);
+
+    // When navigated from navbar with state, optionally open wallet tab and Add Funds dialog
+    useEffect(() => {
+        const state = location.state || {};
+        const { openAddFunds, tab } = state;
+
+        if (tab === 'wallet') {
+            setActiveTab('wallet');
+        }
+
+        if (openAddFunds && isOwner) {
+            setTopupAmount('100');
+            setTopupError('');
+            setShowAddFundsDialog(true);
+        }
+    }, [location.state, isOwner]);
 
     const handleAddFundsClick = () => {
         setTopupAmount('100');

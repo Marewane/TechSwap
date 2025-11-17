@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setAuth } from "@/features/user/userSlice";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
 import api from "@/services/api";
+import { ArrowLeft } from "lucide-react";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -92,7 +93,15 @@ export default function Register() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="relative flex min-h-screen items-center justify-center bg-gray-50">
+      <Link
+        to="/landing-page"
+        className="absolute left-6 top-6 inline-flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-gray-800"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        <span>Back to landing page</span>
+      </Link>
+
       <div className="w-full max-w-md space-y-6 rounded-lg border bg-white p-8 shadow">
         <h1 className="text-2xl font-semibold text-center">Create an account</h1>
 

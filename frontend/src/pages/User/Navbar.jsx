@@ -112,7 +112,7 @@ const Navbar = () => {
       api.post("/auth/logout").catch(() => {});
     } catch {}
     dispatch(logoutAction());
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   // On hard refresh or direct visit, hydrate profile so avatar/name render
@@ -189,49 +189,64 @@ const Navbar = () => {
   }, [socket, fetchUnreadCount]);
 
   return (
-    <nav className="fixed top-0 left-0 w-full bg-white border-b z-50">
-      <div className="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
+    <nav className="fixed top-0 left-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         {/* Logo */}
         <Link
           to="/home"
-          className="flex items-center space-x-2 text-2xl font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+          className="flex items-center gap-2 text-sm font-medium tracking-tight text-primary"
         >
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">TS</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#6D7AFF] via-[#38F9D7] to-[#2E2F46] shadow-sm shadow-black/10">
+            <span className="text-[11px] font-bold text-white">TS</span>
           </div>
-          <span>TechSwap</span>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold leading-tight">TechSwap</span>
+            <span className="text-[10px] font-medium text-muted-foreground">Swap skills. Grow together.</span>
+          </div>
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-6">
+        <div className="hidden items-center gap-6 md:flex">
           {/* Navigation Links */}
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center gap-1">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`relative px-4 py-2 rounded-lg font-medium transition-all ${
+                className={`relative rounded-full px-4 py-2 text-xs font-medium transition-colors ${
                   isActivePath(item.path)
-                    ? "text-indigo-600 bg-indigo-50"
-                    : "text-gray-600 hover:text-indigo-600 hover:bg-gray-50"
+                    ? "bg-[#E3E7FF] text-primary"
+                    : "text-muted-foreground hover:bg-muted/40 hover:text-primary"
                 }`}
               >
                 {item.label}
                 {isActivePath(item.path) && (
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full" />
+                  <div className="absolute -bottom-0.5 left-1/2 h-1 w-6 -translate-x-1/2 rounded-full bg-[#38F9D7]/70" />
                 )}
               </Link>
             ))}
           </div>
 
-          {/* Wallet Balance */}
-          <div className="flex items-center px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-700 text-sm font-semibold">
-            <CircleDollarSign className="h-4 w-4 mr-1" />
-            {loadingWallet ? (
-              <span className="text-gray-400">Loading...</span>
-            ) : (
-              `${formatAmount(walletBalance)} Coins`
-            )}
+          {/* Wallet Balance + Buy Coins */}
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center rounded-full border border-border bg-gradient-to-r from-[#E3E7FF] via-white to-[#E3E7FF] px-3 py-1.5 text-xs font-medium text-primary shadow-sm shadow-black/5 lg:flex">
+              <CircleDollarSign className="mr-1 h-4 w-4 text-[#6D7AFF]" />
+              {loadingWallet ? (
+                <span className="text-muted-foreground">Loading...</span>
+              ) : (
+                `${formatAmount(walletBalance)} Coins`
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-full border-[#6D7AFF] text-[11px] font-semibold text-primary hover:bg-[#E3E7FF]"
+              onClick={() =>
+                navigate("/profile", { state: { openAddFunds: true, tab: "wallet" } })
+              }
+            >
+              Buy Coins
+            </Button>
           </div>
 
           {/* Notification Bell with unread badge */}
@@ -313,10 +328,10 @@ const Navbar = () => {
                   <SheetClose asChild key={item.path}>
                     <Link
                       to={item.path}
-                      className={`text-lg font-medium py-3 px-4 rounded-lg transition-colors ${
+                      className={`rounded-xl py-3 px-4 text-base font-medium transition-colors ${
                         isActivePath(item.path)
-                          ? "text-indigo-600 bg-indigo-50"
-                          : "text-gray-700 hover:text-indigo-600"
+                          ? "bg-[#E3E7FF] text-primary"
+                          : "text-muted-foreground hover:text-primary"
                       }`}
                     >
                       {item.label}
@@ -325,14 +340,28 @@ const Navbar = () => {
                 ))}
 
                 {/* Mobile Wallet Balance */}
-                <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center">
-                    <CircleDollarSign className="h-5 w-5 text-blue-600 mr-2" />
-                    <span className="font-semibold text-blue-700">Wallet Balance</span>
+                <div className="space-y-2 rounded-2xl border border-border bg-gradient-to-r from-[#EEF0FF] via-white to-[#EEF0FF] px-4 py-3 shadow-sm shadow-black/5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <CircleDollarSign className="mr-2 h-5 w-5 text-[#6D7AFF]" />
+                      <span className="text-sm font-semibold text-primary">Wallet Balance</span>
+                    </div>
+                    <span className="text-sm font-semibold text-primary">
+                      {loadingWallet ? "..." : `${formatAmount(walletBalance)} Coins`}
+                    </span>
                   </div>
-                  <span className="text-lg font-bold text-blue-800">
-                    {loadingWallet ? "..." : `${formatAmount(walletBalance)} Coins`}
-                  </span>
+                  <SheetClose asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-1 w-full rounded-full border-[#6D7AFF] text-[11px] font-semibold text-primary hover:bg-[#E3E7FF]"
+                      onClick={() =>
+                        navigate("/profile", { state: { openAddFunds: true, tab: "wallet" } })
+                      }
+                    >
+                      Buy Coins
+                    </Button>
+                  </SheetClose>
                 </div>
 
                 {/* Mobile Notification with badge */}
