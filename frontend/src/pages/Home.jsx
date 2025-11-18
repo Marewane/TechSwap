@@ -1,9 +1,28 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link,useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight, Users, Shield, Star, Clock, CircleDollarSign } from "lucide-react";
 
 export default function Home() {
+  const location = useLocation();
+
+  useEffect(() => {
+    let hash = location.hash;
+
+    // Fallback: if we navigated using React Router state (e.g. from About page)
+    if (!hash && location.state && location.state.scrollTo) {
+      hash = `#${location.state.scrollTo}`;
+    }
+
+    if (hash) {
+      const id = hash.replace("#", "");
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  }, [location.hash, location.state]);
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="relative overflow-hidden">
@@ -18,15 +37,11 @@ export default function Home() {
                 to="/landing-page"
                 className="flex items-center gap-3 text-sm font-medium tracking-tight text-primary"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#6D7AFF] via-[#38F9D7] to-[#2E2F46] shadow-md shadow-black/10">
-                  <span className="text-xs font-bold text-white">TS</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-base font-semibold leading-tight">TechSwap</span>
-                  <span className="text-[11px] font-medium text-muted-foreground">
-                    Peer-to-peer skill swaps for IT pros
-                  </span>
-                </div>
+                <img
+                  src="/TechswapLogo.svg"
+                  alt="TechSwap"
+                  className="h-22 w-auto object-contain"
+                />
               </Link>
 
               <nav className="hidden items-center gap-6 text-xs font-medium text-muted-foreground md:flex">
@@ -347,10 +362,10 @@ export default function Home() {
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6D7AFF]">
                       Trust & community
                     </p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight text-primary sm:text-3xl">
+                    <h2 className="mt-3 break-words text-2xl font-semibold tracking-tight text-primary sm:text-3xl">
                       A community of ambitious, generous technologists.
                     </h2>
-                    <div className="mt-5 grid grid-cols-2 gap-4 text-xs">
+                    <div className="mt-5 grid gap-4 text-xs sm:grid-cols-2">
                       <div className="rounded-2xl border border-border bg-card p-4 shadow-sm shadow-black/5">
                         <p className="text-[11px] font-medium text-muted-foreground">
                           Trusted by
@@ -368,7 +383,7 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="lg:col-span-7">
-                    <div className="flex gap-4 overflow-x-auto pb-2">
+                    <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
                       {[
                         {
                           role: "Senior Backend Engineer",
@@ -391,7 +406,7 @@ export default function Home() {
                       ].map((item, idx) => (
                         <div
                           key={idx}
-                          className="min-w-[260px] flex-1 rounded-2xl border border-border bg-card p-4 shadow-sm shadow-black/5"
+                          className="rounded-2xl border border-border bg-card p-4 shadow-sm shadow-black/5"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-xs font-semibold text-primary">{item.role}</p>

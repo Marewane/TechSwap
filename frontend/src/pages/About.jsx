@@ -18,27 +18,31 @@ export default function About() {
                 to="/landing-page"
                 className="flex items-center gap-3 text-sm font-medium tracking-tight text-primary"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#6D7AFF] via-[#38F9D7] to-[#2E2F46] shadow-md shadow-black/10">
-                  <span className="text-xs font-bold text-white">TS</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-base font-semibold leading-tight">TechSwap</span>
-                  <span className="text-[11px] font-medium text-muted-foreground">
-                    Peer-to-peer skill swaps for IT pros
-                  </span>
-                </div>
+                <img
+                  src="/TechswapLogo.svg"
+                  alt="TechSwap"
+                  className="h-22 w-auto object-contain"
+                />
               </Link>
 
               <nav className="hidden items-center gap-6 text-xs font-medium text-muted-foreground md:flex">
                 <Link to="/landing-page" className="transition-colors hover:text-primary">
                   Home
                 </Link>
-                <a href="/landing-page#how-it-works" className="transition-colors hover:text-primary">
+                <Link
+                  to="/landing-page"
+                  state={{ scrollTo: "how-it-works" }}
+                  className="transition-colors hover:text-primary"
+                >
                   How It Works
-                </a>
-                <a href="/landing-page#pricing" className="transition-colors hover:text-primary">
+                </Link>
+                <Link
+                  to="/landing-page"
+                  state={{ scrollTo: "pricing" }}
+                  className="transition-colors hover:text-primary"
+                >
                   Pricing
-                </a>
+                </Link>
                 <Link to="/about" className="text-primary">
                   About
                 </Link>
@@ -361,12 +365,20 @@ export default function About() {
                   <Link to="/landing-page" className="hover:text-white">
                     Home
                   </Link>
-                  <a href="/landing-page#community" className="hover:text-white">
+                  <Link
+                    to="/landing-page"
+                    state={{ scrollTo: "community" }}
+                    className="hover:text-white"
+                  >
                     Community
-                  </a>
-                  <a href="/landing-page#pricing" className="hover:text-white">
+                  </Link>
+                  <Link
+                    to="/landing-page"
+                    state={{ scrollTo: "pricing" }}
+                    className="hover:text-white"
+                  >
                     Pricing
-                  </a>
+                  </Link>
                   <a href="mailto:support@techswap.io" className="hover:text-white">
                     Contact support
                   </a>

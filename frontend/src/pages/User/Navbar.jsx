@@ -196,13 +196,11 @@ const Navbar = () => {
           to="/home"
           className="flex items-center gap-2 text-sm font-medium tracking-tight text-primary"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#6D7AFF] via-[#38F9D7] to-[#2E2F46] shadow-sm shadow-black/10">
-            <span className="text-[11px] font-bold text-white">TS</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold leading-tight">TechSwap</span>
-            <span className="text-[10px] font-medium text-muted-foreground">Swap skills. Grow together.</span>
-          </div>
+          <img
+            src="/TechswapLogo.svg"
+            alt="TechSwap"
+            className="h-22 w-auto object-contain"
+          />
         </Link>
 
         {/* Desktop Navigation */}
