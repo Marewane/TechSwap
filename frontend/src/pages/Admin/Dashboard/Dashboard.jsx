@@ -59,13 +59,13 @@ const DashboardPage = () => {
     const { stats, monthlyRevenue, recentTransactions, reportsPerMonth, userGrowth, topUsers } = data;
 
     return (
-        <div className="p-6 space-y-8 min-h-screen">
+        <div className="min-h-screen space-y-8 p-4 sm:p-6">
             {/* ---------- STATS SECTION ---------- */}
             <DashboardStats stats={stats} />
 
             {/* ---------- REVENUE CHART ---------- */}
-            <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="md:col-span-2">
                     {monthlyRevenue && monthlyRevenue.length > 0 ? (
                         <RevenueChart monthlyRevenue={monthlyRevenue} />
                     ) : (
@@ -77,7 +77,7 @@ const DashboardPage = () => {
                 <TopUsers topUsers={topUsers} />
             </div>
             {/* ---------- TRANSACTIONS TABLE ---------- */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <RecentTransactions transactions={recentTransactions} />
                 <ReportsChart reportsPerMonth={reportsPerMonth} />
             </div>
